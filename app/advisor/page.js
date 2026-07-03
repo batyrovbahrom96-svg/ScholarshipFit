@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
 import Starfield from '@/components/site/Starfield'
@@ -10,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { store } from '@/lib/client-store'
 import { Send, Sparkles, Info, ShieldCheck } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
+
+const NOVA_URL = 'https://customer-assets.emergentagent.com/job_dea30a66-dd5d-4b69-9dee-68cfc5172ec3/artifacts/g1gq6k95_image.png'
 
 const STARTERS = [
   'I want full funding in Germany for engineering with IELTS 7.0 and GPA 3.7.',
@@ -74,11 +77,15 @@ function Advisor() {
       <div className="relative">
         <div className="absolute inset-0 -z-0"><Starfield density={100}/></div>
         <div className="container mx-auto max-w-4xl px-4 py-10 relative">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
               <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200"><Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5</Badge>
               <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">AI Scholarship Advisor</h1>
               <p className="mt-1 text-slate-400">Ask in plain language. Nova only references scholarships from our source-linked database.</p>
+            </div>
+            <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-cyan-400/30 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
+              <Image src={NOVA_URL} alt="Nova" fill sizes="80px" className="object-cover object-top scale-125"/>
+              <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#05070d]"/>
             </div>
           </div>
 

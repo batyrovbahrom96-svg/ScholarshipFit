@@ -56,10 +56,11 @@ function Home() {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-0">
-          <Starfield density={180} />
+          <Starfield density={140} />
         </div>
-        <div className="container mx-auto max-w-7xl px-4 pt-16 pb-20 md:pt-24 md:pb-28 relative">
-          <div className="grid gap-10 md:grid-cols-12 items-center">
+        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-0 h-[520px] bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.10),transparent_60%)]" />
+        <div className="container mx-auto max-w-7xl px-4 pt-10 pb-16 md:pt-16 md:pb-24 relative">
+          <div className="grid gap-8 md:gap-10 md:grid-cols-12 items-center">
             <div className="md:col-span-7">
               <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">
                 <Sparkles className="mr-1.5 h-3 w-3" /> AI-powered · Source-linked · No invented results
@@ -67,10 +68,10 @@ function Home() {
               <h1 className="mt-5 text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05] text-white">
                 Find <span className="text-gradient-cyan">real scholarships</span> that fit your profile.
               </h1>
-              <p className="mt-5 max-w-2xl text-lg text-slate-300">
+              <p className="mt-4 max-w-2xl text-base md:text-lg text-slate-300 leading-relaxed">
                 ScholarshipFit turns your academic profile into an AI-powered, source-linked scholarship shortlist — with fit reasoning, funding notes, deadline status, and official links to apply.
               </p>
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Link href="/onboarding">
                   <Button size="lg" className="bg-orange-500 hover:bg-orange-400 text-white shadow-[0_20px_60px_-15px_rgba(249,115,22,0.65)]">
                     <Rocket className="mr-2 h-5 w-5"/> Check My Scholarships
@@ -82,7 +83,7 @@ function Home() {
                   </Button>
                 </Link>
               </div>
-              <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl">
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl">
                 <TrustBullet icon={<Link2 className="h-4 w-4"/>} text="Official source links"/>
                 <TrustBullet icon={<Brain className="h-4 w-4"/>} text="AI fit reasoning"/>
                 <TrustBullet icon={<Calendar className="h-4 w-4"/>} text="Deadline & funding notes"/>
@@ -178,9 +179,22 @@ function Home() {
       <Section title="Meet Nova — your AI scholarship advisor" caption="Ask in plain language. Get source-linked answers.">
         <div className="grid gap-8 md:grid-cols-12 items-center">
           <div className="md:col-span-5">
-            <div className="relative aspect-square max-w-md">
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/30 to-indigo-500/10 blur-3xl opacity-70"/>
-              <Image src={LOGO_URL} alt="Nova, ScholarshipFit AI guide" width={640} height={640} className="relative rounded-3xl border border-white/10 object-cover"/>
+            <div className="relative mx-auto max-w-sm">
+              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-cyan-500/25 via-sky-500/10 to-indigo-500/25 blur-2xl opacity-70"/>
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01]">
+                <div className="aspect-[4/5] relative">
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-transparent to-transparent z-10"/>
+                  <Image src={LOGO_URL} alt="Nova — ScholarshipFit AI guide" fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover object-center"/>
+                  {/* Floating data pills */}
+                  <div className="absolute top-4 right-4 z-20 rounded-full border border-cyan-400/30 bg-[#05070d]/70 px-3 py-1 text-xs text-cyan-200 backdrop-blur-md flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"/> Online
+                  </div>
+                  <div className="absolute bottom-6 left-4 right-4 z-20 rounded-xl border border-white/10 bg-[#05070d]/75 px-3 py-2 backdrop-blur-md">
+                    <p className="text-[10px] uppercase tracking-widest text-cyan-300">Nova · Claude Sonnet 4.5</p>
+                    <p className="mt-0.5 text-sm text-slate-100 leading-snug">Source-linked reasoning. Never invents scholarships.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="md:col-span-7 space-y-3">

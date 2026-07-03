@@ -8,12 +8,12 @@ export default function Logo({ size = 'md', href = '/' }) {
   }
   const s = sizes[size] || sizes.md
   return (
-    <Link href={href} className="group inline-flex items-center gap-2.5">
+    <Link href={href} className="group inline-flex items-center gap-2.5 whitespace-nowrap">
       <span className={`relative ${s.dot} shrink-0`}>
-        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 opacity-90 group-hover:opacity-100 transition"></span>
-        <span className="absolute inset-[3px] rounded-full bg-[#05070d]"></span>
-        <span className="absolute inset-[6px] rounded-full bg-gradient-to-br from-cyan-300 to-sky-500 blur-[2px]"></span>
-        <span className="absolute -inset-1 rounded-full border border-cyan-400/25" style={{ animation: 'orbit 8s linear infinite' }} />
+        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600" />
+        <span className="absolute inset-[3px] rounded-full bg-[#05070d]" />
+        <span className="absolute inset-[7px] rounded-full bg-cyan-300 blur-[0.5px]" />
+        <span className="absolute inset-[9px] rounded-full bg-white/90" />
       </span>
       <span className={`${s.text} font-semibold tracking-tight text-white`}>
         Scholarship<span className="text-cyan-400">Fit</span>

@@ -39,10 +39,21 @@ function LogoTile({ logo }) {
   )
 }
 
-export default function UniversityMarquee() {
+export default function UniversityMarquee({ compact = false }) {
   const doubled = [...LOGOS, ...LOGOS]
   const reversed = [...LOGOS].reverse()
   const doubledReversed = [...reversed, ...reversed]
+
+  if (compact) {
+    return (
+      <div className="relative fade-x mt-4">
+        <div className="flex gap-3 animate-marquee w-max py-2">
+          {doubled.map((l, i) => (<LogoTile key={`c-${i}`} logo={l}/>))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <section className="relative py-14 md:py-20">
       <div className="text-center mb-8 px-4">

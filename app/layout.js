@@ -2,18 +2,15 @@ import './globals.css'
 import { Providers } from './providers'
 
 export const metadata = {
-  title: 'ScholarshipFit — AI-powered scholarship research for international students',
-  description: 'Turn your academic profile into an AI-powered, source-linked scholarship shortlist. ScholarshipFit analyzes your degree, field, scores, budget, and deadlines to recommend real scholarships with official source links and clear next steps.',
+  title: 'ScholarshipFit — AI-powered, source-linked scholarship research',
+  description: 'Turn your academic profile into an AI-powered, source-linked scholarship shortlist. Real records, official sources, honest reasoning — no invented results.',
   icons: { icon: '/favicon.svg' },
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <script dangerouslySetInnerHTML={{__html:'window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);'}} />
-      </head>
-      <body className="bg-[#05070d] text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-white">
+    <html lang="en">
+      <body className="paper-bg text-[#0A0A0A] antialiased selection:bg-black selection:text-white">
         <Providers>{children}</Providers>
       </body>
     </html>

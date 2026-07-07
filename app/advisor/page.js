@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
-import Starfield from '@/components/site/Starfield'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -26,11 +25,11 @@ function Md({ text }) {
   const html = (text || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a target="_blank" rel="noopener noreferrer" class="text-cyan-300 underline underline-offset-2 hover:text-cyan-200" href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a target="_blank" rel="noopener noreferrer" class="text-cyan-700 underline underline-offset-2 hover:text-cyan-800" href="$2">$1</a>')
     .replace(/(^|\n)-\s(.+)/g,'$1<li>$2</li>')
     .replace(/\n\n/g,'<br/><br/>')
     .replace(/\n/g,'<br/>')
-  return <div className="prose prose-invert max-w-none text-slate-100 [&_li]:list-disc [&_li]:ml-5 leading-relaxed" dangerouslySetInnerHTML={{__html: html}} />
+  return <div className="prose prose-invert max-w-none text-[#0A0A0A] [&_li]:list-disc [&_li]:ml-5 leading-relaxed" dangerouslySetInnerHTML={{__html: html}} />
 }
 
 function Advisor() {
@@ -72,48 +71,47 @@ function Advisor() {
   }
 
   return (
-    <div className="cosmos-bg min-h-screen">
+    <div className="paper-bg min-h-screen">
       <Navbar />
       <div className="relative">
-        <div className="absolute inset-0 -z-0"><Starfield density={100}/></div>
         <div className="container mx-auto max-w-4xl px-4 py-10 relative">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200"><Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5</Badge>
-              <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">AI Scholarship Advisor</h1>
-              <p className="mt-1 text-slate-400">Ask in plain language. Nova only references scholarships from our source-linked database.</p>
+              <Badge variant="outline" className="border-cyan-200 bg-cyan-50 text-cyan-800"><Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5</Badge>
+              <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-[#0A0A0A]">AI Scholarship Advisor</h1>
+              <p className="mt-1 text-[#6B6357]">Ask in plain language. Nova only references scholarships from our source-linked database.</p>
             </div>
-            <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-cyan-400/30 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
+            <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-cyan-200 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
               <Image src={NOVA_URL} alt="Nova" fill sizes="80px" className="object-cover object-top scale-125"/>
               <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#05070d]"/>
             </div>
           </div>
 
-          <Card className="mt-6 border-white/10 bg-white/[0.03]">
+          <Card className="mt-6 border-[#E8E3D6] bg-white">
             <CardContent className="p-0">
               <div ref={scrollRef} className="max-h-[60vh] min-h-[380px] overflow-y-auto p-5 space-y-4">
                 {messages.length === 0 && (
                   <div>
-                    <p className="text-sm text-slate-400">Start with an example:</p>
+                    <p className="text-sm text-[#6B6357]">Start with an example:</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {STARTERS.map((s,i)=>(
-                        <button key={i} onClick={()=>send(s)} className="text-left rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-500/5">{s}</button>
+                        <button key={i} onClick={()=>send(s)} className="text-left rounded-lg border border-[#E8E3D6] bg-white px-3 py-2 text-sm text-[#0A0A0A] hover:border-cyan-200 hover:bg-cyan-50">{s}</button>
                       ))}
                     </div>
                   </div>
                 )}
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.role==='user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user' ? 'bg-cyan-500 text-black' : 'bg-white/[0.05] border border-white/10 text-slate-100'}`}>
-                      {m.role==='assistant' && <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-300">Nova</p>}
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user' ? 'bg-cyan-500 text-black' : 'bg-white border border-[#E8E3D6] text-[#0A0A0A]'}`}>
+                      {m.role==='assistant' && <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-700">Nova</p>}
                       {m.role==='user' ? <p>{m.content}</p> : <Md text={m.content}/>}
                     </div>
                   </div>
                 ))}
                 {busy && (
                   <div className="flex justify-start">
-                    <div className="rounded-2xl px-4 py-3 text-sm bg-white/[0.05] border border-white/10 text-slate-100">
-                      <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-300">Nova</p>
+                    <div className="rounded-2xl px-4 py-3 text-sm bg-white border border-[#E8E3D6] text-[#0A0A0A]">
+                      <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-700">Nova</p>
                       <span className="inline-flex gap-1">
                         <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce"/>
                         <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce" style={{animationDelay:'0.1s'}}/>
@@ -123,14 +121,14 @@ function Advisor() {
                   </div>
                 )}
               </div>
-              <form onSubmit={e=>{e.preventDefault(); send()}} className="border-t border-white/5 p-3 flex gap-2">
-                <Input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Nova anything about scholarships..." className="bg-white/[0.04] border-white/10 text-slate-100 placeholder:text-slate-500"/>
-                <Button type="submit" disabled={busy || !input.trim()} className="bg-cyan-500 text-black hover:bg-cyan-400"><Send className="h-4 w-4"/></Button>
+              <form onSubmit={e=>{e.preventDefault(); send()}} className="border-t border-[#E8E3D6] p-3 flex gap-2">
+                <Input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Nova anything about scholarships..." className="bg-white border-[#E8E3D6] text-[#0A0A0A] placeholder:text-[#8a8171]"/>
+                <Button type="submit" disabled={busy || !input.trim()} className="bg-[#0A0A0A] text-white hover:bg-[#1a1a1a] btn-pill"><Send className="h-4 w-4"/></Button>
               </form>
             </CardContent>
           </Card>
 
-          <p className="mt-3 flex items-start gap-1.5 text-xs text-slate-500"><Info className="mt-0.5 h-3 w-3"/>ScholarshipFit provides informational scholarship research only. It does not guarantee admission, scholarships, visas, or funding. Users apply directly through official provider websites.</p>
+          <p className="mt-3 flex items-start gap-1.5 text-xs text-[#8a8171]"><Info className="mt-0.5 h-3 w-3"/>ScholarshipFit provides informational scholarship research only. It does not guarantee admission, scholarships, visas, or funding. Users apply directly through official provider websites.</p>
         </div>
       </div>
       <Footer />

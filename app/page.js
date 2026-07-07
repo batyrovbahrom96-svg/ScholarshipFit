@@ -1,11 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
-import Starfield from '@/components/site/Starfield'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,29 +11,31 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { store } from '@/lib/client-store'
 import {
-  Sparkles, ShieldCheck, Link2, Calendar, DollarSign, GraduationCap, Compass, BookOpen, LayoutDashboard,
-  Rocket, ArrowRight, CheckCircle2, Globe2, Brain, ScrollText, MessageSquare, Database as DbIcon, Star
+  ArrowRight, ArrowUpRight, Sparkles, ShieldCheck, Link2, Calendar, Brain, Rocket, CheckCircle2,
+  Search, MessageSquare, LayoutDashboard, FileText, GraduationCap, Globe2, DollarSign, ExternalLink,
+  Award, BookOpen, Compass, ClipboardCheck, XCircle, ChevronRight
 } from 'lucide-react'
 
-const LOGO_URL = 'https://customer-assets.emergentagent.com/job_dea30a66-dd5d-4b69-9dee-68cfc5172ec3/artifacts/g1gq6k95_image.png'
-
-const SAMPLE_PREVIEW = [
-  { name: 'Türkiye Scholarships', uni: 'Republic of Türkiye', country: 'Türkiye', score: 92, tag: 'Full funding', trust: 'Source-linked' },
-  { name: 'DAAD EPOS', uni: 'DAAD', country: 'Germany', score: 78, tag: 'Full funding · DAC list', trust: 'Source-linked' },
-  { name: 'Padua Excellence', uni: 'University of Padua', country: 'Italy', score: 74, tag: '€8,000/yr + fee waiver', trust: 'Source-linked' },
+const INSTITUTIONS = [
+  { name: 'University of Bologna', country: 'Italy' },
+  { name: 'University of Padua', country: 'Italy' },
+  { name: 'DAAD', country: 'Germany' },
+  { name: 'University of Toronto', country: 'Canada' },
+  { name: 'UBC', country: 'Canada' },
+  { name: 'Türkiye Bursları', country: 'Türkiye' },
+  { name: 'Stipendium Hungaricum', country: 'Hungary' },
+  { name: 'KAIST', country: 'South Korea' },
 ]
 
 function Home() {
   const router = useRouter()
-  const [form, setForm] = useState({
-    current_level: '',
-    degree_level: '',
-    intended_major: '',
-    preferred_countries: '',
-    annual_budget_usd: '',
-    gpa: '',
-  })
+  const [scholars, setScholars] = useState([])
+  const [form, setForm] = useState({ current_level:'', degree_level:'', intended_major:'', preferred_countries:'', annual_budget_usd:'', gpa:'' })
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  useEffect(() => {
+    fetch('/api/scholarships').then(r=>r.json()).then(d => setScholars(d.scholarships || []))
+  }, [])
 
   const startMatch = () => {
     const seed = {
@@ -50,245 +50,252 @@ function Home() {
   }
 
   return (
-    <div className="cosmos-bg min-h-screen">
+    <div className="paper-bg min-h-screen">
       <Navbar />
 
-      {/* HERO */}
+      {/* ============== HERO ============== */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-0">
-          <Starfield density={140} />
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-0 h-[520px] bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.10),transparent_60%)]" />
-        <div className="container mx-auto max-w-7xl px-4 pt-10 pb-16 md:pt-16 md:pb-24 relative">
-          <div className="grid gap-8 md:gap-10 md:grid-cols-12 items-center">
-            <div className="md:col-span-7">
-              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">
-                <Sparkles className="mr-1.5 h-3 w-3" /> AI-powered · Source-linked · No invented results
-              </Badge>
-              <h1 className="mt-5 text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05] text-white">
-                Find <span className="text-gradient-cyan">real scholarships</span> that fit your profile.
-              </h1>
-              <p className="mt-4 max-w-2xl text-base md:text-lg text-slate-300 leading-relaxed">
-                ScholarshipFit turns your academic profile into an AI-powered, source-linked scholarship shortlist — with fit reasoning, funding notes, deadline status, and official links to apply.
-              </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link href="/onboarding">
-                  <Button size="lg" className="bg-orange-500 hover:bg-orange-400 text-white shadow-[0_20px_60px_-15px_rgba(249,115,22,0.65)]">
-                    <Rocket className="mr-2 h-5 w-5"/> Check My Scholarships
-                  </Button>
-                </Link>
-                <Link href="/sample-report">
-                  <Button size="lg" variant="outline" className="border-white/15 bg-white/[0.03] text-slate-100 hover:bg-white/[0.06]">
-                    View Sample Report <ArrowRight className="ml-2 h-4 w-4"/>
-                  </Button>
-                </Link>
-              </div>
-              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl">
-                <TrustBullet icon={<Link2 className="h-4 w-4"/>} text="Official source links"/>
-                <TrustBullet icon={<Brain className="h-4 w-4"/>} text="AI fit reasoning"/>
-                <TrustBullet icon={<Calendar className="h-4 w-4"/>} text="Deadline & funding notes"/>
-                <TrustBullet icon={<ShieldCheck className="h-4 w-4"/>} text="No invented results"/>
-              </div>
+        {/* Soft ambient blooms — no cosmos, just warm colour lift */}
+        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-0 h-[640px] bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.10),transparent_55%)]" />
+        <div className="pointer-events-none absolute -left-40 top-20 -z-0 h-96 w-96 rounded-full bg-cyan-200/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-40 top-40 -z-0 h-96 w-96 rounded-full bg-pink-200/25 blur-3xl" />
+
+        <div className="container mx-auto max-w-7xl px-4 pt-16 pb-14 md:pt-24 md:pb-16 relative">
+          {/* Decorative floating icons */}
+          <div className="pointer-events-none absolute left-[8%] top-[22%] hidden md:block">
+            <FloatingIcon rotate="-8deg"><GraduationCap className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          </div>
+          <div className="pointer-events-none absolute right-[9%] top-[18%] hidden md:block">
+            <FloatingIcon delay="1s" rotate="12deg" tint="cyan"><Globe2 className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          </div>
+          <div className="pointer-events-none absolute left-[12%] top-[62%] hidden lg:block">
+            <FloatingIcon delay="2s" rotate="-14deg" tint="pink"><Award className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          </div>
+          <div className="pointer-events-none absolute right-[10%] top-[62%] hidden lg:block">
+            <FloatingIcon delay="0.8s" rotate="10deg" tint="orange"><ShieldCheck className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          </div>
+
+          <div className="relative mx-auto max-w-4xl text-center">
+            <Badge variant="outline" className="border-black/10 bg-white text-[#4b453b] rounded-full px-3 py-1">
+              <Sparkles className="mr-1.5 h-3 w-3 text-cyan-600" /> AI-powered · Source-linked · No invented results
+            </Badge>
+            <h1 className="mt-6 text-5xl md:text-7xl font-semibold tracking-[-0.03em] leading-[0.98] text-[#0A0A0A]">
+              Find <span className="text-gradient-warm">real scholarships</span>
+              <br className="hidden md:block"/> that fit your profile.
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-[#4b453b] leading-relaxed">
+              Turn your academic profile into an AI-powered, source-linked scholarship shortlist — with fit reasoning, funding notes, deadline status, and official links to apply.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link href="/onboarding">
+                <Button size="lg" className="bg-[#0A0A0A] hover:bg-[#1a1a1a] text-white btn-pill px-7 h-12 text-base">
+                  Check My Scholarships <ArrowRight className="ml-2 h-4 w-4"/>
+                </Button>
+              </Link>
+              <Link href="/sample-report">
+                <Button size="lg" variant="ghost" className="text-[#0A0A0A] hover:bg-black/[0.05] btn-pill px-6 h-12 text-base">
+                  View Sample Report <ArrowUpRight className="ml-1.5 h-4 w-4"/>
+                </Button>
+              </Link>
             </div>
 
-            {/* Search / Profile Panel */}
-            <div className="md:col-span-5">
-              <div className="relative">
-                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-cyan-500/30 via-sky-500/10 to-indigo-500/30 blur-xl opacity-60"/>
-                <Card className="relative glass-strong border-white/10 shadow-[0_40px_120px_-30px_rgba(56,189,248,0.35)]">
-                  <CardContent className="p-5 md:p-6">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center"><Compass className="h-4 w-4 text-cyan-300"/></div>
-                      <div>
-                        <p className="text-xs uppercase tracking-widest text-cyan-300">Command Panel</p>
-                        <p className="text-white font-medium">Start your ScholarshipFit search</p>
-                      </div>
-                    </div>
-                    <div className="mt-5 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <FieldSelect label="Current level" value={form.current_level} onChange={v=>upd('current_level',v)} options={['High school','Bachelor','Master','Graduate','Working professional']} />
-                        <FieldSelect label="Target degree" value={form.degree_level} onChange={v=>upd('degree_level',v)} options={['Bachelor','Master','PhD','Research program']} />
-                      </div>
-                      <FieldInput label="Field of study" placeholder="e.g. Mechanical Engineering" value={form.intended_major} onChange={v=>upd('intended_major',v)} />
-                      <FieldInput label="Preferred countries (comma-separated)" placeholder="Germany, Italy, Canada" value={form.preferred_countries} onChange={v=>upd('preferred_countries',v)} />
-                      <div className="grid grid-cols-2 gap-3">
-                        <FieldInput label="Annual budget (USD)" placeholder="3000" type="number" value={form.annual_budget_usd} onChange={v=>upd('annual_budget_usd',v)} />
-                        <FieldInput label="GPA (optional)" placeholder="3.7" type="number" value={form.gpa} onChange={v=>upd('gpa',v)} />
-                      </div>
-                      <Button onClick={startMatch} className="mt-2 w-full bg-cyan-500 text-black hover:bg-cyan-400 h-11 text-base">
-                        Find My Matches <ArrowRight className="ml-2 h-4 w-4"/>
-                      </Button>
-                      <p className="text-[11px] text-slate-500 text-center">Free preview. No signup required.</p>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Trust bar */}
+            <div className="mt-14">
+              <p className="text-sm text-[#8a8171]">Sourced from scholarships published by</p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+                {INSTITUTIONS.slice(0, 8).map(i => (
+                  <span key={i.name} className="text-sm md:text-base font-medium text-[#6B6357]/80 tracking-tight">{i.name}</span>
+                ))}
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Scholarship preview strip */}
-          <div className="mt-14">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Live examples — source-linked matches</p>
-            <div className="mt-3 grid gap-4 md:grid-cols-3">
-              {SAMPLE_PREVIEW.map((s,i)=>(
-                <Card key={i} className="relative overflow-hidden border-white/10 bg-white/[0.03] hover:border-cyan-400/30 transition">
-                  <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-cyan-500/10 blur-2xl"/>
-                  <CardContent className="p-4 relative">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] text-slate-400 flex items-center gap-1"><GraduationCap className="h-3 w-3"/> {s.uni} · {s.country}</p>
-                        <p className="mt-1 font-medium text-white">{s.name}</p>
-                        <p className="mt-1 text-sm text-slate-300">{s.tag}</p>
-                      </div>
-                      <div className="h-11 w-11 rounded-full border border-cyan-400/40 bg-cyan-500/10 flex items-center justify-center">
-                        <span className="text-sm font-bold text-cyan-200">{s.score}</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
+      {/* ============== COMMAND PANEL ============== */}
+      <section className="container mx-auto max-w-5xl px-4 pb-16 md:pb-24">
+        <div className="relative">
+          <div className="absolute -inset-6 -z-0 rounded-[2rem] bg-gradient-to-br from-cyan-200/40 via-blue-200/30 to-violet-200/40 blur-2xl opacity-60"/>
+          <Card className="card-elev-lg relative rounded-3xl">
+            <CardContent className="p-6 md:p-10">
+              <div className="grid gap-6 md:grid-cols-12 md:items-center">
+                <div className="md:col-span-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-cyan-700 font-medium">Command panel</p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0A0A0A]">Start your ScholarshipFit search</h3>
+                  <p className="mt-2 text-sm text-[#6B6357]">Six fields. One AI shortlist. Zero fake results.</p>
+                </div>
+                <div className="md:col-span-8">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <FieldSelect label="Current level" value={form.current_level} onChange={v=>upd('current_level',v)} options={['High school','Bachelor','Master','Graduate','Working professional']}/>
+                    <FieldSelect label="Target degree" value={form.degree_level} onChange={v=>upd('degree_level',v)} options={['Bachelor','Master','PhD','Research program']}/>
+                    <FieldInput label="Field of study" placeholder="Mechanical Engineering" value={form.intended_major} onChange={v=>upd('intended_major',v)}/>
+                    <FieldInput label="Preferred countries" placeholder="Germany, Italy, Canada" value={form.preferred_countries} onChange={v=>upd('preferred_countries',v)}/>
+                    <FieldInput label="Annual budget (USD)" placeholder="3000" type="number" value={form.annual_budget_usd} onChange={v=>upd('annual_budget_usd',v)}/>
+                    <FieldInput label="GPA (optional)" placeholder="3.7" type="number" value={form.gpa} onChange={v=>upd('gpa',v)}/>
+                  </div>
+                  <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-[#8a8171]">Free preview. No signup required.</p>
+                    <Button onClick={startMatch} className="bg-[#0A0A0A] hover:bg-[#1a1a1a] text-white btn-pill px-6 h-11">
+                      Find My Matches <ArrowRight className="ml-2 h-4 w-4"/>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* ============== SECTION HEADER — features ============== */}
+      <section className="container mx-auto max-w-7xl px-4 pt-8 pb-6">
+        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+          Real scholarships. <span className="text-gradient-warm">Real sources.</span>
+          <br className="hidden md:block"/> No invention.
+        </h2>
+        <p className="mt-5 max-w-2xl text-lg text-[#4b453b]">
+          Other AI tools guess. ScholarshipFit is only allowed to recommend from records with official source URLs already stored in our database.
+        </p>
+      </section>
+
+      {/* ============== FEATURE CARDS (Atlas-style) ============== */}
+      <section className="container mx-auto max-w-7xl px-4 pt-6 pb-8">
+        <div className="grid gap-5 md:grid-cols-3">
+          <FeatureCard title="Match" caption="Ranked shortlist with fit reasoning" href="/onboarding" cta="Start matching">
+            <MockMatchCard/>
+          </FeatureCard>
+          <FeatureCard title="Advisor" caption="Chat with Nova · Claude Sonnet 4.5" href="/advisor" cta="Ask Nova">
+            <MockAdvisor/>
+          </FeatureCard>
+          <FeatureCard title="Report" caption="Downloadable source-linked briefing" href="/sample-report" cta="See sample">
+            <MockReport/>
+          </FeatureCard>
+          <FeatureCard title="Cabinet" caption="Track saved · preparing · applied · won" href="/dashboard" cta="Open cabinet">
+            <MockCabinet/>
+          </FeatureCard>
+          <FeatureCard title="Database" caption="Every record links to an official URL" href="/database" cta="Browse database">
+            <MockDatabase scholars={scholars}/>
+          </FeatureCard>
+          <FeatureCard title="Guardrails" caption="What the AI is not allowed to do" href="/methodology" cta="Read methodology">
+            <MockGuardrails/>
+          </FeatureCard>
+        </div>
+      </section>
+
+      {/* ============== HOW IT WORKS ============== */}
+      <section className="container mx-auto max-w-7xl px-4 pt-24">
+        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+          Four steps <span className="text-gradient-brand">to your shortlist.</span>
+        </h2>
+        <div className="mt-12 grid gap-6 md:grid-cols-4">
+          {[
+            { n:'01', t:'Build profile', d:'Degree, field, scores, budget, target countries, achievements.', icon:<FileText className="h-5 w-5"/> },
+            { n:'02', t:'Match to real records', d:'AI checks every scholarship in our verified, source-linked database.', icon:<Search className="h-5 w-5"/> },
+            { n:'03', t:'Fit reasoning', d:'Overall + academic fit, requirements met, gaps, next steps.', icon:<Brain className="h-5 w-5"/> },
+            { n:'04', t:'Apply on official site', d:'You go directly to the university or provider. We never submit for you.', icon:<Link2 className="h-5 w-5"/> },
+          ].map((s,i)=>(
+            <div key={i} className="relative">
+              <div className="text-[#8a8171] text-sm font-mono tracking-widest">{s.n}</div>
+              <div className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white">{s.icon}</div>
+              <p className="mt-4 text-xl font-semibold tracking-tight text-[#0A0A0A]">{s.t}</p>
+              <p className="mt-1 text-[#4b453b]">{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============== REAL INSTITUTIONS BLOCK ============== */}
+      <section className="container mx-auto max-w-7xl px-4 pt-24">
+        <div className="grid md:grid-cols-12 gap-8 items-end">
+          <div className="md:col-span-6">
+            <h2 className="text-4xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+              Powered by scholarships from <span className="text-gradient-warm">real institutions</span>.
+            </h2>
+            <p className="mt-4 text-lg text-[#4b453b]">
+              Every record in ScholarshipFit is manually seeded from an official university or government portal, with its source URL stored alongside the record.
+            </p>
+            <Link href="/database" className="mt-6 inline-flex items-center gap-1 text-[#0A0A0A] font-medium hover:underline underline-offset-4">
+              Browse the database <ChevronRight className="h-4 w-4"/>
+            </Link>
+          </div>
+          <div className="md:col-span-6">
+            <div className="grid grid-cols-2 gap-3">
+              {scholars.slice(0,6).map(s => (
+                <a key={s.id} href={s.source_url} target="_blank" rel="noopener noreferrer" className="group card-elev rounded-2xl p-4 hover-lift">
+                  <p className="text-xs uppercase tracking-widest text-[#8a8171]">{s.country}</p>
+                  <p className="mt-1 font-medium text-[#0A0A0A] line-clamp-2">{s.university_name}</p>
+                  <p className="mt-2 text-xs text-[#6B6357] line-clamp-2">{s.scholarship_name}</p>
+                  <div className="mt-3 flex items-center gap-1 text-xs text-cyan-700"><ExternalLink className="h-3 w-3"/>Official source</div>
+                </a>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <Section title="How ScholarshipFit works" caption="From profile to source-linked shortlist — in minutes.">
-        <div className="grid gap-4 md:grid-cols-4">
+      {/* ============== GUARDRAILS ============== */}
+      <section className="container mx-auto max-w-7xl px-4 pt-24">
+        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+          What ScholarshipFit <span className="text-gradient-warm">will never do.</span>
+        </h2>
+        <p className="mt-4 max-w-3xl text-lg text-[#4b453b]">Honest boundaries — because scholarship research shouldn&apos;t be a hype machine.</p>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
-            {icon:<ScrollText className="h-5 w-5"/>, t:'1. Build profile', d:'Degree, field, scores, budget, achievements, target countries.'},
-            {icon:<DbIcon className="h-5 w-5"/>, t:'2. Match to real records', d:'AI checks every scholarship in our verified, source-linked database.'},
-            {icon:<Brain className="h-5 w-5"/>, t:'3. Fit reasoning', d:'Overall + academic fit, requirements met, gaps, and next steps.'},
-            {icon:<Link2 className="h-5 w-5"/>, t:'4. Apply on official site', d:'You go directly to the university or provider. We never submit for you.'},
-          ].map((s,i)=>(
-            <Card key={i} className="border-white/10 bg-white/[0.03] hover:border-cyan-400/30 transition">
-              <CardContent className="p-5">
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/15 border border-cyan-400/25 text-cyan-300">{s.icon}</div>
-                <p className="mt-4 font-medium text-white">{s.t}</p>
-                <p className="mt-1 text-sm text-slate-400">{s.d}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </Section>
-
-      {/* AI ADVISOR PREVIEW */}
-      <Section title="Meet Nova — your AI scholarship advisor" caption="Ask in plain language. Get source-linked answers.">
-        <div className="grid gap-8 md:grid-cols-12 items-center">
-          <div className="md:col-span-5">
-            <div className="relative mx-auto max-w-sm">
-              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-cyan-500/25 via-sky-500/10 to-indigo-500/25 blur-2xl opacity-70"/>
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01]">
-                <div className="aspect-[4/5] relative">
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-transparent to-transparent z-10"/>
-                  <Image src={LOGO_URL} alt="Nova — ScholarshipFit AI guide" fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover object-center"/>
-                  {/* Floating data pills */}
-                  <div className="absolute top-4 right-4 z-20 rounded-full border border-cyan-400/30 bg-[#05070d]/70 px-3 py-1 text-xs text-cyan-200 backdrop-blur-md flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"/> Online
-                  </div>
-                  <div className="absolute bottom-6 left-4 right-4 z-20 rounded-xl border border-white/10 bg-[#05070d]/75 px-3 py-2 backdrop-blur-md">
-                    <p className="text-[10px] uppercase tracking-widest text-cyan-300">Nova · Claude Sonnet 4.5</p>
-                    <p className="mt-0.5 text-sm text-slate-100 leading-snug">Source-linked reasoning. Never invents scholarships.</p>
-                  </div>
-                </div>
+            'Never invent scholarships',
+            'Never invent deadlines',
+            'Never invent funding amounts',
+            'Never guarantee admission or funding',
+            'Never submit applications on your behalf',
+            'Never publish testimonials without consent',
+          ].map((t,i)=>(
+            <div key={i} className="card-elev rounded-2xl p-5 flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-[#F5F2EB] border border-[#E8E3D6] text-[#0A0A0A] flex items-center justify-center shrink-0">
+                <XCircle className="h-4 w-4"/>
               </div>
+              <p className="font-medium text-[#0A0A0A] leading-snug">{t}</p>
             </div>
-          </div>
-          <div className="md:col-span-7 space-y-3">
-            <ChatBubble role="user" text="I want full funding in Germany for engineering with IELTS 7.0 and GPA 3.7."/>
-            <ChatBubble role="assistant" text="Two strong source-linked options: DAAD EPOS (full funding, ~€934/mo + tuition; needs 2+ yrs work exp & DAC-country nationality) and Stipendium Hungaricum for engineering fields in Hungary. I'll also flag Türkiye Scholarships as an outside-Germany full-funding fallback. Deadlines change yearly — check official sources."/>
-            <div className="pt-3">
-              <Link href="/advisor"><Button className="bg-cyan-500 text-black hover:bg-cyan-400"><MessageSquare className="mr-2 h-4 w-4"/>Talk to Nova</Button></Link>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* PERSONAL CABINET PREVIEW */}
-      <Section title="Your ScholarshipFit cabinet" caption="A premium dashboard for tracking every application, deadline, and document.">
-        <div className="grid gap-4 md:grid-cols-3">
-          {[
-            {icon:<LayoutDashboard className="h-4 w-4"/>,t:'Match stats',d:'Fit score distribution, top matches, and country breakdown.'},
-            {icon:<CheckCircle2 className="h-4 w-4"/>,t:'Application tracker',d:'Saved · Preparing · Applied · Shortlisted · Won — all in one place.'},
-            {icon:<BookOpen className="h-4 w-4"/>,t:'Document checklist',d:'Auto-generated from your top matches’ required documents.'},
-            {icon:<Calendar className="h-4 w-4"/>,t:'Deadline radar',d:'Qualitative deadline status — verify exact dates on official pages.'},
-            {icon:<DollarSign className="h-4 w-4"/>,t:'Budget fit insights',d:'See which scholarships bring your annual cost into your budget.'},
-            {icon:<Brain className="h-4 w-4"/>,t:'Profile strength',d:'Suggestions to raise your fit scores next cycle.'},
-          ].map((s,i)=>(
-            <Card key={i} className="border-white/10 bg-white/[0.03]">
-              <CardContent className="p-5">
-                <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-cyan-500/15 border border-cyan-400/25 text-cyan-300">{s.icon}</div>
-                <p className="mt-3 font-medium text-white">{s.t}</p>
-                <p className="mt-1 text-sm text-slate-400">{s.d}</p>
-              </CardContent>
-            </Card>
           ))}
         </div>
-        <div className="mt-6"><Link href="/dashboard"><Button variant="outline" className="border-white/10 bg-transparent text-slate-100 hover:bg-white/5">Open dashboard <ArrowRight className="ml-2 h-4 w-4"/></Button></Link></div>
-      </Section>
+      </section>
 
-      {/* DATABASE TRUST */}
-      <Section title="Every scholarship is source-linked" caption="We never invent records, deadlines, or funding numbers.">
+      {/* ============== FAQ Callouts ============== */}
+      <section className="container mx-auto max-w-7xl px-4 pt-24">
         <div className="grid gap-6 md:grid-cols-3">
-          <TrustCard tone="cyan" tag="Source-linked" text="Pulled from the official university or government portal, with the URL stored alongside the record."/>
-          <TrustCard tone="emerald" tag="Strongly reviewed" text="Cross-checked by our editorial team against the provider’s public documentation."/>
-          <TrustCard tone="amber" tag="Needs source review" text="Hidden from the public until an official source is attached and confirmed."/>
-        </div>
-        <div className="mt-6"><Link href="/database"><Button variant="outline" className="border-white/10 bg-transparent text-slate-100 hover:bg-white/5">Browse the database <ArrowRight className="ml-2 h-4 w-4"/></Button></Link></div>
-      </Section>
-
-      {/* OUTCOMES */}
-      <Section title="Outcomes" caption="We only publish stories with explicit permission. No fake testimonials.">
-        <Card className="border-white/10 bg-white/[0.03]">
-          <CardContent className="p-8 text-center">
-            <Globe2 className="mx-auto h-8 w-8 text-cyan-300"/>
-            <p className="mt-3 text-lg text-slate-200">Outcomes page opens once verified student stories are submitted.</p>
-            <p className="mt-1 text-sm text-slate-500">Individual results vary. ScholarshipFit does not guarantee similar outcomes.</p>
-            <div className="mt-4"><Link href="/outcomes"><Button variant="outline" className="border-white/10 bg-transparent text-slate-100 hover:bg-white/5">Visit outcomes page</Button></Link></div>
-          </CardContent>
-        </Card>
-      </Section>
-
-      {/* PRICING TEASER */}
-      <Section title="Simple plans, coming soon" caption="Payments are not active yet. Join the waitlist and get early access.">
-        <div className="grid gap-4 md:grid-cols-4">
           {[
-            {name:'Free Research Check', price:'$0', highlight:false, features:['Basic match preview','Top 3 source-linked matches','Community disclaimer coverage']},
-            {name:'Starter Report', price:'—', highlight:false, features:['Full AI report','Requirements + gaps','Downloadable summary']},
-            {name:'Full Scholarship Cabinet', price:'—', highlight:true, features:['Personal dashboard','Application tracker','Document checklist','Deadline radar']},
-            {name:'AI Advisor Access', price:'—', highlight:false, features:['Nova unlimited chat','Multi-session memory','Priority updates']},
-          ].map((p,i)=>(
-            <Card key={i} className={`relative border-white/10 ${p.highlight ? 'bg-gradient-to-b from-cyan-500/10 to-white/[0.02] border-cyan-400/30' : 'bg-white/[0.03]'}`}>
-              {p.highlight && <div className="absolute -top-2 left-1/2 -translate-x-1/2"><Badge className="bg-cyan-500 text-black hover:bg-cyan-400"><Star className="mr-1 h-3 w-3"/>Popular</Badge></div>}
-              <CardContent className="p-5">
-                <p className="text-sm text-slate-400">{p.name}</p>
-                <p className="mt-1 text-3xl font-semibold text-white">{p.price}</p>
-                <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                  {p.features.map((f,j)=>(<li key={j} className="flex gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-400 mt-0.5"/><span>{f}</span></li>))}
-                </ul>
+            { t:'Is ScholarshipFit free?', d:'Yes — the profile match and preview are free. Paid plans unlock the full cabinet, unlimited advisor chat, and downloadable reports.', icon:<DollarSign className="h-5 w-5"/> },
+            { t:'Do you apply for me?', d:'No. ScholarshipFit is a research tool. Every card links to the official provider — you apply there.', icon:<ClipboardCheck className="h-5 w-5"/> },
+            { t:'Do you guarantee scholarships?', d:'No. Nobody credible does. We help you find realistic fits and prepare a stronger, targeted application.', icon:<ShieldCheck className="h-5 w-5"/> },
+          ].map((f,i)=>(
+            <Card key={i} className="card-elev rounded-2xl hover-lift">
+              <CardContent className="p-6">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white">{f.icon}</div>
+                <p className="mt-4 text-lg font-semibold tracking-tight text-[#0A0A0A]">{f.t}</p>
+                <p className="mt-2 text-[#4b453b]">{f.d}</p>
               </CardContent>
             </Card>
           ))}
         </div>
-        <div className="mt-6"><Link href="/pricing"><Button variant="outline" className="border-white/10 bg-transparent text-slate-100 hover:bg-white/5">See pricing <ArrowRight className="ml-2 h-4 w-4"/></Button></Link></div>
-      </Section>
+      </section>
 
-      {/* FINAL CTA */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-0"><Starfield density={140} /></div>
-        <div className="container mx-auto max-w-5xl px-4 py-20 relative">
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-10 text-center">
-            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-500/20 blur-3xl"/>
-            <div className="absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl"/>
-            <h2 className="text-3xl md:text-4xl font-semibold text-white">Ready to see your ScholarshipFit shortlist?</h2>
-            <p className="mt-3 text-slate-300">Build your profile in 3 minutes and get source-linked matches instantly.</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link href="/onboarding"><Button size="lg" className="bg-orange-500 hover:bg-orange-400 text-white"><Rocket className="mr-2 h-5 w-5"/>Check My Scholarships</Button></Link>
-              <Link href="/sample-report"><Button size="lg" variant="outline" className="border-white/15 bg-white/[0.03] text-slate-100 hover:bg-white/[0.08]">View Sample Report</Button></Link>
-            </div>
+      {/* ============== FINAL CTA ============== */}
+      <section className="container mx-auto max-w-6xl px-4 pt-28 pb-20">
+        <div className="relative rounded-3xl border border-[#E8E3D6] bg-[#0A0A0A] px-6 py-16 md:py-24 text-center overflow-hidden">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl"/>
+          <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl"/>
+          <h2 className="relative text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-white">
+            Ready to see <span className="text-gradient-warm">your shortlist?</span>
+          </h2>
+          <p className="relative mx-auto mt-4 max-w-xl text-lg text-white/70">Build your profile in three minutes and get source-linked matches instantly.</p>
+          <div className="relative mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/onboarding">
+              <Button size="lg" className="bg-white hover:bg-white/90 text-black btn-pill px-7 h-12 text-base">
+                Check My Scholarships <ArrowRight className="ml-2 h-4 w-4"/>
+              </Button>
+            </Link>
+            <Link href="/sample-report">
+              <Button size="lg" variant="ghost" className="text-white hover:bg-white/10 btn-pill px-6 h-12 text-base">
+                View Sample Report <ArrowUpRight className="ml-1.5 h-4 w-4"/>
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -298,60 +305,28 @@ function Home() {
   )
 }
 
-function Section({ title, caption, children }) {
-  return (
-    <section className="container mx-auto max-w-7xl px-4 py-16 md:py-20">
-      <div className="max-w-2xl">
-        <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-white">{title}</h2>
-        {caption && <p className="mt-2 text-slate-400">{caption}</p>}
-      </div>
-      <div className="mt-8">{children}</div>
-    </section>
-  )
-}
+/* ==================== helpers ==================== */
 
-function TrustBullet({ icon, text }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-      <span className="text-cyan-300">{icon}</span>
-      <span className="text-sm text-slate-200">{text}</span>
-    </div>
-  )
-}
-
-function ChatBubble({ role, text }) {
-  const isUser = role === 'user'
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? 'bg-cyan-500 text-black' : 'bg-white/[0.05] border border-white/10 text-slate-100'}`}>
-        {!isUser && <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-300">Nova</p>}
-        {text}
-      </div>
-    </div>
-  )
-}
-
-function TrustCard({ tag, text, tone='cyan' }) {
-  const map = {
-    cyan:'border-sky-500/30 bg-sky-500/10 text-sky-200',
-    emerald:'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
-    amber:'border-amber-500/30 bg-amber-500/10 text-amber-200',
+function FloatingIcon({ children, delay='0s', rotate='0deg', tint }) {
+  const tints = {
+    cyan: 'bg-cyan-100 border-cyan-200/60',
+    pink: 'bg-pink-100 border-pink-200/60',
+    orange: 'bg-orange-100 border-orange-200/60',
+    default: 'bg-white border-[#E8E3D6]',
   }
+  const cls = tints[tint] || tints.default
   return (
-    <Card className="border-white/10 bg-white/[0.03]">
-      <CardContent className="p-5">
-        <Badge variant="outline" className={`border ${map[tone]}`}><ShieldCheck className="mr-1 h-3 w-3"/>{tag}</Badge>
-        <p className="mt-3 text-sm text-slate-300">{text}</p>
-      </CardContent>
-    </Card>
+    <div className={`animate-float rounded-2xl border ${cls} p-3 shadow-[0_10px_30px_-10px_rgba(20,14,6,0.15)]`} style={{ animationDelay: delay, transform: `rotate(${rotate})` }}>
+      {children}
+    </div>
   )
 }
 
 function FieldInput({ label, value, onChange, placeholder, type='text' }) {
   return (
     <div>
-      <label className="text-[11px] uppercase tracking-widest text-slate-400">{label}</label>
-      <Input type={type} placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 bg-white/[0.04] border-white/10 text-slate-100 placeholder:text-slate-500"/>
+      <label className="text-[11px] uppercase tracking-widest text-[#8a8171]">{label}</label>
+      <Input type={type} placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A] placeholder:text-[#b6ad9c] focus-visible:ring-cyan-500"/>
     </div>
   )
 }
@@ -359,13 +334,127 @@ function FieldInput({ label, value, onChange, placeholder, type='text' }) {
 function FieldSelect({ label, value, onChange, options }) {
   return (
     <div>
-      <label className="text-[11px] uppercase tracking-widest text-slate-400">{label}</label>
+      <label className="text-[11px] uppercase tracking-widest text-[#8a8171]">{label}</label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="mt-1 bg-white/[0.04] border-white/10 text-slate-100"><SelectValue placeholder="Select"/></SelectTrigger>
-        <SelectContent>
-          {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-        </SelectContent>
+        <SelectTrigger className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A]"><SelectValue placeholder="Select"/></SelectTrigger>
+        <SelectContent>{options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
       </Select>
+    </div>
+  )
+}
+
+function FeatureCard({ title, caption, children, href, cta }) {
+  return (
+    <Card className="card-elev rounded-3xl hover-lift overflow-hidden">
+      <CardContent className="p-0">
+        <div className="relative h-56 border-b border-[#EDE7D8] bg-gradient-to-br from-[#FAF7EF] to-[#F1EBDD] overflow-hidden">
+          <div className="absolute inset-4">{children}</div>
+        </div>
+        <div className="p-5">
+          <p className="text-xs uppercase tracking-widest text-cyan-700 font-medium">{title}</p>
+          <p className="mt-1 text-lg font-semibold tracking-tight text-[#0A0A0A]">{caption}</p>
+          <Link href={href} className="mt-3 inline-flex items-center gap-1 text-sm text-[#0A0A0A] font-medium group">
+            {cta} <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition"/>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/* ---- mini UI mocks inside feature cards ---- */
+
+function MockMatchCard() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="w-full max-w-[280px] rounded-2xl bg-white border border-[#E8E3D6] p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] text-[#8a8171]">Republic of Türkiye · Türkiye</p>
+            <p className="mt-0.5 text-sm font-semibold text-[#0A0A0A]">Türkiye Scholarships</p>
+          </div>
+          <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-semibold">92</div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1">
+          <span className="rounded-full bg-cyan-100 text-cyan-800 text-[10px] px-2 py-0.5">Source-linked</span>
+          <span className="rounded-full bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5">Eligible</span>
+          <span className="rounded-full bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5">Low risk</span>
+        </div>
+        <p className="mt-3 text-[11px] text-[#4b453b] leading-relaxed">Full funding · monthly stipend · accommodation · airfare. Verify current cycle on official source.</p>
+      </div>
+    </div>
+  )
+}
+
+function MockAdvisor() {
+  return (
+    <div className="h-full flex flex-col justify-end gap-2">
+      <div className="self-start max-w-[70%] rounded-2xl bg-white border border-[#E8E3D6] px-3 py-2 text-xs text-[#0A0A0A]">
+        <span className="text-[9px] uppercase tracking-widest text-cyan-700">Nova</span>
+        <p className="mt-1">Two strong source-linked options: <b>DAAD EPOS</b> and <b>Stipendium Hungaricum</b>. Deadlines vary — check official sources.</p>
+      </div>
+      <div className="self-end max-w-[65%] rounded-2xl bg-black text-white px-3 py-2 text-xs">Full funding · Germany · engineering?</div>
+    </div>
+  )
+}
+
+function MockReport() {
+  return (
+    <div className="h-full flex items-center">
+      <div className="w-full rounded-xl bg-white border border-[#E8E3D6] p-3">
+        <p className="text-[10px] uppercase tracking-widest text-[#8a8171]">Portfolio summary</p>
+        <div className="mt-2 flex gap-1.5">
+          {[92,78,74,71].map((n,i)=>(<div key={i} className="flex-1 rounded-md bg-gradient-to-b from-cyan-100 to-cyan-200/50 text-center py-2 text-xs font-semibold text-cyan-800">{n}</div>))}
+        </div>
+        <div className="mt-3 space-y-1.5">
+          <div className="h-1.5 w-full rounded-full bg-[#F0EBDF]"><div className="h-1.5 w-[92%] rounded-full bg-black"/></div>
+          <div className="h-1.5 w-full rounded-full bg-[#F0EBDF]"><div className="h-1.5 w-[78%] rounded-full bg-black/80"/></div>
+          <div className="h-1.5 w-full rounded-full bg-[#F0EBDF]"><div className="h-1.5 w-[74%] rounded-full bg-black/60"/></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MockCabinet() {
+  return (
+    <div className="h-full grid grid-cols-2 gap-2">
+      {[{n:'Saved',c:3},{n:'Preparing',c:2},{n:'Applied',c:1},{n:'Won',c:0}].map((s,i)=>(
+        <div key={i} className="rounded-xl bg-white border border-[#E8E3D6] p-3 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-widest text-[#8a8171]">{s.n}</p>
+          <p className="text-2xl font-semibold text-[#0A0A0A]">{s.c}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MockDatabase({ scholars }) {
+  const preview = (scholars || []).slice(0,4)
+  return (
+    <div className="h-full grid grid-cols-2 gap-2">
+      {preview.map(s => (
+        <div key={s.id} className="rounded-xl bg-white border border-[#E8E3D6] p-2.5">
+          <p className="text-[9px] uppercase tracking-widest text-[#8a8171] truncate">{s.country}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-[#0A0A0A] line-clamp-2">{s.university_name}</p>
+          <div className="mt-1 flex items-center gap-1 text-[9px] text-cyan-700"><ExternalLink className="h-2.5 w-2.5"/>Source</div>
+        </div>
+      ))}
+      {preview.length === 0 && Array.from({length:4}).map((_,i)=>(<div key={i} className="rounded-xl bg-white/60 border border-[#E8E3D6] p-2.5 animate-pulse h-16"/>))}
+    </div>
+  )
+}
+
+function MockGuardrails() {
+  const items = ['No invented records','No fake deadlines','No fake funding','No fake outcomes']
+  return (
+    <div className="h-full flex flex-col justify-center gap-2">
+      {items.map((t,i)=>(
+        <div key={i} className="flex items-center gap-2 rounded-lg bg-white border border-[#E8E3D6] px-3 py-2">
+          <XCircle className="h-4 w-4 text-[#0A0A0A]"/>
+          <span className="text-xs font-medium text-[#0A0A0A]">{t}</span>
+        </div>
+      ))}
     </div>
   )
 }

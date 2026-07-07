@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
@@ -11,20 +12,32 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { store } from '@/lib/client-store'
 import {
-  ArrowRight, ArrowUpRight, Sparkles, ShieldCheck, Link2, Calendar, Brain, Rocket, CheckCircle2,
-  Search, MessageSquare, LayoutDashboard, FileText, GraduationCap, Globe2, DollarSign, ExternalLink,
-  Award, BookOpen, Compass, ClipboardCheck, XCircle, ChevronRight
+  ArrowRight, ArrowUpRight, Sparkles, ShieldCheck, Link2, Calendar, Brain, CheckCircle2,
+  Search, MessageSquare, FileText, GraduationCap, Globe2, DollarSign, ExternalLink,
+  Award, ClipboardCheck, XCircle, ChevronRight
 } from 'lucide-react'
 
 const INSTITUTIONS = [
   { name: 'University of Bologna', country: 'Italy' },
   { name: 'University of Padua', country: 'Italy' },
-  { name: 'DAAD', country: 'Germany' },
+  { name: 'DAAD Germany', country: 'Germany' },
   { name: 'University of Toronto', country: 'Canada' },
-  { name: 'UBC', country: 'Canada' },
+  { name: 'University of British Columbia', country: 'Canada' },
   { name: 'Türkiye Bursları', country: 'Türkiye' },
   { name: 'Stipendium Hungaricum', country: 'Hungary' },
   { name: 'KAIST', country: 'South Korea' },
+]
+
+// Cinematic campus / library images for the rolling marquee
+const CAMPUS_IMAGES = [
+  { url: 'https://images.unsplash.com/photo-1652597306870-a4a2b1b46073?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'European campus', country: 'Italy' },
+  { url: 'https://images.unsplash.com/photo-1651516450498-24cd52b10a84?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'Historic quad', country: 'UK / EU' },
+  { url: 'https://images.unsplash.com/photo-1651993543783-2be488cf2b7c?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'Modern faculty', country: 'Germany' },
+  { url: 'https://images.unsplash.com/photo-1602128749724-64caaf117b89?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'Campus arches', country: 'Canada' },
+  { url: 'https://images.unsplash.com/photo-1529431801612-df968fb9eb9c?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'Study halls', country: 'North America' },
+  { url: 'https://images.unsplash.com/photo-1605364850032-e25ae0835552?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'STEM building', country: 'South Korea' },
+  { url: 'https://images.unsplash.com/photo-1505488387362-48bc38155987?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'Research library', country: 'Hungary' },
+  { url: 'https://images.unsplash.com/photo-1613324765334-7f4a413b8bba?crop=entropy&cs=srgb&fm=jpg&w=800&q=75', label: 'Reading room', country: 'Türkiye' },
 ]
 
 function Home() {
@@ -50,50 +63,48 @@ function Home() {
   }
 
   return (
-    <div className="paper-bg min-h-screen">
+    <div className="dark-bg min-h-screen">
       <Navbar />
 
       {/* ============== HERO ============== */}
       <section className="relative overflow-hidden">
-        {/* Soft ambient blooms — no cosmos, just warm colour lift */}
-        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-0 h-[640px] bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.10),transparent_55%)]" />
-        <div className="pointer-events-none absolute -left-40 top-20 -z-0 h-96 w-96 rounded-full bg-cyan-200/20 blur-3xl" />
-        <div className="pointer-events-none absolute -right-40 top-40 -z-0 h-96 w-96 rounded-full bg-pink-200/25 blur-3xl" />
+        <div className="ambient-glow pointer-events-none absolute inset-0 -z-0" />
+        <div className="pointer-events-none absolute inset-0 -z-0 grid-lines-dark opacity-30" />
 
-        <div className="container mx-auto max-w-7xl px-4 pt-16 pb-14 md:pt-24 md:pb-16 relative">
+        <div className="container mx-auto max-w-7xl px-4 pt-20 pb-16 md:pt-28 md:pb-24 relative">
           {/* Decorative floating icons */}
-          <div className="pointer-events-none absolute left-[8%] top-[22%] hidden md:block">
-            <FloatingIcon rotate="-8deg"><GraduationCap className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          <div className="pointer-events-none absolute left-[7%] top-[24%] hidden md:block">
+            <FloatingIcon rotate="-8deg"><GraduationCap className="h-7 w-7 text-white/90"/></FloatingIcon>
           </div>
-          <div className="pointer-events-none absolute right-[9%] top-[18%] hidden md:block">
-            <FloatingIcon delay="1s" rotate="12deg" tint="cyan"><Globe2 className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          <div className="pointer-events-none absolute right-[8%] top-[20%] hidden md:block">
+            <FloatingIcon delay="1s" rotate="12deg" tint="cyan"><Globe2 className="h-7 w-7 text-white/90"/></FloatingIcon>
           </div>
-          <div className="pointer-events-none absolute left-[12%] top-[62%] hidden lg:block">
-            <FloatingIcon delay="2s" rotate="-14deg" tint="pink"><Award className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          <div className="pointer-events-none absolute left-[11%] top-[62%] hidden lg:block">
+            <FloatingIcon delay="2s" rotate="-14deg" tint="pink"><Award className="h-7 w-7 text-white/90"/></FloatingIcon>
           </div>
-          <div className="pointer-events-none absolute right-[10%] top-[62%] hidden lg:block">
-            <FloatingIcon delay="0.8s" rotate="10deg" tint="orange"><ShieldCheck className="h-8 w-8 text-[#0A0A0A]"/></FloatingIcon>
+          <div className="pointer-events-none absolute right-[9%] top-[62%] hidden lg:block">
+            <FloatingIcon delay="0.8s" rotate="10deg" tint="orange"><ShieldCheck className="h-7 w-7 text-white/90"/></FloatingIcon>
           </div>
 
           <div className="relative mx-auto max-w-4xl text-center">
-            <Badge variant="outline" className="border-black/10 bg-white text-[#4b453b] rounded-full px-3 py-1">
-              <Sparkles className="mr-1.5 h-3 w-3 text-cyan-600" /> AI-powered · Source-linked · No invented results
+            <Badge variant="outline" className="border-white/10 bg-white/[0.03] text-white/80 rounded-full px-3 py-1">
+              <Sparkles className="mr-1.5 h-3 w-3 text-cyan-300" /> AI-powered · Source-linked · No invented results
             </Badge>
-            <h1 className="mt-6 text-5xl md:text-7xl font-semibold tracking-[-0.03em] leading-[0.98] text-[#0A0A0A]">
+            <h1 className="mt-6 text-5xl md:text-7xl font-semibold tracking-[-0.03em] leading-[0.98] text-white">
               Find <span className="text-gradient-warm">real scholarships</span>
               <br className="hidden md:block"/> that fit your profile.
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-[#4b453b] leading-relaxed">
+            <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-white/70 leading-relaxed">
               Turn your academic profile into an AI-powered, source-linked scholarship shortlist — with fit reasoning, funding notes, deadline status, and official links to apply.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link href="/onboarding">
-                <Button size="lg" className="bg-[#0A0A0A] hover:bg-[#1a1a1a] text-white btn-pill px-7 h-12 text-base">
+                <Button size="lg" className="bg-white hover:bg-white/90 text-[#060608] btn-pill px-7 h-12 text-base font-medium">
                   Check My Scholarships <ArrowRight className="ml-2 h-4 w-4"/>
                 </Button>
               </Link>
               <Link href="/sample-report">
-                <Button size="lg" variant="ghost" className="text-[#0A0A0A] hover:bg-black/[0.05] btn-pill px-6 h-12 text-base">
+                <Button size="lg" variant="ghost" className="text-white hover:bg-white/[0.06] btn-pill px-6 h-12 text-base">
                   View Sample Report <ArrowUpRight className="ml-1.5 h-4 w-4"/>
                 </Button>
               </Link>
@@ -101,10 +112,10 @@ function Home() {
 
             {/* Trust bar */}
             <div className="mt-14">
-              <p className="text-sm text-[#8a8171]">Sourced from scholarships published by</p>
+              <p className="text-sm text-white/40">Sourced from scholarships published by</p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
                 {INSTITUTIONS.slice(0, 8).map(i => (
-                  <span key={i.name} className="text-sm md:text-base font-medium text-[#6B6357]/80 tracking-tight">{i.name}</span>
+                  <span key={i.name} className="text-sm md:text-base font-medium text-white/50 tracking-tight">{i.name}</span>
                 ))}
               </div>
             </div>
@@ -112,17 +123,39 @@ function Home() {
         </div>
       </section>
 
+      {/* ============== ROLLING CAMPUS MARQUEE ============== */}
+      <section className="relative py-8 md:py-14">
+        <div className="text-center mb-6 px-4">
+          <p className="text-xs uppercase tracking-[0.25em] text-cyan-300 font-medium">Studied at institutions across</p>
+          <h2 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight text-white">4 continents · 30+ countries · thousands of programs</h2>
+        </div>
+        <div className="relative fade-x">
+          <div className="flex gap-4 animate-marquee w-max py-4">
+            {[...CAMPUS_IMAGES, ...CAMPUS_IMAGES].map((img, i) => (
+              <CampusCard key={i} img={img}/>
+            ))}
+          </div>
+        </div>
+        <div className="relative fade-x mt-4">
+          <div className="flex gap-4 animate-marquee-reverse w-max py-4">
+            {[...CAMPUS_IMAGES.slice().reverse(), ...CAMPUS_IMAGES.slice().reverse()].map((img, i) => (
+              <CampusCard key={i} img={img} small/>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ============== COMMAND PANEL ============== */}
-      <section className="container mx-auto max-w-5xl px-4 pb-16 md:pb-24">
+      <section className="container mx-auto max-w-5xl px-4 pt-12 pb-16 md:pt-20 md:pb-24">
         <div className="relative">
-          <div className="absolute -inset-6 -z-0 rounded-[2rem] bg-gradient-to-br from-cyan-200/40 via-blue-200/30 to-violet-200/40 blur-2xl opacity-60"/>
-          <Card className="card-elev-lg relative rounded-3xl">
+          <div className="absolute -inset-6 -z-0 rounded-[2rem] bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-violet-500/20 blur-3xl opacity-70"/>
+          <Card className="card-dark-lg relative rounded-3xl">
             <CardContent className="p-6 md:p-10">
               <div className="grid gap-6 md:grid-cols-12 md:items-center">
                 <div className="md:col-span-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-cyan-700 font-medium">Command panel</p>
-                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-[#0A0A0A]">Start your ScholarshipFit search</h3>
-                  <p className="mt-2 text-sm text-[#6B6357]">Six fields. One AI shortlist. Zero fake results.</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-cyan-300 font-medium">Command panel</p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">Start your ScholarshipFit search</h3>
+                  <p className="mt-2 text-sm text-white/60">Six fields. One AI shortlist. Zero fake results.</p>
                 </div>
                 <div className="md:col-span-8">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -134,8 +167,8 @@ function Home() {
                     <FieldInput label="GPA (optional)" placeholder="3.7" type="number" value={form.gpa} onChange={v=>upd('gpa',v)}/>
                   </div>
                   <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
-                    <p className="text-xs text-[#8a8171]">Free preview. No signup required.</p>
-                    <Button onClick={startMatch} className="bg-[#0A0A0A] hover:bg-[#1a1a1a] text-white btn-pill px-6 h-11">
+                    <p className="text-xs text-white/40">Free preview. No signup required.</p>
+                    <Button onClick={startMatch} className="bg-white hover:bg-white/90 text-[#060608] btn-pill px-6 h-11 font-medium">
                       Find My Matches <ArrowRight className="ml-2 h-4 w-4"/>
                     </Button>
                   </div>
@@ -148,16 +181,16 @@ function Home() {
 
       {/* ============== SECTION HEADER — features ============== */}
       <section className="container mx-auto max-w-7xl px-4 pt-8 pb-6">
-        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-white">
           Real scholarships. <span className="text-gradient-warm">Real sources.</span>
           <br className="hidden md:block"/> No invention.
         </h2>
-        <p className="mt-5 max-w-2xl text-lg text-[#4b453b]">
+        <p className="mt-5 max-w-2xl text-lg text-white/60">
           Other AI tools guess. ScholarshipFit is only allowed to recommend from records with official source URLs already stored in our database.
         </p>
       </section>
 
-      {/* ============== FEATURE CARDS (Atlas-style) ============== */}
+      {/* ============== FEATURE CARDS ============== */}
       <section className="container mx-auto max-w-7xl px-4 pt-6 pb-8">
         <div className="grid gap-5 md:grid-cols-3">
           <FeatureCard title="Match" caption="Ranked shortlist with fit reasoning" href="/onboarding" cta="Start matching">
@@ -183,7 +216,7 @@ function Home() {
 
       {/* ============== HOW IT WORKS ============== */}
       <section className="container mx-auto max-w-7xl px-4 pt-24">
-        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-white">
           Four steps <span className="text-gradient-brand">to your shortlist.</span>
         </h2>
         <div className="mt-12 grid gap-6 md:grid-cols-4">
@@ -194,10 +227,10 @@ function Home() {
             { n:'04', t:'Apply on official site', d:'You go directly to the university or provider. We never submit for you.', icon:<Link2 className="h-5 w-5"/> },
           ].map((s,i)=>(
             <div key={i} className="relative">
-              <div className="text-[#8a8171] text-sm font-mono tracking-widest">{s.n}</div>
-              <div className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white">{s.icon}</div>
-              <p className="mt-4 text-xl font-semibold tracking-tight text-[#0A0A0A]">{s.t}</p>
-              <p className="mt-1 text-[#4b453b]">{s.d}</p>
+              <div className="text-white/30 text-sm font-mono tracking-widest">{s.n}</div>
+              <div className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#060608]">{s.icon}</div>
+              <p className="mt-4 text-xl font-semibold tracking-tight text-white">{s.t}</p>
+              <p className="mt-1 text-white/60">{s.d}</p>
             </div>
           ))}
         </div>
@@ -207,24 +240,24 @@ function Home() {
       <section className="container mx-auto max-w-7xl px-4 pt-24">
         <div className="grid md:grid-cols-12 gap-8 items-end">
           <div className="md:col-span-6">
-            <h2 className="text-4xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+            <h2 className="text-4xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.02] text-white">
               Powered by scholarships from <span className="text-gradient-warm">real institutions</span>.
             </h2>
-            <p className="mt-4 text-lg text-[#4b453b]">
+            <p className="mt-4 text-lg text-white/60">
               Every record in ScholarshipFit is manually seeded from an official university or government portal, with its source URL stored alongside the record.
             </p>
-            <Link href="/database" className="mt-6 inline-flex items-center gap-1 text-[#0A0A0A] font-medium hover:underline underline-offset-4">
+            <Link href="/database" className="mt-6 inline-flex items-center gap-1 text-white font-medium hover:text-cyan-300">
               Browse the database <ChevronRight className="h-4 w-4"/>
             </Link>
           </div>
           <div className="md:col-span-6">
             <div className="grid grid-cols-2 gap-3">
               {scholars.slice(0,6).map(s => (
-                <a key={s.id} href={s.source_url} target="_blank" rel="noopener noreferrer" className="group card-elev rounded-2xl p-4 hover-lift">
-                  <p className="text-xs uppercase tracking-widest text-[#8a8171]">{s.country}</p>
-                  <p className="mt-1 font-medium text-[#0A0A0A] line-clamp-2">{s.university_name}</p>
-                  <p className="mt-2 text-xs text-[#6B6357] line-clamp-2">{s.scholarship_name}</p>
-                  <div className="mt-3 flex items-center gap-1 text-xs text-cyan-700"><ExternalLink className="h-3 w-3"/>Official source</div>
+                <a key={s.id} href={s.source_url} target="_blank" rel="noopener noreferrer" className="group card-dark rounded-2xl p-4 hover-lift block">
+                  <p className="text-xs uppercase tracking-widest text-white/40">{s.country}</p>
+                  <p className="mt-1 font-medium text-white line-clamp-2">{s.university_name}</p>
+                  <p className="mt-2 text-xs text-white/50 line-clamp-2">{s.scholarship_name}</p>
+                  <div className="mt-3 flex items-center gap-1 text-xs text-cyan-300"><ExternalLink className="h-3 w-3"/>Official source</div>
                 </a>
               ))}
             </div>
@@ -234,10 +267,10 @@ function Home() {
 
       {/* ============== GUARDRAILS ============== */}
       <section className="container mx-auto max-w-7xl px-4 pt-24">
-        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-[#0A0A0A]">
+        <h2 className="text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-white">
           What ScholarshipFit <span className="text-gradient-warm">will never do.</span>
         </h2>
-        <p className="mt-4 max-w-3xl text-lg text-[#4b453b]">Honest boundaries — because scholarship research shouldn&apos;t be a hype machine.</p>
+        <p className="mt-4 max-w-3xl text-lg text-white/60">Honest boundaries — because scholarship research shouldn&apos;t be a hype machine.</p>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
             'Never invent scholarships',
@@ -247,11 +280,11 @@ function Home() {
             'Never submit applications on your behalf',
             'Never publish testimonials without consent',
           ].map((t,i)=>(
-            <div key={i} className="card-elev rounded-2xl p-5 flex items-start gap-3">
-              <div className="h-8 w-8 rounded-full bg-[#F5F2EB] border border-[#E8E3D6] text-[#0A0A0A] flex items-center justify-center shrink-0">
+            <div key={i} className="card-dark rounded-2xl p-5 flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center shrink-0">
                 <XCircle className="h-4 w-4"/>
               </div>
-              <p className="font-medium text-[#0A0A0A] leading-snug">{t}</p>
+              <p className="font-medium text-white leading-snug">{t}</p>
             </div>
           ))}
         </div>
@@ -265,11 +298,11 @@ function Home() {
             { t:'Do you apply for me?', d:'No. ScholarshipFit is a research tool. Every card links to the official provider — you apply there.', icon:<ClipboardCheck className="h-5 w-5"/> },
             { t:'Do you guarantee scholarships?', d:'No. Nobody credible does. We help you find realistic fits and prepare a stronger, targeted application.', icon:<ShieldCheck className="h-5 w-5"/> },
           ].map((f,i)=>(
-            <Card key={i} className="card-elev rounded-2xl hover-lift">
+            <Card key={i} className="card-dark rounded-2xl hover-lift">
               <CardContent className="p-6">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white">{f.icon}</div>
-                <p className="mt-4 text-lg font-semibold tracking-tight text-[#0A0A0A]">{f.t}</p>
-                <p className="mt-2 text-[#4b453b]">{f.d}</p>
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#060608]">{f.icon}</div>
+                <p className="mt-4 text-lg font-semibold tracking-tight text-white">{f.t}</p>
+                <p className="mt-2 text-white/60">{f.d}</p>
               </CardContent>
             </Card>
           ))}
@@ -278,16 +311,17 @@ function Home() {
 
       {/* ============== FINAL CTA ============== */}
       <section className="container mx-auto max-w-6xl px-4 pt-28 pb-20">
-        <div className="relative rounded-3xl border border-[#E8E3D6] bg-[#0A0A0A] px-6 py-16 md:py-24 text-center overflow-hidden">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl"/>
-          <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl"/>
+        <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-[#0E0E13] to-[#050507] px-6 py-16 md:py-24 text-center overflow-hidden">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-cyan-500/15 blur-3xl"/>
+          <div className="pointer-events-none absolute -left-24 -bottom-24 h-80 w-80 rounded-full bg-violet-500/15 blur-3xl"/>
+          <div className="pointer-events-none absolute inset-0 grid-lines-dark opacity-20"/>
           <h2 className="relative text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1.02] text-white">
             Ready to see <span className="text-gradient-warm">your shortlist?</span>
           </h2>
           <p className="relative mx-auto mt-4 max-w-xl text-lg text-white/70">Build your profile in three minutes and get source-linked matches instantly.</p>
           <div className="relative mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/onboarding">
-              <Button size="lg" className="bg-white hover:bg-white/90 text-black btn-pill px-7 h-12 text-base">
+              <Button size="lg" className="bg-white hover:bg-white/90 text-[#060608] btn-pill px-7 h-12 text-base font-medium">
                 Check My Scholarships <ArrowRight className="ml-2 h-4 w-4"/>
               </Button>
             </Link>
@@ -307,16 +341,29 @@ function Home() {
 
 /* ==================== helpers ==================== */
 
+function CampusCard({ img, small }) {
+  return (
+    <div className={`relative shrink-0 overflow-hidden rounded-2xl border border-white/10 ${small ? 'h-40 w-64' : 'h-64 w-80'}`}>
+      <Image src={img.url} alt={img.label} fill sizes="320px" className="object-cover"/>
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"/>
+      <div className="absolute bottom-3 left-3 right-3">
+        <p className="text-[10px] uppercase tracking-widest text-white/70">{img.country}</p>
+        <p className="mt-0.5 text-sm font-medium text-white">{img.label}</p>
+      </div>
+    </div>
+  )
+}
+
 function FloatingIcon({ children, delay='0s', rotate='0deg', tint }) {
   const tints = {
-    cyan: 'bg-cyan-100 border-cyan-200/60',
-    pink: 'bg-pink-100 border-pink-200/60',
-    orange: 'bg-orange-100 border-orange-200/60',
-    default: 'bg-white border-[#E8E3D6]',
+    cyan: 'bg-gradient-to-br from-cyan-500/20 to-cyan-800/20 border-cyan-400/20',
+    pink: 'bg-gradient-to-br from-pink-500/20 to-pink-800/20 border-pink-400/20',
+    orange: 'bg-gradient-to-br from-orange-500/20 to-orange-800/20 border-orange-400/20',
+    default: 'bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/10',
   }
   const cls = tints[tint] || tints.default
   return (
-    <div className={`animate-float rounded-2xl border ${cls} p-3 shadow-[0_10px_30px_-10px_rgba(20,14,6,0.15)]`} style={{ animationDelay: delay, transform: `rotate(${rotate})` }}>
+    <div className={`animate-float rounded-2xl border ${cls} p-3 backdrop-blur-sm shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)]`} style={{ animationDelay: delay, transform: `rotate(${rotate})` }}>
       {children}
     </div>
   )
@@ -325,8 +372,8 @@ function FloatingIcon({ children, delay='0s', rotate='0deg', tint }) {
 function FieldInput({ label, value, onChange, placeholder, type='text' }) {
   return (
     <div>
-      <label className="text-[11px] uppercase tracking-widest text-[#8a8171]">{label}</label>
-      <Input type={type} placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A] placeholder:text-[#b6ad9c] focus-visible:ring-cyan-500"/>
+      <label className="text-[11px] uppercase tracking-widest text-white/50">{label}</label>
+      <Input type={type} placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 bg-white/[0.04] border-white/10 text-white placeholder:text-white/30 focus-visible:ring-cyan-500"/>
     </div>
   )
 }
@@ -334,9 +381,9 @@ function FieldInput({ label, value, onChange, placeholder, type='text' }) {
 function FieldSelect({ label, value, onChange, options }) {
   return (
     <div>
-      <label className="text-[11px] uppercase tracking-widest text-[#8a8171]">{label}</label>
+      <label className="text-[11px] uppercase tracking-widest text-white/50">{label}</label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A]"><SelectValue placeholder="Select"/></SelectTrigger>
+        <SelectTrigger className="mt-1 bg-white/[0.04] border-white/10 text-white"><SelectValue placeholder="Select"/></SelectTrigger>
         <SelectContent>{options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
       </Select>
     </div>
@@ -345,15 +392,15 @@ function FieldSelect({ label, value, onChange, options }) {
 
 function FeatureCard({ title, caption, children, href, cta }) {
   return (
-    <Card className="card-elev rounded-3xl hover-lift overflow-hidden">
+    <Card className="card-dark rounded-3xl hover-lift overflow-hidden">
       <CardContent className="p-0">
-        <div className="relative h-56 border-b border-[#EDE7D8] bg-gradient-to-br from-[#FAF7EF] to-[#F1EBDD] overflow-hidden">
+        <div className="relative h-56 border-b border-white/5 bg-gradient-to-br from-[#0F0F16] to-[#08080C] overflow-hidden">
           <div className="absolute inset-4">{children}</div>
         </div>
         <div className="p-5">
-          <p className="text-xs uppercase tracking-widest text-cyan-700 font-medium">{title}</p>
-          <p className="mt-1 text-lg font-semibold tracking-tight text-[#0A0A0A]">{caption}</p>
-          <Link href={href} className="mt-3 inline-flex items-center gap-1 text-sm text-[#0A0A0A] font-medium group">
+          <p className="text-xs uppercase tracking-widest text-cyan-300 font-medium">{title}</p>
+          <p className="mt-1 text-lg font-semibold tracking-tight text-white">{caption}</p>
+          <Link href={href} className="mt-3 inline-flex items-center gap-1 text-sm text-white font-medium group">
             {cta} <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition"/>
           </Link>
         </div>
@@ -367,20 +414,20 @@ function FeatureCard({ title, caption, children, href, cta }) {
 function MockMatchCard() {
   return (
     <div className="h-full flex items-center justify-center">
-      <div className="w-full max-w-[280px] rounded-2xl bg-white border border-[#E8E3D6] p-4 shadow-sm">
+      <div className="w-full max-w-[280px] rounded-2xl bg-white/[0.04] border border-white/10 p-4 backdrop-blur">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] text-[#8a8171]">Republic of Türkiye · Türkiye</p>
-            <p className="mt-0.5 text-sm font-semibold text-[#0A0A0A]">Türkiye Scholarships</p>
+            <p className="text-[10px] text-white/40">Republic of Türkiye · Türkiye</p>
+            <p className="mt-0.5 text-sm font-semibold text-white">Türkiye Scholarships</p>
           </div>
-          <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-semibold">92</div>
+          <div className="h-10 w-10 rounded-full bg-white text-[#060608] flex items-center justify-center text-sm font-semibold">92</div>
         </div>
         <div className="mt-3 flex flex-wrap gap-1">
-          <span className="rounded-full bg-cyan-100 text-cyan-800 text-[10px] px-2 py-0.5">Source-linked</span>
-          <span className="rounded-full bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5">Eligible</span>
-          <span className="rounded-full bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5">Low risk</span>
+          <span className="rounded-full bg-cyan-500/15 text-cyan-200 border border-cyan-500/25 text-[10px] px-2 py-0.5">Source-linked</span>
+          <span className="rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/25 text-[10px] px-2 py-0.5">Eligible</span>
+          <span className="rounded-full bg-orange-500/15 text-orange-200 border border-orange-500/25 text-[10px] px-2 py-0.5">Low risk</span>
         </div>
-        <p className="mt-3 text-[11px] text-[#4b453b] leading-relaxed">Full funding · monthly stipend · accommodation · airfare. Verify current cycle on official source.</p>
+        <p className="mt-3 text-[11px] text-white/60 leading-relaxed">Full funding · monthly stipend · accommodation · airfare. Verify current cycle on official source.</p>
       </div>
     </div>
   )
@@ -389,11 +436,11 @@ function MockMatchCard() {
 function MockAdvisor() {
   return (
     <div className="h-full flex flex-col justify-end gap-2">
-      <div className="self-start max-w-[70%] rounded-2xl bg-white border border-[#E8E3D6] px-3 py-2 text-xs text-[#0A0A0A]">
-        <span className="text-[9px] uppercase tracking-widest text-cyan-700">Nova</span>
+      <div className="self-start max-w-[70%] rounded-2xl bg-white/[0.05] border border-white/10 px-3 py-2 text-xs text-white">
+        <span className="text-[9px] uppercase tracking-widest text-cyan-300">Nova</span>
         <p className="mt-1">Two strong source-linked options: <b>DAAD EPOS</b> and <b>Stipendium Hungaricum</b>. Deadlines vary — check official sources.</p>
       </div>
-      <div className="self-end max-w-[65%] rounded-2xl bg-black text-white px-3 py-2 text-xs">Full funding · Germany · engineering?</div>
+      <div className="self-end max-w-[65%] rounded-2xl bg-white text-[#060608] px-3 py-2 text-xs font-medium">Full funding · Germany · engineering?</div>
     </div>
   )
 }
@@ -401,15 +448,15 @@ function MockAdvisor() {
 function MockReport() {
   return (
     <div className="h-full flex items-center">
-      <div className="w-full rounded-xl bg-white border border-[#E8E3D6] p-3">
-        <p className="text-[10px] uppercase tracking-widest text-[#8a8171]">Portfolio summary</p>
+      <div className="w-full rounded-xl bg-white/[0.04] border border-white/10 p-3">
+        <p className="text-[10px] uppercase tracking-widest text-white/40">Portfolio summary</p>
         <div className="mt-2 flex gap-1.5">
-          {[92,78,74,71].map((n,i)=>(<div key={i} className="flex-1 rounded-md bg-gradient-to-b from-cyan-100 to-cyan-200/50 text-center py-2 text-xs font-semibold text-cyan-800">{n}</div>))}
+          {[92,78,74,71].map((n,i)=>(<div key={i} className="flex-1 rounded-md bg-gradient-to-b from-cyan-500/25 to-cyan-500/10 border border-cyan-500/20 text-center py-2 text-xs font-semibold text-cyan-200">{n}</div>))}
         </div>
         <div className="mt-3 space-y-1.5">
-          <div className="h-1.5 w-full rounded-full bg-[#F0EBDF]"><div className="h-1.5 w-[92%] rounded-full bg-black"/></div>
-          <div className="h-1.5 w-full rounded-full bg-[#F0EBDF]"><div className="h-1.5 w-[78%] rounded-full bg-black/80"/></div>
-          <div className="h-1.5 w-full rounded-full bg-[#F0EBDF]"><div className="h-1.5 w-[74%] rounded-full bg-black/60"/></div>
+          <div className="h-1.5 w-full rounded-full bg-white/5"><div className="h-1.5 w-[92%] rounded-full bg-white"/></div>
+          <div className="h-1.5 w-full rounded-full bg-white/5"><div className="h-1.5 w-[78%] rounded-full bg-white/80"/></div>
+          <div className="h-1.5 w-full rounded-full bg-white/5"><div className="h-1.5 w-[74%] rounded-full bg-white/60"/></div>
         </div>
       </div>
     </div>
@@ -420,9 +467,9 @@ function MockCabinet() {
   return (
     <div className="h-full grid grid-cols-2 gap-2">
       {[{n:'Saved',c:3},{n:'Preparing',c:2},{n:'Applied',c:1},{n:'Won',c:0}].map((s,i)=>(
-        <div key={i} className="rounded-xl bg-white border border-[#E8E3D6] p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-widest text-[#8a8171]">{s.n}</p>
-          <p className="text-2xl font-semibold text-[#0A0A0A]">{s.c}</p>
+        <div key={i} className="rounded-xl bg-white/[0.04] border border-white/10 p-3 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-widest text-white/40">{s.n}</p>
+          <p className="text-2xl font-semibold text-white">{s.c}</p>
         </div>
       ))}
     </div>
@@ -434,13 +481,13 @@ function MockDatabase({ scholars }) {
   return (
     <div className="h-full grid grid-cols-2 gap-2">
       {preview.map(s => (
-        <div key={s.id} className="rounded-xl bg-white border border-[#E8E3D6] p-2.5">
-          <p className="text-[9px] uppercase tracking-widest text-[#8a8171] truncate">{s.country}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-[#0A0A0A] line-clamp-2">{s.university_name}</p>
-          <div className="mt-1 flex items-center gap-1 text-[9px] text-cyan-700"><ExternalLink className="h-2.5 w-2.5"/>Source</div>
+        <div key={s.id} className="rounded-xl bg-white/[0.04] border border-white/10 p-2.5">
+          <p className="text-[9px] uppercase tracking-widest text-white/40 truncate">{s.country}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-white line-clamp-2">{s.university_name}</p>
+          <div className="mt-1 flex items-center gap-1 text-[9px] text-cyan-300"><ExternalLink className="h-2.5 w-2.5"/>Source</div>
         </div>
       ))}
-      {preview.length === 0 && Array.from({length:4}).map((_,i)=>(<div key={i} className="rounded-xl bg-white/60 border border-[#E8E3D6] p-2.5 animate-pulse h-16"/>))}
+      {preview.length === 0 && Array.from({length:4}).map((_,i)=>(<div key={i} className="rounded-xl bg-white/5 border border-white/10 p-2.5 animate-pulse h-16"/>))}
     </div>
   )
 }
@@ -450,9 +497,9 @@ function MockGuardrails() {
   return (
     <div className="h-full flex flex-col justify-center gap-2">
       {items.map((t,i)=>(
-        <div key={i} className="flex items-center gap-2 rounded-lg bg-white border border-[#E8E3D6] px-3 py-2">
-          <XCircle className="h-4 w-4 text-[#0A0A0A]"/>
-          <span className="text-xs font-medium text-[#0A0A0A]">{t}</span>
+        <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
+          <XCircle className="h-4 w-4 text-white/70"/>
+          <span className="text-xs font-medium text-white">{t}</span>
         </div>
       ))}
     </div>

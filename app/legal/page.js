@@ -6,12 +6,12 @@ import { Badge } from '@/components/ui/badge'
 
 function Legal() {
   return (
-    <div className="paper-bg min-h-screen">
+    <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-4xl px-4 py-14">
-        <Badge variant="outline" className="border-cyan-200 bg-cyan-50 text-cyan-800">Legal</Badge>
-        <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-[#0A0A0A]">Terms, Privacy, Disclaimer & Refund policy</h1>
-        <p className="mt-2 text-[#6B6357]">Plain-language, honest legal notes for ScholarshipFit.</p>
+        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Legal</Badge>
+        <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">Terms, Privacy, Disclaimer & Refund policy</h1>
+        <p className="mt-2 text-white/60">Plain-language, honest legal notes for ScholarshipFit.</p>
 
         <Block id="disclaimer" title="Disclaimer">
           <p>ScholarshipFit is self-service scholarship research software. It does <strong>not</strong> provide admissions consulting, visa services, legal advice, financial advice, application submission, or guaranteed outcomes. All matches are informational. Users must verify eligibility, deadlines, and funding terms directly on the official provider website before applying.</p>
@@ -29,7 +29,7 @@ function Legal() {
           <p>Paid plans are not active yet. When paid plans open, our default policy will be: 7-day money-back guarantee on first subscription; no refunds on renewals; refunds handled on a case-by-case basis for genuine service issues. Final refund policy will be published before payments launch.</p>
         </Block>
 
-        <p className="mt-8 text-xs text-[#8a8171]">Nothing on this site constitutes legal or financial advice. Individual results vary. ScholarshipFit does not guarantee similar outcomes.</p>
+        <p className="mt-8 text-xs text-white/40">Nothing on this site constitutes legal or financial advice. Individual results vary. ScholarshipFit does not guarantee similar outcomes.</p>
       </div>
       <Footer />
     </div>
@@ -38,10 +38,10 @@ function Legal() {
 
 function Block({ id, title, children }) {
   return (
-    <Card id={id} className="mt-6 border-[#E8E3D6] bg-white scroll-mt-24">
+    <Card id={id} className="mt-6 border-white/10 bg-white/[0.03] scroll-mt-24">
       <CardContent className="p-6">
-        <h2 className="text-lg font-semibold text-[#0A0A0A]">{title}</h2>
-        <div className="mt-2 text-sm text-[#4b453b] leading-relaxed">{children}</div>
+        <h2 className="text-lg font-semibold text-white">{title}</h2>
+        <div className="mt-2 text-sm text-white/80 leading-relaxed">{children}</div>
       </CardContent>
     </Card>
   )

@@ -46,16 +46,16 @@ function Admin() {
   }
 
   return (
-    <div className="paper-bg min-h-screen">
+    <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-7xl px-4 py-10">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <Badge variant="outline" className="border-cyan-200 bg-cyan-50 text-cyan-800">Admin</Badge>
-            <h1 className="mt-2 text-3xl font-semibold text-[#0A0A0A]">ScholarshipFit control</h1>
-            <p className="text-[#6B6357] text-sm">Manage database records, trust levels, and AI activity.</p>
+            <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Admin</Badge>
+            <h1 className="mt-2 text-3xl font-semibold text-white">ScholarshipFit control</h1>
+            <p className="text-white/60 text-sm">Manage database records, trust levels, and AI activity.</p>
           </div>
-          <Button onClick={()=>setCreating(true)} className="bg-[#0A0A0A] text-white hover:bg-[#1a1a1a] btn-pill"><Plus className="mr-2 h-4 w-4"/>Add scholarship</Button>
+          <Button onClick={()=>setCreating(true)} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium"><Plus className="mr-2 h-4 w-4"/>Add scholarship</Button>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-4">
@@ -65,12 +65,12 @@ function Admin() {
           <Stat icon={<MessageSquare className="h-4 w-4"/>} label="Advisor messages" value={stats?.advisor_messages ?? '—'}/>
         </div>
 
-        <Card className="mt-6 border-[#E8E3D6] bg-white">
+        <Card className="mt-6 border-white/10 bg-white/[0.03]">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-widest text-[#6B6357]">
-                  <tr className="border-b border-[#E8E3D6]">
+                <thead className="text-left text-xs uppercase tracking-widest text-white/60">
+                  <tr className="border-b border-white/10">
                     <th className="p-3">Scholarship</th>
                     <th className="p-3">Country</th>
                     <th className="p-3">Trust</th>
@@ -81,15 +81,15 @@ function Admin() {
                 </thead>
                 <tbody>
                   {items.map(s => (
-                    <tr key={s.id} className="border-b border-[#E8E3D6] text-[#0A0A0A]">
-                      <td className="p-3"><div className="font-medium text-[#0A0A0A]">{s.scholarship_name}</div><div className="text-xs text-[#6B6357]">{s.university_name}</div></td>
+                    <tr key={s.id} className="border-b border-white/10 text-white">
+                      <td className="p-3"><div className="font-medium text-white">{s.scholarship_name}</div><div className="text-xs text-white/60">{s.university_name}</div></td>
                       <td className="p-3">{s.country}</td>
-                      <td className="p-3"><Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-700"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust_level}</Badge></td>
-                      <td className="p-3">{s.source_url ? <a target="_blank" rel="noopener noreferrer" href={s.source_url} className="inline-flex items-center gap-1 text-cyan-700 hover:underline"><ExternalLink className="h-3 w-3"/>Open</a> : <span className="text-amber-700">missing</span>}</td>
-                      <td className="p-3">{s.public_status === 'hidden' ? <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">hidden</Badge> : <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">public</Badge>}</td>
+                      <td className="p-3"><Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust_level}</Badge></td>
+                      <td className="p-3">{s.source_url ? <a target="_blank" rel="noopener noreferrer" href={s.source_url} className="inline-flex items-center gap-1 text-cyan-300 hover:underline"><ExternalLink className="h-3 w-3"/>Open</a> : <span className="text-amber-300">missing</span>}</td>
+                      <td className="p-3">{s.public_status === 'hidden' ? <Badge className="bg-amber-500/100/15 text-amber-300 hover:bg-amber-500/100/15">hidden</Badge> : <Badge className="bg-emerald-500/100/15 text-emerald-300 hover:bg-emerald-500/100/15">public</Badge>}</td>
                       <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={()=>setEditing(s)} className="text-[#4b453b] hover:text-[#0A0A0A] hover:bg-white/5"><Pencil className="h-4 w-4"/></Button>
-                        <Button size="sm" variant="ghost" onClick={()=>togglePublic(s)} className="text-[#4b453b] hover:text-[#0A0A0A] hover:bg-white/5">{s.public_status === 'hidden' ? <Eye className="h-4 w-4"/> : <EyeOff className="h-4 w-4"/>}</Button>
+                        <Button size="sm" variant="ghost" onClick={()=>setEditing(s)} className="text-white/80 hover:text-white hover:bg-white/5"><Pencil className="h-4 w-4"/></Button>
+                        <Button size="sm" variant="ghost" onClick={()=>togglePublic(s)} className="text-white/80 hover:text-white hover:bg-white/5">{s.public_status === 'hidden' ? <Eye className="h-4 w-4"/> : <EyeOff className="h-4 w-4"/>}</Button>
                       </td>
                     </tr>
                   ))}
@@ -101,26 +101,26 @@ function Admin() {
 
         {/* Logs */}
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <Card className="border-[#E8E3D6] bg-white"><CardContent className="p-5">
-            <p className="text-[11px] uppercase tracking-widest text-[#6B6357]">Recent AI match runs</p>
+          <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5">
+            <p className="text-[11px] uppercase tracking-widest text-white/60">Recent AI match runs</p>
             <div className="mt-3 space-y-2 max-h-80 overflow-y-auto pr-1">
               {logs?.match_runs?.length ? logs.match_runs.map(r=>(
-                <div key={r.id} className="rounded-md border border-[#E8E3D6] bg-white p-3 text-sm">
-                  <div className="flex items-center justify-between text-xs text-[#6B6357]"><span>{new Date(r.created_at).toLocaleString()}</span><span>{r.result?.matches?.length || 0} matches</span></div>
-                  <p className="mt-1 text-[#4b453b] line-clamp-2">{r.result?.summary}</p>
+                <div key={r.id} className="rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm">
+                  <div className="flex items-center justify-between text-xs text-white/60"><span>{new Date(r.created_at).toLocaleString()}</span><span>{r.result?.matches?.length || 0} matches</span></div>
+                  <p className="mt-1 text-white/80 line-clamp-2">{r.result?.summary}</p>
                 </div>
-              )) : <p className="text-sm text-[#8a8171]">No runs yet.</p>}
+              )) : <p className="text-sm text-white/40">No runs yet.</p>}
             </div>
           </CardContent></Card>
-          <Card className="border-[#E8E3D6] bg-white"><CardContent className="p-5">
-            <p className="text-[11px] uppercase tracking-widest text-[#6B6357]">Recent advisor messages</p>
+          <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5">
+            <p className="text-[11px] uppercase tracking-widest text-white/60">Recent advisor messages</p>
             <div className="mt-3 space-y-2 max-h-80 overflow-y-auto pr-1">
               {logs?.advisor_messages?.length ? logs.advisor_messages.map(m=>(
-                <div key={m.id} className="rounded-md border border-[#E8E3D6] bg-white p-3 text-sm">
-                  <div className="flex items-center justify-between text-xs text-[#6B6357]"><span>{m.role}</span><span>{new Date(m.created_at).toLocaleTimeString()}</span></div>
-                  <p className="mt-1 text-[#4b453b] line-clamp-3">{m.content}</p>
+                <div key={m.id} className="rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm">
+                  <div className="flex items-center justify-between text-xs text-white/60"><span>{m.role}</span><span>{new Date(m.created_at).toLocaleTimeString()}</span></div>
+                  <p className="mt-1 text-white/80 line-clamp-3">{m.content}</p>
                 </div>
-              )) : <p className="text-sm text-[#8a8171]">No advisor traffic yet.</p>}
+              )) : <p className="text-sm text-white/40">No advisor traffic yet.</p>}
             </div>
           </CardContent></Card>
         </div>
@@ -134,9 +134,9 @@ function Admin() {
 
 function Stat({ icon, label, value }) {
   return (
-    <Card className="border-[#E8E3D6] bg-white"><CardContent className="p-5">
-      <div className="flex items-center gap-2 text-cyan-700">{icon}<span className="text-xs uppercase tracking-widest text-[#6B6357]">{label}</span></div>
-      <p className="mt-1 text-3xl font-semibold text-[#0A0A0A]">{value}</p>
+    <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5">
+      <div className="flex items-center gap-2 text-cyan-300">{icon}<span className="text-xs uppercase tracking-widest text-white/60">{label}</span></div>
+      <p className="mt-1 text-3xl font-semibold text-white">{value}</p>
     </CardContent></Card>
   )
 }
@@ -150,7 +150,7 @@ function ScholarshipDialog({ open, initial, isNew, onClose, onSave }) {
   const listUpd = (k, v) => setDoc(d=>({...d, [k]: v.split(',').map(s=>s.trim()).filter(Boolean)}))
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl bg-white border-[#E8E3D6] text-[#0A0A0A]">
+      <DialogContent className="max-w-3xl bg-white/[0.04] border-white/10 text-white">
         <DialogHeader><DialogTitle>{isNew ? 'Add scholarship' : 'Edit scholarship'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2 max-h-[70vh] overflow-y-auto pr-2">
           <F label="Scholarship name" v={doc.scholarship_name} on={v=>upd('scholarship_name',v)}/>
@@ -170,9 +170,9 @@ function ScholarshipDialog({ open, initial, isNew, onClose, onSave }) {
           <F label="Required docs (comma)" v={(doc.required_documents||[]).join(', ')} on={v=>listUpd('required_documents',v)}/>
           <F className="sm:col-span-2" label="Eligibility summary" v={doc.eligibility_summary} on={v=>upd('eligibility_summary',v)}/>
           <div>
-            <label className="text-[11px] uppercase tracking-widest text-[#6B6357]">Trust level</label>
+            <label className="text-[11px] uppercase tracking-widest text-white/60">Trust level</label>
             <Select value={doc.trust_level} onValueChange={v=>upd('trust_level',v)}>
-              <SelectTrigger className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A]"><SelectValue/></SelectTrigger>
+              <SelectTrigger className="mt-1 bg-white/[0.04] border-white/10 text-white"><SelectValue/></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Source-linked">Source-linked</SelectItem>
                 <SelectItem value="Strongly reviewed">Strongly reviewed</SelectItem>
@@ -182,16 +182,16 @@ function ScholarshipDialog({ open, initial, isNew, onClose, onSave }) {
             </Select>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-widest text-[#6B6357]">Public status</label>
+            <label className="text-[11px] uppercase tracking-widest text-white/60">Public status</label>
             <Select value={doc.public_status || 'public'} onValueChange={v=>upd('public_status',v)}>
-              <SelectTrigger className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A]"><SelectValue/></SelectTrigger>
+              <SelectTrigger className="mt-1 bg-white/[0.04] border-white/10 text-white"><SelectValue/></SelectTrigger>
               <SelectContent><SelectItem value="public">Public</SelectItem><SelectItem value="hidden">Hidden</SelectItem></SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} className="text-[#4b453b] hover:text-[#0A0A0A] hover:bg-white/5">Cancel</Button>
-          <Button onClick={()=>onSave(doc, isNew)} className="bg-[#0A0A0A] text-white hover:bg-[#1a1a1a] btn-pill">Save</Button>
+          <Button variant="ghost" onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/5">Cancel</Button>
+          <Button onClick={()=>onSave(doc, isNew)} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -201,8 +201,8 @@ function ScholarshipDialog({ open, initial, isNew, onClose, onSave }) {
 function F({ label, v, on, className='' }) {
   return (
     <div className={className}>
-      <label className="text-[11px] uppercase tracking-widest text-[#6B6357]">{label}</label>
-      <Input value={v||''} onChange={e=>on(e.target.value)} className="mt-1 bg-white border-[#E8E3D6] text-[#0A0A0A]"/>
+      <label className="text-[11px] uppercase tracking-widest text-white/60">{label}</label>
+      <Input value={v||''} onChange={e=>on(e.target.value)} className="mt-1 bg-white/[0.04] border-white/10 text-white"/>
     </div>
   )
 }

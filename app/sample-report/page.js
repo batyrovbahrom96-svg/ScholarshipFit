@@ -68,24 +68,24 @@ function SampleReport() {
   }, [])
 
   return (
-    <div className="paper-bg min-h-screen">
+    <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="relative">
         <div className="container mx-auto max-w-6xl px-4 py-10 relative">
-          <Badge variant="outline" className="border-cyan-200 bg-cyan-50 text-cyan-800"><Sparkles className="mr-1 h-3 w-3"/>Sample report</Badge>
-          <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-[#0A0A0A]">What your ScholarshipFit shortlist looks like</h1>
-          <p className="mt-2 text-[#6B6357] max-w-3xl">A preview of the AI report ScholarshipFit generates — grounded in real, source-linked records. This is an illustrative sample built from a fictional student profile.</p>
+          <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200"><Sparkles className="mr-1 h-3 w-3"/>Sample report</Badge>
+          <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">What your ScholarshipFit shortlist looks like</h1>
+          <p className="mt-2 text-white/60 max-w-3xl">A preview of the AI report ScholarshipFit generates — grounded in real, source-linked records. This is an illustrative sample built from a fictional student profile.</p>
 
-          <Card className="mt-6 border-[#E8E3D6] bg-gradient-to-br from-cyan-50 to-white">
+          <Card className="mt-6 border-white/10 bg-gradient-to-br from-cyan-500/10 to-white/5">
             <CardContent className="p-5">
-              <p className="text-[11px] uppercase tracking-widest text-cyan-700">Student profile summary</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm text-[#0A0A0A]">
+              <p className="text-[11px] uppercase tracking-widest text-cyan-300">Student profile summary</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm text-white">
                 <Info2 icon={<User className="h-4 w-4"/>} label={SAMPLE_PROFILE.full_name} sub={`${SAMPLE_PROFILE.nationality} → international`}/>
                 <Info2 icon={<GraduationCap className="h-4 w-4"/>} label={`${SAMPLE_PROFILE.degree_level} — ${SAMPLE_PROFILE.intended_major}`} sub={`GPA ${SAMPLE_PROFILE.gpa}/${SAMPLE_PROFILE.gpa_scale} · IELTS ${SAMPLE_PROFILE.ielts}`}/>
                 <Info2 icon={<Globe className="h-4 w-4"/>} label={SAMPLE_PROFILE.preferred_countries.join(', ')} sub="Preferred countries"/>
                 <Info2 icon={<DollarSign className="h-4 w-4"/>} label={`$${SAMPLE_PROFILE.annual_budget_usd}/yr budget`} sub={SAMPLE_PROFILE.full_funding_only ? 'Full funding only' : 'Open to partial'}/>
               </div>
-              {meta && (<p className="mt-4 text-sm text-[#4b453b]">{meta.count} source-linked matches. Average fit <span className="text-cyan-700 font-medium">{meta.avg}</span>.</p>)}
+              {meta && (<p className="mt-4 text-sm text-white/80">{meta.count} source-linked matches. Average fit <span className="text-cyan-300 font-medium">{meta.avg}</span>.</p>)}
             </CardContent>
           </Card>
 
@@ -93,16 +93,16 @@ function SampleReport() {
             {matches.map((m,i)=>(<ScholarshipCard key={i} match={m}/>))}
           </div>
 
-          <Card className="mt-8 border-[#E8E3D6] bg-white">
+          <Card className="mt-8 border-white/10 bg-white/[0.03]">
             <CardContent className="p-5">
-              <p className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#6B6357]"><ShieldCheck className="h-3 w-3"/>Disclaimer</p>
-              <p className="mt-2 text-sm text-[#4b453b]">ScholarshipFit provides informational scholarship research only. It does not guarantee admission, scholarships, visas, or funding. Users apply directly through official provider websites. All deadline / funding numbers must be re-verified on the official source before applying.</p>
+              <p className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/60"><ShieldCheck className="h-3 w-3"/>Disclaimer</p>
+              <p className="mt-2 text-sm text-white/80">ScholarshipFit provides informational scholarship research only. It does not guarantee admission, scholarships, visas, or funding. Users apply directly through official provider websites. All deadline / funding numbers must be re-verified on the official source before applying.</p>
             </CardContent>
           </Card>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/onboarding"><Button size="lg" className="bg-orange-500 hover:bg-orange-400 text-[#0A0A0A]"><Rocket className="mr-2 h-5 w-5"/>Build my real report</Button></Link>
-            <Link href="/advisor"><Button size="lg" variant="outline" className="border-[#E8E3D6] bg-white text-[#0A0A0A] hover:bg-white">Ask Nova</Button></Link>
+            <Link href="/onboarding"><Button size="lg" className="bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium"><Rocket className="mr-2 h-5 w-5"/>Build my real report</Button></Link>
+            <Link href="/advisor"><Button size="lg" variant="outline" className="border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.03]">Ask Nova</Button></Link>
           </div>
         </div>
       </div>
@@ -113,9 +113,9 @@ function SampleReport() {
 
 function Info2({ icon, label, sub }) {
   return (
-    <div className="rounded-lg border border-[#E8E3D6] bg-white p-3">
-      <div className="flex items-center gap-2 text-cyan-700">{icon}<span className="text-[#0A0A0A] text-sm font-medium">{label}</span></div>
-      <p className="mt-1 text-xs text-[#6B6357]">{sub}</p>
+    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div className="flex items-center gap-2 text-cyan-300">{icon}<span className="text-white text-sm font-medium">{label}</span></div>
+      <p className="mt-1 text-xs text-white/60">{sub}</p>
     </div>
   )
 }

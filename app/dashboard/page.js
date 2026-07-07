@@ -91,37 +91,37 @@ function Dashboard() {
   }, [matches])
 
   return (
-    <div className="paper-bg min-h-screen">
+    <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-widest text-cyan-700">Personal cabinet</p>
-            <h1 className="text-3xl font-semibold text-[#0A0A0A]">Welcome, {profile?.full_name || 'Explorer'}</h1>
-            <p className="mt-1 text-sm text-[#6B6357]">Your AI shortlist, powered by Claude Sonnet 4.5 — source-linked, honest, no invented results.</p>
+            <p className="text-xs uppercase tracking-widest text-cyan-300">Personal cabinet</p>
+            <h1 className="text-3xl font-semibold text-white">Welcome, {profile?.full_name || 'Explorer'}</h1>
+            <p className="mt-1 text-sm text-white/60">Your AI shortlist, powered by Claude Sonnet 4.5 — source-linked, honest, no invented results.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={rerun} disabled={rematching} className="bg-[#0A0A0A] text-white hover:bg-[#1a1a1a] btn-pill">
+            <Button onClick={rerun} disabled={rematching} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">
               <RefreshCw className={`mr-2 h-4 w-4 ${rematching?'animate-spin':''}`}/>{rematching?'Rematching...':'Rerun AI match'}
             </Button>
-            <Link href="/onboarding"><Button variant="outline" className="border-[#E8E3D6] bg-transparent text-[#0A0A0A] hover:bg-white/5">Edit profile</Button></Link>
+            <Link href="/onboarding"><Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5">Edit profile</Button></Link>
           </div>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-12">
           {/* Sidebar */}
           <aside className="lg:col-span-3">
-            <Card className="border-[#E8E3D6] bg-white sticky top-20">
+            <Card className="border-white/10 bg-white/[0.03] sticky top-20">
               <CardContent className="p-3">
                 <nav className="flex flex-col gap-1">
                   {SIDEBAR.map(item => item.href ? (
-                    <Link key={item.key} href={item.href} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[#4b453b] hover:bg-white/5 hover:text-[#0A0A0A]">
-                      <span className="text-cyan-700">{item.icon}</span>{item.label}
+                    <Link key={item.key} href={item.href} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white">
+                      <span className="text-cyan-300">{item.icon}</span>{item.label}
                     </Link>
                   ) : (
                     <button key={item.key} onClick={()=>setTab(item.key)}
-                      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm text-left ${tab===item.key ? 'bg-cyan-50 text-[#0A0A0A] border border-cyan-200' : 'text-[#4b453b] hover:bg-white/5 hover:text-[#0A0A0A] border border-transparent'}`}>
-                      <span className={tab===item.key ? 'text-cyan-700' : 'text-[#6B6357]'}>{item.icon}</span>{item.label}
+                      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm text-left ${tab===item.key ? 'bg-cyan-500/10 text-white border border-cyan-500/30' : 'text-white/80 hover:bg-white/5 hover:text-white border border-transparent'}`}>
+                      <span className={tab===item.key ? 'text-cyan-300' : 'text-white/60'}>{item.icon}</span>{item.label}
                     </button>
                   ))}
                 </nav>
@@ -133,13 +133,13 @@ function Dashboard() {
           <div className="lg:col-span-9 space-y-6">
             {/* No profile yet */}
             {!profile && (
-              <Card className="border-cyan-200 bg-cyan-50">
+              <Card className="border-cyan-500/30 bg-cyan-500/10">
                 <CardContent className="p-6 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-[#0A0A0A]">No profile yet</h3>
-                    <p className="text-sm text-[#6B6357]">Complete onboarding to see your first AI shortlist.</p>
+                    <h3 className="text-lg font-semibold text-white">No profile yet</h3>
+                    <p className="text-sm text-white/60">Complete onboarding to see your first AI shortlist.</p>
                   </div>
-                  <Link href="/onboarding"><Button className="bg-orange-500 hover:bg-orange-400 text-[#0A0A0A]"><Rocket className="mr-2 h-4 w-4"/>Start onboarding</Button></Link>
+                  <Link href="/onboarding"><Button className="bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Start onboarding</Button></Link>
                 </CardContent>
               </Card>
             )}
@@ -156,26 +156,26 @@ function Dashboard() {
 
             {/* AI Summary */}
             {(summary || advisory) && (
-              <Card className="border-[#E8E3D6] bg-gradient-to-br from-cyan-50 to-white">
+              <Card className="border-white/10 bg-gradient-to-br from-cyan-500/10 to-white/5">
                 <CardContent className="p-5">
-                  <p className="text-[11px] uppercase tracking-widest text-cyan-700">AI portfolio summary</p>
-                  {summary && <p className="mt-1 text-[#0A0A0A]">{summary}</p>}
-                  {advisory && <p className="mt-2 text-sm text-[#4b453b] italic">{advisory}</p>}
-                  <p className="mt-3 flex items-center gap-1.5 text-[11px] text-[#8a8171]"><Info className="h-3 w-3"/> ScholarshipFit provides informational scholarship research only. Users apply directly through official provider websites.</p>
+                  <p className="text-[11px] uppercase tracking-widest text-cyan-300">AI portfolio summary</p>
+                  {summary && <p className="mt-1 text-white">{summary}</p>}
+                  {advisory && <p className="mt-2 text-sm text-white/80 italic">{advisory}</p>}
+                  <p className="mt-3 flex items-center gap-1.5 text-[11px] text-white/40"><Info className="h-3 w-3"/> ScholarshipFit provides informational scholarship research only. Users apply directly through official provider websites.</p>
                 </CardContent>
               </Card>
             )}
 
             {/* Document checklist */}
             {requiredDocs.length > 0 && (
-              <Card className="border-[#E8E3D6] bg-white">
+              <Card className="border-white/10 bg-white/[0.03]">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] uppercase tracking-widest text-[#6B6357]">Document checklist — across your top matches</p>
-                    <Badge variant="outline" className="border-[#E8E3D6] bg-white/5 text-[#0A0A0A]">{requiredDocs.length} items</Badge>
+                    <p className="text-[11px] uppercase tracking-widest text-white/60">Document checklist — across your top matches</p>
+                    <Badge variant="outline" className="border-white/10 bg-white/5 text-white">{requiredDocs.length} items</Badge>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {requiredDocs.map((d,i)=>(<Badge key={i} variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">{d}</Badge>))}
+                    {requiredDocs.map((d,i)=>(<Badge key={i} variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">{d}</Badge>))}
                   </div>
                 </CardContent>
               </Card>
@@ -184,14 +184,14 @@ function Dashboard() {
             {/* Matches list */}
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-[#0A0A0A]">{tabLabel(tab)}</h2>
-                {matches.length > 0 && <span className="text-sm text-[#8a8171]">{filtered.length} of {matches.length}</span>}
+                <h2 className="text-xl font-semibold text-white">{tabLabel(tab)}</h2>
+                {matches.length > 0 && <span className="text-sm text-white/40">{filtered.length} of {matches.length}</span>}
               </div>
               <div className="mt-4 grid gap-4">
                 {filtered.length === 0 && (
-                  <Card className="border-[#E8E3D6] bg-white"><CardContent className="p-10 text-center text-[#6B6357]">
+                  <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-10 text-center text-white/60">
                     <p>Nothing here yet.</p>
-                    <p className="mt-1 text-xs text-[#8a8171]">Try another tab or rerun the AI match.</p>
+                    <p className="mt-1 text-xs text-white/40">Try another tab or rerun the AI match.</p>
                   </CardContent></Card>
                 )}
                 {filtered.map((m,i)=>(
@@ -213,10 +213,10 @@ function Dashboard() {
 
 function StatCard({ label, value }) {
   return (
-    <Card className="border-[#E8E3D6] bg-white">
+    <Card className="border-white/10 bg-white/[0.03]">
       <CardContent className="p-5">
-        <p className="text-[11px] uppercase tracking-widest text-[#8a8171]">{label}</p>
-        <p className="mt-1 text-3xl font-semibold text-[#0A0A0A]">{value}</p>
+        <p className="text-[11px] uppercase tracking-widest text-white/40">{label}</p>
+        <p className="mt-1 text-3xl font-semibold text-white">{value}</p>
       </CardContent>
     </Card>
   )

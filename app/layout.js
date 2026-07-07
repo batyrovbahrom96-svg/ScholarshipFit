@@ -9,8 +9,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className="paper-bg text-[#0A0A0A] antialiased selection:bg-black selection:text-white">
+    <html lang="en" className="dark">
+      <body className="dark-bg text-white antialiased selection:bg-cyan-500/30 selection:text-white">
         <Providers>{children}</Providers>
       </body>
     </html>

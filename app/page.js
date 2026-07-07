@@ -16,6 +16,7 @@ import {
   Search, MessageSquare, FileText, GraduationCap, Globe2, DollarSign, ExternalLink,
   Award, ClipboardCheck, XCircle, ChevronRight
 } from 'lucide-react'
+import UniversityMarquee from '@/components/site/UniversityMarquee'
 
 const INSTITUTIONS = [
   { name: 'University of Bologna', country: 'Italy' },
@@ -144,6 +145,9 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* ============== IVY LEAGUE + PRESTIGE LOGO MARQUEE ============== */}
+      <UniversityMarquee />
 
       {/* ============== COMMAND PANEL ============== */}
       <section className="container mx-auto max-w-5xl px-4 pt-12 pb-16 md:pt-20 md:pb-24">

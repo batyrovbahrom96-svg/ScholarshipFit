@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import Logo from './Logo'
+import AuthButton from './AuthButton'
 import { Button } from '@/components/ui/button'
 
 const LINKS = [
@@ -32,7 +33,7 @@ export default function Navbar() {
             ))}
           </nav>
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/dashboard" className="text-sm text-white/80 hover:text-white transition">Sign in</Link>
+            <AuthButton />
             <Link href="/onboarding">
               <Button className="btn-gold btn-pill px-5 h-10 font-medium">Get Started</Button>
             </Link>

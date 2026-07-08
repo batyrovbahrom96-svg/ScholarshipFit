@@ -1,35 +1,52 @@
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import crypto from 'crypto'
 import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
 
 // ---------- Mongo ----------
-let client, db
+let client, db, connectPromise
 async function connectToMongo() {
-  if (!client) {
-    client = new MongoClient(process.env.MONGO_URL)
-    await client.connect()
-    db = client.db(process.env.DB_NAME || 'scholarshipfit')
+  if (db) return db
+  if (!connectPromise) {
+    connectPromise = (async () => {
+      client = new MongoClient(process.env.MONGO_URL)
+      await client.connect()
+      db = client.db(process.env.DB_NAME || 'scholarshipfit')
+      return db
+    })()
   }
-  return db
+  return connectPromise
 }
 
 async function ensureSeed(db) {
   const col = db.collection('scholarships')
-  const count = await col.countDocuments({})
-  if (count === 0) {
-    const docs = SEED_SCHOLARSHIPS.map(s => ({
-      id: uuidv4(),
-      public_status: 'public',
-      verification_status: s.trust_level || 'Source-linked',
-      last_checked: new Date(),
-      created_at: new Date(),
-      ...s,
-    }))
-    await col.insertMany(docs)
+  // Idempotent seed: upsert by slug. Safe to run every request-time; only
+  // inserts records whose slug doesn't already exist. Preserves any manual
+  // edits made in the admin panel.
+  await col.createIndex({ slug: 1 }, { unique: true, sparse: true }).catch(() => {})
+  const bulkOps = SEED_SCHOLARSHIPS.map(s => ({
+    updateOne: {
+      filter: { slug: s.slug },
+      update: {
+        $setOnInsert: {
+          id: uuidv4(),
+          public_status: 'public',
+          verification_status: s.trust_level || 'Source-linked',
+          last_checked: new Date(),
+          created_at: new Date(),
+          ...s,
+        },
+      },
+      upsert: true,
+    },
+  }))
+  if (bulkOps.length) {
+    try { await col.bulkWrite(bulkOps, { ordered: false }) } catch (e) { /* ignore dup errors */ }
   }
 }
 
@@ -183,6 +200,15 @@ async function handleRoute(request, { params }) {
     const db = await connectToMongo()
     await ensureSeed(db)
 
+    // Admin auth helper (available anywhere below)
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'
+    const adminOK = () => {
+      const h = request.headers.get('x-admin-key') || ''
+      return !!(h && h === ADMIN_PASSWORD)
+    }
+    const requireAdmin = () =>
+      withCORS(NextResponse.json({ error: 'Unauthorized (admin only)' }, { status: 401 }))
+
     // Health
     if ((route === '/' || route === '/root') && method === 'GET') {
       return withCORS(NextResponse.json({ ok: true, service: 'ScholarshipFit API' }))
@@ -260,6 +286,7 @@ async function handleRoute(request, { params }) {
     }
 
     if (route === '/scholarships' && method === 'POST') {
+      if (!adminOK()) return requireAdmin()
       const body = await request.json()
       const doc = {
         id: uuidv4(),
@@ -282,6 +309,7 @@ async function handleRoute(request, { params }) {
     }
 
     if (route.startsWith('/scholarships/') && method === 'PUT') {
+      if (!adminOK()) return requireAdmin()
       const id = route.split('/')[2]
       const body = await request.json()
       delete body._id; delete body.id
@@ -324,6 +352,7 @@ async function handleRoute(request, { params }) {
     if (route === '/match' && method === 'POST') {
       const body = await request.json()
       const profile = body.profile
+      const forceRefresh = !!body.force_refresh
       if (!profile) {
         return withCORS(NextResponse.json({ error: 'profile required' }, { status: 400 }))
       }
@@ -331,6 +360,50 @@ async function handleRoute(request, { params }) {
       const scholarships = await db.collection('scholarships')
         .find({ public_status: { $ne: 'hidden' } })
         .limit(200).toArray()
+
+      // ---- AI Match cache: SHA-256(profile relevant fields + DB count) ----
+      const cacheKeyFields = {
+        nationality: profile.nationality,
+        current_country: profile.current_country,
+        current_level: profile.current_level,
+        degree_level: profile.degree_level,
+        intended_major: profile.intended_major,
+        gpa: profile.gpa,
+        gpa_scale: profile.gpa_scale,
+        ielts: profile.ielts,
+        toefl: profile.toefl,
+        sat: profile.sat,
+        act: profile.act,
+        gre: profile.gre,
+        annual_budget_usd: profile.annual_budget_usd,
+        preferred_countries: (profile.preferred_countries || []).slice().sort(),
+        intake_year: profile.intake_year,
+        full_funding_only: profile.full_funding_only,
+        partial_funding_ok: profile.partial_funding_ok,
+        db_hash: scholarships.map(s => s.id).sort().join(','),
+      }
+      const cacheKey = crypto
+        .createHash('sha256')
+        .update(JSON.stringify(cacheKeyFields))
+        .digest('hex')
+      const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+      if (!forceRefresh) {
+        const cached = await db.collection('match_cache').findOne({ cache_key: cacheKey })
+        if (cached && (Date.now() - new Date(cached.created_at).getTime()) < CACHE_TTL_MS) {
+          const run = {
+            id: uuidv4(),
+            profile_id: profile.id || null,
+            created_at: new Date(),
+            cached: true,
+            cache_key: cacheKey,
+            result: cached.result,
+          }
+          await db.collection('match_runs').insertOne(run)
+          const { _id, ...cleanRun } = run
+          return withCORS(NextResponse.json({ run: cleanRun, cached: true, cache_age_ms: Date.now() - new Date(cached.created_at).getTime() }))
+        }
+      }
 
       const dbBlock = buildDatabaseBlock(scholarships)
       const userBlock = JSON.stringify({
@@ -405,11 +478,21 @@ async function handleRoute(request, { params }) {
         id: uuidv4(),
         profile_id: profile.id || null,
         created_at: new Date(),
+        cached: false,
+        cache_key: cacheKey,
         result: parsed,
       }
       await db.collection('match_runs').insertOne(run)
+
+      // Write to cache (upsert — keep latest for this key)
+      await db.collection('match_cache').updateOne(
+        { cache_key: cacheKey },
+        { $set: { cache_key: cacheKey, result: parsed, created_at: new Date(), profile_snapshot: cacheKeyFields } },
+        { upsert: true },
+      )
+
       const { _id, ...cleanRun } = run
-      return withCORS(NextResponse.json({ run: cleanRun }))
+      return withCORS(NextResponse.json({ run: cleanRun, cached: false }))
     }
 
     if (route === '/matches' && method === 'GET') {
@@ -499,18 +582,255 @@ DATABASE:\n${dbBlock}`
       return withCORS(NextResponse.json({ items: items.map(({ _id, ...t }) => t) }))
     }
 
+    // ------- Admin auth login endpoint -------
+    if (route === '/admin/login' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      if (body.password && body.password === ADMIN_PASSWORD) {
+        return withCORS(NextResponse.json({ ok: true, token: ADMIN_PASSWORD }))
+      }
+      return withCORS(NextResponse.json({ ok: false, error: 'Invalid password' }, { status: 401 }))
+    }
+
+    // ============ Emergent Google Auth ============
+    // Flow:
+    //   1. Frontend redirects to auth.emergentagent.com/?redirect=<callback>
+    //   2. Emergent handles Google OAuth
+    //   3. Redirects back with ?session_id=<sid>
+    //   4. Frontend hits /api/auth/session with X-Session-ID
+    //   5. We exchange with Emergent, upsert user in Mongo, set HttpOnly cookie
+    // ---------------------------------------------
+    const EMERGENT_AUTH_BASE = 'https://auth.emergentagent.com'
+
+    if (route === '/auth/session' && method === 'POST') {
+      // Exchange session_id from Emergent → real user + persistent cookie
+      const sid = request.headers.get('x-session-id') || (await request.json().catch(() => ({}))).session_id
+      if (!sid) {
+        return withCORS(NextResponse.json({ error: 'Missing session_id' }, { status: 400 }))
+      }
+      try {
+        const r = await fetch(`${EMERGENT_AUTH_BASE}/auth/v1/env/oauth/session-data`, {
+          method: 'GET',
+          headers: { 'X-Session-ID': sid },
+        })
+        if (!r.ok) {
+          const txt = await r.text().catch(() => '')
+          return withCORS(NextResponse.json({ error: 'Emergent auth exchange failed', detail: txt.slice(0, 300) }, { status: 401 }))
+        }
+        const emergentUser = await r.json()
+        // { id, email, name, picture, session_token }
+
+        // Upsert user + cabinet
+        const users = db.collection('users')
+        const now = new Date()
+        const existing = await users.findOne({ emergent_id: emergentUser.id })
+        let userDoc
+        if (existing) {
+          await users.updateOne(
+            { emergent_id: emergentUser.id },
+            { $set: { email: emergentUser.email, name: emergentUser.name, picture: emergentUser.picture, last_login: now } },
+          )
+          userDoc = { ...existing, email: emergentUser.email, name: emergentUser.name, picture: emergentUser.picture, last_login: now }
+        } else {
+          userDoc = {
+            id: uuidv4(),
+            emergent_id: emergentUser.id,
+            email: emergentUser.email,
+            name: emergentUser.name,
+            picture: emergentUser.picture,
+            cabinet: { favorites: [], recent_searches: [], profile: {} },
+            created_at: now,
+            last_login: now,
+          }
+          await users.insertOne(userDoc)
+        }
+
+        // Set HttpOnly session cookie (7 days) — trust Emergent's session_token
+        const cookieStore = await cookies()
+        cookieStore.set('sf_session', emergentUser.session_token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        })
+        // Also store server-side mapping token→user id (short lookup)
+        await db.collection('sessions').updateOne(
+          { session_token: emergentUser.session_token },
+          { $set: { session_token: emergentUser.session_token, user_id: userDoc.id, created_at: now } },
+          { upsert: true },
+        )
+        const { _id, ...cleanUser } = userDoc
+        return withCORS(NextResponse.json({ user: cleanUser, ok: true }))
+      } catch (e) {
+        return withCORS(NextResponse.json({ error: 'Auth failed', detail: String(e.message) }, { status: 500 }))
+      }
+    }
+
+    // Get current session (from cookie)
+    const getSessionUser = async () => {
+      const cookieStore = await cookies()
+      const token = cookieStore.get('sf_session')?.value
+      if (!token) return null
+      const s = await db.collection('sessions').findOne({ session_token: token })
+      if (!s) return null
+      const u = await db.collection('users').findOne({ id: s.user_id })
+      if (!u) return null
+      const { _id, ...clean } = u
+      return clean
+    }
+
+    if (route === '/auth/me' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ user: null }, { status: 200 }))
+      return withCORS(NextResponse.json({ user }))
+    }
+
+    if (route === '/auth/logout' && method === 'POST') {
+      const cookieStore = await cookies()
+      const token = cookieStore.get('sf_session')?.value
+      if (token) await db.collection('sessions').deleteOne({ session_token: token }).catch(() => {})
+      cookieStore.delete('sf_session')
+      return withCORS(NextResponse.json({ ok: true }))
+    }
+
+    // ---- Cabinet APIs (per-user, requires auth) ----
+    if (route === '/cabinet' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      return withCORS(NextResponse.json({ cabinet: user.cabinet || { favorites: [], recent_searches: [], profile: {} } }))
+    }
+
+    if (route === '/cabinet/favorite' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const { scholarship_id } = await request.json().catch(() => ({}))
+      if (!scholarship_id) return withCORS(NextResponse.json({ error: 'scholarship_id required' }, { status: 400 }))
+      const favs = (user.cabinet?.favorites || [])
+      const idx = favs.indexOf(scholarship_id)
+      if (idx === -1) favs.push(scholarship_id); else favs.splice(idx, 1)
+      await db.collection('users').updateOne({ id: user.id }, { $set: { 'cabinet.favorites': favs, updated_at: new Date() } })
+      return withCORS(NextResponse.json({ ok: true, favorites: favs, added: idx === -1 }))
+    }
+
+    if (route === '/cabinet/search' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const searches = [{ ...body, ts: Date.now() }, ...(user.cabinet?.recent_searches || []).filter(s => JSON.stringify({country:s.country,level:s.level,field:s.field}) !== JSON.stringify({country:body.country,level:body.level,field:body.field}))].slice(0, 8)
+      await db.collection('users').updateOne({ id: user.id }, { $set: { 'cabinet.recent_searches': searches, updated_at: new Date() } })
+      return withCORS(NextResponse.json({ ok: true, recent_searches: searches }))
+    }
+
+    if (route === '/cabinet/profile' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const merged = { ...(user.cabinet?.profile || {}), ...body }
+      await db.collection('users').updateOne({ id: user.id }, { $set: { 'cabinet.profile': merged, updated_at: new Date() } })
+      return withCORS(NextResponse.json({ ok: true, profile: merged }))
+    }
+
+    if (route === '/cabinet/sync' && method === 'POST') {
+      // One-time migration of localStorage cabinet into DB after first sign-in
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const cur = user.cabinet || { favorites: [], recent_searches: [], profile: {} }
+      const mergedFavs = Array.from(new Set([...(cur.favorites || []), ...(body.favorites || [])]))
+      const mergedSearches = [
+        ...(body.recent_searches || []),
+        ...(cur.recent_searches || [])
+      ].slice(0, 8)
+      const mergedProfile = { ...(cur.profile || {}), ...(body.profile || {}) }
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $set: {
+          'cabinet.favorites': mergedFavs,
+          'cabinet.recent_searches': mergedSearches,
+          'cabinet.profile': mergedProfile,
+          updated_at: new Date(),
+        } },
+      )
+      return withCORS(NextResponse.json({ ok: true, cabinet: { favorites: mergedFavs, recent_searches: mergedSearches, profile: mergedProfile } }))
+    }
+
+    // ------- Waitlist -------
+    if (route === '/waitlist' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Valid email required' }, { status: 400 }))
+      }
+      const doc = {
+        id: uuidv4(),
+        email,
+        source: String(body.source || 'unknown').slice(0, 60),
+        notes: String(body.notes || '').slice(0, 500),
+        ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null,
+        user_agent: (request.headers.get('user-agent') || '').slice(0, 200),
+        created_at: new Date(),
+      }
+      // Idempotent: same email + source is a no-op (bump updated_at)
+      await db.collection('waitlist').updateOne(
+        { email, source: doc.source },
+        { $setOnInsert: doc, $set: { updated_at: new Date() } },
+        { upsert: true },
+      )
+      return withCORS(NextResponse.json({ ok: true, message: "You're on the list — we'll be in touch." }))
+    }
+    if (route === '/waitlist' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const items = await db.collection('waitlist').find({}).sort({ created_at: -1 }).limit(500).toArray()
+      return withCORS(NextResponse.json({ items: items.map(({ _id, ...i }) => i) }))
+    }
+
+    // ------- Contact -------
+    if (route === '/contact' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const name    = String(body.name || '').trim().slice(0, 120)
+      const email   = String(body.email || '').trim().toLowerCase()
+      const subject = String(body.subject || '').trim().slice(0, 200)
+      const message = String(body.message || '').trim().slice(0, 4000)
+      if (!name || !email || !message) {
+        return withCORS(NextResponse.json({ error: 'name, email and message are required' }, { status: 400 }))
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Valid email required' }, { status: 400 }))
+      }
+      const doc = {
+        id: uuidv4(),
+        name, email, subject, message,
+        status: 'new',
+        ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null,
+        user_agent: (request.headers.get('user-agent') || '').slice(0, 200),
+        created_at: new Date(),
+      }
+      await db.collection('contacts').insertOne(doc)
+      return withCORS(NextResponse.json({ ok: true, message: "Thanks — we'll get back to you within 24h." }))
+    }
+    if (route === '/contact' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const items = await db.collection('contacts').find({}).sort({ created_at: -1 }).limit(500).toArray()
+      return withCORS(NextResponse.json({ items: items.map(({ _id, ...i }) => i) }))
+    }
+
     // ------- Admin -------
     if (route === '/admin/stats' && method === 'GET') {
-      const [s, p, m, a] = await Promise.all([
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const [s, p, m, a, w, c, cache] = await Promise.all([
         db.collection('scholarships').countDocuments({}),
         db.collection('profiles').countDocuments({}),
         db.collection('match_runs').countDocuments({}),
         db.collection('advisor_messages').countDocuments({}),
+        db.collection('waitlist').countDocuments({}),
+        db.collection('contacts').countDocuments({}),
+        db.collection('match_cache').countDocuments({}),
       ])
-      return withCORS(NextResponse.json({ scholarships: s, profiles: p, match_runs: m, advisor_messages: a }))
+      return withCORS(NextResponse.json({ scholarships: s, profiles: p, match_runs: m, advisor_messages: a, waitlist: w, contacts: c, match_cache: cache }))
     }
 
     if (route === '/admin/logs' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
       const runs = await db.collection('match_runs').find({}).sort({ created_at: -1 }).limit(20).toArray()
       const msgs = await db.collection('advisor_messages').find({}).sort({ created_at: -1 }).limit(30).toArray()
       return withCORS(NextResponse.json({

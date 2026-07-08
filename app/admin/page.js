@@ -9,29 +9,104 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Database, Users, Sparkles, MessageSquare, Plus, ShieldCheck, EyeOff, Eye, Pencil, ExternalLink } from 'lucide-react'
+import { Database, Users, Sparkles, MessageSquare, Plus, ShieldCheck, EyeOff, Eye, Pencil, ExternalLink, Lock, LogOut, Mail, Inbox } from 'lucide-react'
+
+const ADMIN_KEY_STORAGE = 'sf.admin.key'
+const withAdmin = (init = {}) => {
+  const key = typeof window !== 'undefined' ? sessionStorage.getItem(ADMIN_KEY_STORAGE) : ''
+  return { ...init, headers: { ...(init.headers || {}), 'x-admin-key': key || '', 'Content-Type': 'application/json' } }
+}
+
+function AdminGate({ onUnlock }) {
+  const [pw, setPw] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const submit = async () => {
+    if (!pw) return
+    setBusy(true); setErr('')
+    try {
+      const r = await fetch('/api/admin/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: pw }) })
+      const data = await r.json()
+      if (!r.ok || !data.ok) { setErr(data.error || 'Invalid password'); return }
+      sessionStorage.setItem(ADMIN_KEY_STORAGE, data.token)
+      onUnlock()
+    } catch (e) { setErr('Network error') } finally { setBusy(false) }
+  }
+  return (
+    <div className="dark-bg min-h-screen">
+      <Navbar />
+      <div className="container mx-auto max-w-md px-4 py-24">
+        <Card className="border-[#D4AF37]/25 bg-black/60 backdrop-blur">
+          <CardContent className="p-8">
+            <div className="mx-auto h-14 w-14 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-[#D4AF37]"/>
+            </div>
+            <h1 className="mt-4 text-2xl font-semibold text-white text-center">Admin sign-in</h1>
+            <p className="mt-1 text-center text-sm text-white/60">Restricted area. Enter the admin password.</p>
+            <div className="mt-6 space-y-3">
+              <Input
+                type="password"
+                placeholder="Password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+                className="bg-white/[0.04] border-white/10 text-white placeholder:text-white/40"
+                autoFocus
+              />
+              {err && <p className="text-sm text-red-400">{err}</p>}
+              <Button onClick={submit} disabled={busy} className="w-full btn-gold btn-pill h-11">{busy ? 'Checking…' : 'Unlock'}</Button>
+              <p className="text-[11px] text-white/40 text-center">
+                Configure via <code className="text-[#D4AF37]">ADMIN_PASSWORD</code> in <code className="text-[#D4AF37]">/app/.env</code>. Defaults to <code>admin123</code>.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <Footer />
+    </div>
+  )
+}
 
 function Admin() {
+  const [authed, setAuthed] = useState(null) // null=loading, true=in, false=locked
   const [stats, setStats] = useState(null)
   const [items, setItems] = useState([])
   const [logs, setLogs] = useState(null)
+  const [waitlist, setWaitlist] = useState([])
+  const [contacts, setContacts] = useState([])
   const [editing, setEditing] = useState(null)
   const [creating, setCreating] = useState(false)
 
+  // Try existing sessionStorage token; ping stats to verify
+  useEffect(() => {
+    (async () => {
+      const key = sessionStorage.getItem(ADMIN_KEY_STORAGE)
+      if (!key) { setAuthed(false); return }
+      const r = await fetch('/api/admin/stats', withAdmin())
+      setAuthed(r.ok)
+      if (!r.ok) sessionStorage.removeItem(ADMIN_KEY_STORAGE)
+    })()
+  }, [])
+
   const load = async () => {
-    const [s, sc, lg] = await Promise.all([
-      fetch('/api/admin/stats').then(r=>r.json()),
-      fetch('/api/scholarships').then(r=>r.json()),
-      fetch('/api/admin/logs').then(r=>r.json()),
+    const [s, sc, lg, w, c] = await Promise.all([
+      fetch('/api/admin/stats',  withAdmin()).then(r=>r.json()).catch(()=>null),
+      fetch('/api/scholarships').then(r=>r.json()).catch(()=>({scholarships:[]})),
+      fetch('/api/admin/logs',   withAdmin()).then(r=>r.json()).catch(()=>null),
+      fetch('/api/waitlist',     withAdmin()).then(r=>r.json()).catch(()=>({items:[]})),
+      fetch('/api/contact',      withAdmin()).then(r=>r.json()).catch(()=>({items:[]})),
     ])
     setStats(s); setItems(sc.scholarships || []); setLogs(lg)
+    setWaitlist(w.items || []); setContacts(c.items || [])
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (authed) load() }, [authed])
+
+  const signOut = () => { sessionStorage.removeItem(ADMIN_KEY_STORAGE); setAuthed(false) }
 
   const save = async (doc, isNew) => {
     const url = isNew ? '/api/scholarships' : `/api/scholarships/${doc.id}`
     const method = isNew ? 'POST' : 'PUT'
-    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(doc) }).then(r=>r.json())
+    const res = await fetch(url, withAdmin({ method, body: JSON.stringify(doc) })).then(r=>r.json())
     if (res.error) return toast.error('Save failed', { description: res.error })
     toast.success(isNew ? 'Created' : 'Updated')
     setEditing(null); setCreating(false)
@@ -40,9 +115,16 @@ function Admin() {
 
   const togglePublic = async (s) => {
     const next = s.public_status === 'hidden' ? 'public' : 'hidden'
-    await fetch(`/api/scholarships/${s.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ public_status: next }) })
+    await fetch(`/api/scholarships/${s.id}`, withAdmin({ method:'PUT', body: JSON.stringify({ public_status: next }) }))
     toast.success(`Marked as ${next}`)
     load()
+  }
+
+  if (authed === null) {
+    return <div className="dark-bg min-h-screen"><Navbar/><div className="container mx-auto max-w-md py-24 text-center text-white/60">Verifying…</div></div>
+  }
+  if (authed === false) {
+    return <AdminGate onUnlock={() => setAuthed(true)}/>
   }
 
   return (
@@ -53,16 +135,54 @@ function Admin() {
           <div>
             <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">Admin</Badge>
             <h1 className="mt-2 text-3xl font-semibold text-white">ScholarshipFit control</h1>
-            <p className="text-white/60 text-sm">Manage database records, trust levels, and AI activity.</p>
+            <p className="text-white/60 text-sm">Manage database records, trust levels, waitlist, contacts, and AI activity.</p>
           </div>
-          <Button onClick={()=>setCreating(true)} className="btn-gold btn-pill font-medium"><Plus className="mr-2 h-4 w-4"/>Add scholarship</Button>
+          <div className="flex gap-2">
+            <Button onClick={()=>setCreating(true)} className="btn-gold btn-pill font-medium"><Plus className="mr-2 h-4 w-4"/>Add scholarship</Button>
+            <Button variant="outline" onClick={signOut} className="border-white/15 bg-transparent text-white hover:bg-white/5 btn-pill"><LogOut className="mr-1.5 h-4 w-4"/>Sign out</Button>
+          </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-4">
-          <Stat icon={<Database className="h-4 w-4"/>} label="Scholarships" value={stats?.scholarships ?? '—'}/>
-          <Stat icon={<Users className="h-4 w-4"/>} label="Profiles" value={stats?.profiles ?? '—'}/>
-          <Stat icon={<Sparkles className="h-4 w-4"/>} label="Match runs" value={stats?.match_runs ?? '—'}/>
-          <Stat icon={<MessageSquare className="h-4 w-4"/>} label="Advisor messages" value={stats?.advisor_messages ?? '—'}/>
+        <div className="mt-6 grid gap-4 sm:grid-cols-4 lg:grid-cols-7">
+          <Stat icon={<Database className="h-4 w-4"/>}       label="Scholarships"     value={stats?.scholarships ?? '—'}/>
+          <Stat icon={<Users className="h-4 w-4"/>}          label="Profiles"         value={stats?.profiles ?? '—'}/>
+          <Stat icon={<Sparkles className="h-4 w-4"/>}       label="Match runs"       value={stats?.match_runs ?? '—'}/>
+          <Stat icon={<MessageSquare className="h-4 w-4"/>}  label="Advisor msgs"     value={stats?.advisor_messages ?? '—'}/>
+          <Stat icon={<ShieldCheck className="h-4 w-4"/>}    label="Cache entries"    value={stats?.match_cache ?? '—'}/>
+          <Stat icon={<Mail className="h-4 w-4"/>}           label="Waitlist"         value={stats?.waitlist ?? '—'}/>
+          <Stat icon={<Inbox className="h-4 w-4"/>}          label="Contact msgs"     value={stats?.contacts ?? '—'}/>
+        </div>
+
+        {/* Waitlist & Contact panels */}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5">
+            <h3 className="text-white font-semibold flex items-center gap-2"><Mail className="h-4 w-4 text-[#D4AF37]"/> Waitlist ({waitlist.length})</h3>
+            <div className="mt-3 max-h-64 overflow-y-auto space-y-2 pr-1">
+              {waitlist.length === 0 && <p className="text-sm text-white/50">No signups yet.</p>}
+              {waitlist.map(w => (
+                <div key={w.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm">
+                  <span className="text-white truncate">{w.email}</span>
+                  <span className="text-white/50 text-xs shrink-0">{w.source} · {new Date(w.created_at).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent></Card>
+          <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5">
+            <h3 className="text-white font-semibold flex items-center gap-2"><Inbox className="h-4 w-4 text-[#D4AF37]"/> Contact messages ({contacts.length})</h3>
+            <div className="mt-3 max-h-64 overflow-y-auto space-y-2 pr-1">
+              {contacts.length === 0 && <p className="text-sm text-white/50">No messages yet.</p>}
+              {contacts.map(c => (
+                <div key={c.id} className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-white font-medium truncate">{c.name} <span className="text-white/50 font-normal">· {c.email}</span></span>
+                    <span className="text-white/50 text-xs shrink-0">{new Date(c.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {c.subject && <p className="text-white/70 text-xs mt-0.5">{c.subject}</p>}
+                  <p className="text-white/80 text-sm mt-1 line-clamp-2">{c.message}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent></Card>
         </div>
 
         <Card className="mt-6 border-white/10 bg-white/[0.03]">

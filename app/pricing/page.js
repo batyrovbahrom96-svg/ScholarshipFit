@@ -18,10 +18,25 @@ const PLANS = [
 
 function Pricing() {
   const [email, setEmail] = useState('')
-  const joinWaitlist = () => {
+  const [joining, setJoining] = useState(false)
+  const joinWaitlist = async () => {
     if (!email) return toast.error('Enter your email')
-    toast.success('You are on the waitlist', { description: 'We’ll email you when payments open.' })
-    setEmail('')
+    setJoining(true)
+    try {
+      const r = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'pricing-page' }),
+      })
+      const data = await r.json()
+      if (!r.ok) { toast.error(data.error || 'Could not join'); return }
+      toast.success('You are on the waitlist', { description: data.message || "We'll email you when payments open." })
+      setEmail('')
+    } catch (e) {
+      toast.error('Network error — please try again')
+    } finally {
+      setJoining(false)
+    }
   }
   return (
     <div className="dark-bg min-h-screen">
@@ -59,7 +74,7 @@ function Pricing() {
             </div>
             <div className="flex gap-2">
               <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"/>
-              <Button onClick={joinWaitlist} className="btn-gold btn-pill font-medium">Join waitlist</Button>
+              <Button onClick={joinWaitlist} disabled={joining} className="btn-gold btn-pill font-medium disabled:opacity-60">{joining ? 'Joining…' : 'Join waitlist'}</Button>
             </div>
           </CardContent>
         </Card>

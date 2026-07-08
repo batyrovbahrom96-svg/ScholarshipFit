@@ -11,10 +11,25 @@ import { Mail, MessageCircle } from 'lucide-react'
 
 function Contact() {
   const [form, setForm] = useState({ name:'', email:'', message:'' })
-  const send = () => {
-    if (!form.email || !form.message) return toast.error('Please fill in email and message')
-    toast.success('Message received', { description: 'We’ll get back within a few business days.' })
-    setForm({ name:'', email:'', message:'' })
+  const [sending, setSending] = useState(false)
+  const send = async () => {
+    if (!form.name || !form.email || !form.message) return toast.error('Please fill in name, email and message')
+    setSending(true)
+    try {
+      const r = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, source: 'contact-page' }),
+      })
+      const data = await r.json()
+      if (!r.ok) { toast.error(data.error || 'Could not send'); return }
+      toast.success('Message received', { description: data.message || "We'll get back within a few business days." })
+      setForm({ name:'', email:'', message:'' })
+    } catch (e) {
+      toast.error('Network error — please try again')
+    } finally {
+      setSending(false)
+    }
   }
   return (
     <div className="dark-bg min-h-screen">
@@ -29,7 +44,7 @@ function Contact() {
             <Input placeholder="Your name" value={form.name} onChange={e=>setForm(f=>({...f, name:e.target.value}))} className="bg-white/[0.04] border-white/10 text-white"/>
             <Input placeholder="Email" type="email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} className="bg-white/[0.04] border-white/10 text-white"/>
             <textarea placeholder="Your message..." rows={6} value={form.message} onChange={e=>setForm(f=>({...f, message:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"/>
-            <Button onClick={send} className="btn-gold btn-pill font-medium">Send message</Button>
+            <Button onClick={send} disabled={sending} className="btn-gold btn-pill font-medium disabled:opacity-60">{sending ? 'Sending…' : 'Send message'}</Button>
           </CardContent></Card>
           <div className="space-y-4">
             <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5 flex items-start gap-3">

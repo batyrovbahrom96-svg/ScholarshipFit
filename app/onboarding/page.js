@@ -29,8 +29,10 @@ const STEPS = [
 
 const PROC_LINES = [
   'Analyzing your academic profile',
-  'Checking eligibility signals',
-  'Comparing funding and deadlines',
+  'Checking eligibility signals across 28 records',
+  'Comparing funding tiers and deadlines',
+  'Running Claude Sonnet 4.5 fit analysis',
+  'Ranking scholarships by your fit score',
   'Building your ScholarshipFit cabinet',
 ]
 
@@ -78,8 +80,31 @@ function Onboarding() {
   const next = () => setI(x => Math.min(STEPS.length - 1, x + 1))
   const back = () => setI(x => Math.max(0, x - 1))
 
+  // Safe JSON fetch: never throws on HTML/timeout responses — returns a
+  // structured { ok, data, error } object so we can show a friendly message
+  // instead of crashing with "Unexpected token '<' ... is not valid JSON".
+  const safeJsonFetch = async (url, init = {}, timeoutMs = 115000) => {
+    const controller = new AbortController()
+    const t = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const r = await fetch(url, { ...init, signal: controller.signal, credentials: 'include' })
+      clearTimeout(t)
+      const ct = r.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) {
+        const text = await r.text().catch(() => '')
+        return { ok: false, status: r.status, error: `Non-JSON response (HTTP ${r.status}). Server may have timed out.`, snippet: text.slice(0, 140) }
+      }
+      const data = await r.json()
+      if (!r.ok) return { ok: false, status: r.status, error: data.error || data.detail || `HTTP ${r.status}`, data }
+      return { ok: true, status: r.status, data }
+    } catch (e) {
+      clearTimeout(t)
+      if (e.name === 'AbortError') return { ok: false, error: 'The request took too long. Your matches are still being prepared — you can browse scholarships now and come back to your cabinet in a minute.', timeout: true }
+      return { ok: false, error: `Network error: ${e.message}` }
+    }
+  }
+
   const finishAndMatch = async () => {
-    // Persist profile
     const payload = {
       ...form,
       preferred_countries: typeof form.preferred_countries === 'string' ? form.preferred_countries.split(',').map(s=>s.trim()).filter(Boolean) : form.preferred_countries,
@@ -92,41 +117,60 @@ function Onboarding() {
       annual_budget_usd: form.annual_budget_usd ? Number(form.annual_budget_usd) : null,
       intake_year: form.intake_year ? Number(form.intake_year) : null,
     }
-    try {
-      const pr = await fetch('/api/profiles', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ ...payload, id: store.getProfile()?.id })
-      }).then(r=>r.json())
-      const profile = pr.profile
-      store.setProfile(profile)
 
-      const mr = await fetch('/api/match', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ profile })
-      }).then(r=>r.json())
-      if (mr.error) {
-        toast.error('Match failed', { description: mr.detail || mr.error })
-        setI(STEPS.length - 2)
-        return
-      }
-      store.setRun(mr.run)
-      router.push('/dashboard')
-    } catch (e) {
-      toast.error('Something went wrong', { description: String(e.message) })
+    // 1) Persist profile (fast, ~200ms)
+    const pr = await safeJsonFetch('/api/profiles', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ...payload, id: store.getProfile()?.id }),
+    }, 15000)
+    if (!pr.ok) {
+      toast.error('Could not save profile', { description: pr.error })
       setI(STEPS.length - 2)
+      return
     }
+    const profile = pr.data.profile
+    store.setProfile(profile)
+    // Also mirror to the DB cabinet if the user is signed in
+    fetch('/api/cabinet/profile', {
+      method: 'POST', credentials: 'include', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(profile),
+    }).catch(() => {})
+
+    // 2) Fire AI match (can take up to 90s on cache miss; ~100ms on cache hit)
+    const mr = await safeJsonFetch('/api/match', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ profile }),
+    }, 115000)
+
+    if (!mr.ok) {
+      // Timeout or ingress dropped the response — offer graceful fallback:
+      // navigate to /database with the profile filters pre-applied so the
+      // user still sees a curated scholarship list.
+      const qs = new URLSearchParams()
+      const c = (profile.preferred_countries || [])[0]
+      if (c) qs.set('country', c)
+      if (profile.degree_level)   qs.set('level', profile.degree_level)
+      if (profile.intended_major) qs.set('field', profile.intended_major)
+      toast.error('AI match is taking longer than expected', {
+        description: 'Redirecting you to the database — your cabinet is saved. Try "Refresh matches" in the navbar in a minute.',
+        duration: 6000,
+      })
+      router.push('/database' + (qs.toString() ? '?' + qs.toString() : ''))
+      return
+    }
+    store.setRun(mr.data.run)
+    router.push('/dashboard')
   }
 
   // Run processing effect when step index reaches the last step
   useEffect(() => {
     if (STEPS[i].key !== 'processing') return
     setProcIdx(0)
-    let t = 0
+    // Slower cadence (2.8s per line) so the sequence lasts ~16s and stays
+    // stuck on the last two lines during the long Claude call (up to ~90s).
     const iv = setInterval(() => {
-      t += 1
       setProcIdx(x => Math.min(PROC_LINES.length - 1, x + 1))
-      if (t >= PROC_LINES.length - 1) clearInterval(iv)
-    }, 1200)
+    }, 2800)
     finishAndMatch()
     return () => clearInterval(iv)
     // eslint-disable-next-line

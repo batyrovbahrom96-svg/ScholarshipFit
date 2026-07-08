@@ -758,6 +758,41 @@ agent_communication:
       - Multi-step questions already present: Basics → Origin → Academics → Scores →
         Achievements → Preferences → Documents → AI Match → /dashboard (scholarship list)
 
+
+    -agent: "main"
+    -date: "2026-07-08"
+    -message: |
+      **BUG FIX: "Unexpected token '<' ... is not valid JSON" on Run AI Match**
+
+      Root cause: When Claude/Emergent LLM proxy responded slowly (60-90s) or
+      Cloudflare's edge dropped the connection, the request returned an HTML
+      502 error page. The frontend's naive `.then(r=>r.json())` crashed
+      parsing "<!DOCTYPE ...".
+
+      Fixes applied in `/app/app/onboarding/page.js`:
+      1. New `safeJsonFetch()` helper — verifies content-type before parsing;
+         supports per-call timeouts via AbortController; returns
+         `{ ok, data, error, timeout }` — never throws on HTML/timeout.
+      2. `finishAndMatch()` rewritten to use safeJsonFetch with 15s timeout
+         for profile save and 115s for match call.
+      3. Timeout fallback: instead of showing a cryptic parse error, we now
+         redirect the user to `/database` with their profile filters
+         pre-applied so they still see a curated list. Toast tells them
+         cabinet is saved and match will finish soon (they can hit "Refresh
+         matches" from the navbar dropdown).
+      4. When signed in, also mirror the saved profile to `/api/cabinet/profile`
+         so it persists across devices.
+      5. Slowed the processing screen cadence from 1.2s to 2.8s per line and
+         added 2 more lines (6 total) so the visual sequence lasts ~16s
+         instead of ~4s, matching the real API timing better.
+
+      Backend `/api/match` was already returning proper JSON errors (502 with
+      `{error, detail}`). The issue was purely client-side parsing of HTML
+      responses returned by the Cloudflare edge on ingress timeout.
+
+      Files changed:
+      - /app/app/onboarding/page.js (safeJsonFetch + finishAndMatch + slower proc)
+
       Files changed:
       - /app/app/api/[[...path]]/route.js (auth/session route rewritten)
       - /app/app/onboarding/page.js (Google banner at Step 1, useAuth prefill, GoogleG icon)

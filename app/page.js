@@ -11,6 +11,7 @@ import {
   BadgeCheck, Zap, User2, ExternalLink, MousePointer2, ChevronDown, Sparkles
 } from 'lucide-react'
 import UniversityMarquee from '@/components/site/UniversityMarquee'
+import Hero3DObjects from '@/components/site/Hero3DObjects'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -117,25 +118,15 @@ function Home() {
         </svg>
 
         <div className="container mx-auto max-w-6xl px-4 pt-12 pb-14 md:pt-16 md:pb-20 relative">
-          {/* Floating ornament cards — 2 left, 2 right */}
-          <div className="pointer-events-none absolute left-2 lg:left-8 top-[16%] hidden md:block">
-            <OrnamentCard icon={<GraduationCap className="h-5 w-5 text-[#D4AF37]"/>} title="Verified" subtitle="Opportunities"/>
-          </div>
-          <div className="pointer-events-none absolute right-2 lg:right-8 top-[16%] hidden md:block">
-            <OrnamentCard icon={<Globe2 className="h-5 w-5 text-[#D4AF37]"/>} title="Global" subtitle="Scholarships" style={{ animationDelay: '1s' }}/>
-          </div>
-          <div className="pointer-events-none absolute left-2 lg:left-8 top-[64%] hidden md:block">
-            <OrnamentCard icon={<Award className="h-5 w-5 text-[#D4AF37]"/>} title="Real" subtitle="Success Stories" style={{ animationDelay: '2s' }}/>
-          </div>
-          <div className="pointer-events-none absolute right-2 lg:right-8 top-[64%] hidden md:block">
-            <OrnamentCard icon={<ShieldCheck className="h-5 w-5 text-[#D4AF37]"/>} title="Trusted" subtitle="& Secure" style={{ animationDelay: '0.5s' }}/>
-          </div>
+          <div className="relative">
+            {/* Floating 3D-style decorative objects around the hero title */}
+            <Hero3DObjects />
 
-          <div className="relative mx-auto max-w-3xl text-center">
-            <h1 className="text-5xl md:text-7xl font-semibold tracking-[-0.035em] leading-[0.95] text-white">
-              Find real <span className="text-gold-hi">scholarships</span>
-              <br className="hidden md:block"/> that fit your profile.
-            </h1>
+            <div className="relative mx-auto max-w-3xl text-center py-8 md:py-14">
+              <h1 className="text-5xl md:text-7xl font-semibold tracking-[-0.035em] leading-[0.95] text-white">
+                Find real <span className="text-gold-hi">scholarships</span>
+                <br className="hidden md:block"/> that fit your profile.
+              </h1>
             <p className="mx-auto mt-6 max-w-xl text-base md:text-lg text-white/60 leading-relaxed">
               AI-powered, source-linked scholarship shortlist. Real records only. No spam. No fake promises.
             </p>
@@ -151,6 +142,7 @@ function Home() {
               <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Takes 2 Minutes</span>
               <span className="inline-flex items-center gap-1.5"><User2 className="h-4 w-4 text-[#D4AF37]"/> Personalized for You</span>
             </div>
+          </div>
           </div>
 
           {/* Trust divider + Scrolling 15-university crest marquee */}

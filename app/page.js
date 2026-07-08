@@ -15,6 +15,7 @@ import Hero3DObjects from '@/components/site/Hero3DObjects'
 import HeroSearch from '@/components/site/HeroSearch'
 import WinnerTicker from '@/components/site/WinnerTicker'
 import BottomCTA from '@/components/site/BottomCTA'
+import PricingPreview from '@/components/site/PricingPreview'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -238,6 +239,7 @@ function Home() {
         </div>
       </section>
 
+      <PricingPreview />
       <BottomCTA />
       <WinnerTicker />
       <Footer />

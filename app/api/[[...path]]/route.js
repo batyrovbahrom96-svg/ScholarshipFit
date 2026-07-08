@@ -189,8 +189,9 @@ async function handleRoute(request, { params }) {
     }
 
     // ------- Logo Proxy -------
-    // Fetches real university logos server-side (browser CORS-safe) via Google's
-    // favicon service which returns 256px PNGs for any domain.
+    // Fetches real university logos server-side. Chains multiple upstream providers
+    // in order of quality and picks the first non-trivial image response.
+    //   Clearbit -> icon.horse -> DuckDuckGo -> Google Favicon
     if (route === '/logo' && method === 'GET') {
       const url = new URL(request.url)
       const domain = url.searchParams.get('domain')
@@ -198,22 +199,42 @@ async function handleRoute(request, { params }) {
         return withCORS(NextResponse.json({ error: 'bad domain' }, { status: 400 }))
       }
       const size = url.searchParams.get('sz') || '256'
-      const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`
-      try {
-        const r = await fetch(src, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0' } })
-        if (!r.ok) throw new Error(`upstream ${r.status}`)
-        const buf = Buffer.from(await r.arrayBuffer())
-        const res = new NextResponse(buf, {
+      const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      const providers = [
+        `https://logo.clearbit.com/${encodeURIComponent(domain)}?size=${size}`,
+        `https://icon.horse/icon/${encodeURIComponent(domain)}`,
+        `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`,
+        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`,
+      ]
+      let best = null
+      for (const src of providers) {
+        try {
+          const controller = new AbortController()
+          const t = setTimeout(() => controller.abort(), 5000)
+          const r = await fetch(src, { redirect: 'follow', headers: { 'User-Agent': UA }, signal: controller.signal })
+          clearTimeout(t)
+          if (!r.ok) continue
+          const buf = Buffer.from(await r.arrayBuffer())
+          if (buf.length < 400) continue // skip tiny/blank favicons
+          // Keep the largest payload we've seen (typically = highest quality)
+          if (!best || buf.length > best.buf.length) {
+            best = { buf, contentType: r.headers.get('content-type') || 'image/png', source: new URL(src).hostname }
+          }
+          // If we already got a >5KB asset from a preferred provider, ship it fast
+          if (buf.length > 5000) break
+        } catch (_e) { /* try next */ }
+      }
+      if (best) {
+        return withCORS(new NextResponse(best.buf, {
           status: 200,
           headers: {
-            'Content-Type': r.headers.get('content-type') || 'image/png',
+            'Content-Type': best.contentType,
             'Cache-Control': 'public, max-age=604800, immutable',
+            'X-Logo-Source': best.source,
           },
-        })
-        return withCORS(res)
-      } catch (e) {
-        return withCORS(NextResponse.json({ error: 'fetch failed', detail: String(e.message) }, { status: 502 }))
+        }))
       }
+      return withCORS(NextResponse.json({ error: 'no upstream logo available' }, { status: 502 }))
     }
 
     // ------- Scholarships -------

@@ -682,3 +682,34 @@ agent_communication:
       - Admin edit/toggle operations (to avoid data changes)
       
       These features have backend endpoints already validated in backend tests, so core functionality is confirmed working.
+
+    -agent: "main"
+    -date: "2026-07-08"
+    -message: |
+      **P0 FIX: University marquee logo quality upgraded**
+
+      Issue: Marquee logos were previously served via a single Google Favicon proxy at sz=256,
+      producing blurry/pixelated tiles when scaled to 64px CSS containers.
+
+      Fix implemented:
+      1. Pre-downloaded and curated real, official logos for all 15 universities (Harvard, Yale,
+         Princeton, Columbia, Penn, Brown, Dartmouth, Cornell, Stanford, MIT, Oxford, Cambridge,
+         Imperial, ETH Zürich, NUS) into `/public/logos/{key}.png`.
+      2. Post-processing: PIL-based script upscales any <128px source to 256×256 with LANCZOS
+         and inverts white-on-transparent logos (Columbia, ETH, NUS) so they render properly on
+         the white tile background.
+      3. Upgraded `/api/logo` server proxy to a multi-provider chain (Clearbit → icon.horse →
+         DuckDuckGo Icons → Google Favicon) selecting the largest non-trivial payload.
+      4. Client `UniversityMarquee.jsx` uses 3-tier fallback: static asset → API proxy →
+         heraldic SVG crest. Added `useEffect` + `useRef` to correctly detect images that
+         completed loading before React attached its onLoad handler (fixed the "opacity-0
+         stuck" visual bug where naturalWidth > 0 but React state hadn't updated).
+
+      Files changed:
+      - /app/components/site/UniversityMarquee.jsx
+      - /app/app/api/[[...path]]/route.js (logo proxy chain)
+      - /app/public/logos/*.png (15 new static assets, curated + processed)
+
+      Verified: Playwright screenshots show all 15 real official logos rendering clearly across
+      the scrolling marquee in the luxury black/gold/white theme. LOADED: 60/60 tiles across
+      the doubled marquee.

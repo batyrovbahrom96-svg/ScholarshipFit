@@ -1,32 +1,34 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-// Real university logos hosted on Wikimedia Commons.
-// Browsers fetch these directly (server-side is blocked by Wikimedia's UA rules,
-// but client-side <img> requests work). Every tile has an <onError> fallback
-// to a decorative heraldic SVG crest so the marquee never shows a broken image.
+// Real university logos via a 3-tier fallback strategy:
+//   1) Local static PNGs (/public/logos/{key}.png) — highest quality, no external calls
+//   2) /api/logo server proxy (chain: Clearbit -> icon.horse -> DDG -> Google Favicon)
+//   3) Decorative heraldic SVG crest (guaranteed non-broken tile)
 
 const UNIS = [
-  { name: 'Harvard',    caption: 'Harvard',   line1: 'HARVARD',       line2: 'UNIVERSITY',    variant: 'crimson', domain: 'harvard.edu' },
-  { name: 'Yale',       caption: 'Yale',      line1: '',              line2: 'Yale',          variant: 'yale', serifName: true, domain: 'yale.edu' },
-  { name: 'Princeton',  caption: 'Princeton', line1: 'PRINCETON',     line2: 'UNIVERSITY',    variant: 'orange',  domain: 'princeton.edu' },
-  { name: 'Columbia',   caption: 'Columbia',  line1: 'COLUMBIA',      line2: 'UNIVERSITY',    variant: 'columbia', domain: 'columbia.edu' },
-  { name: 'Penn',       caption: 'Penn',      line1: 'UNIVERSITY OF', line2: 'PENNSYLVANIA',  variant: 'penn',    domain: 'upenn.edu' },
-  { name: 'Brown',      caption: 'Brown',     line1: 'BROWN',         line2: 'UNIVERSITY',    variant: 'brown',   domain: 'brown.edu' },
-  { name: 'Dartmouth',  caption: 'Dartmouth', line1: 'DARTMOUTH',     line2: 'COLLEGE',       variant: 'dart',    domain: 'dartmouth.edu' },
-  { name: 'Cornell',    caption: 'Cornell',   line1: 'CORNELL',       line2: 'UNIVERSITY',    variant: 'cornell', domain: 'cornell.edu' },
-  { name: 'Stanford',   caption: 'Stanford',  line1: 'STANFORD',      line2: 'UNIVERSITY',    variant: 'cardinal',domain: 'stanford.edu' },
-  { name: 'MIT',        caption: 'MIT',       line1: 'MASSACHUSETTS INSTITUTE', line2: 'OF TECHNOLOGY', variant: 'mit', domain: 'mit.edu' },
-  { name: 'Oxford',     caption: 'Oxford',    line1: 'UNIVERSITY OF', line2: 'OXFORD',        variant: 'navy',    domain: 'ox.ac.uk' },
-  { name: 'Cambridge',  caption: 'Cambridge', line1: 'UNIVERSITY OF', line2: 'CAMBRIDGE',     variant: 'red',     domain: 'cam.ac.uk' },
-  { name: 'Imperial',   caption: 'Imperial',  line1: 'IMPERIAL COLLEGE', line2: 'LONDON',     variant: 'imperial',domain: 'imperial.ac.uk' },
-  { name: 'ETH Zürich', caption: 'ETH Zürich', line1: 'EIDGENÖSSISCHE',  line2: 'TECHNISCHE HOCHSCHULE', variant: 'eth', domain: 'ethz.ch' },
-  { name: 'NUS',        caption: 'NUS Singapore', line1: 'NATIONAL UNIVERSITY OF', line2: 'SINGAPORE', variant: 'nus', domain: 'nus.edu.sg' },
+  { name: 'Harvard',    caption: 'Harvard',   line1: 'HARVARD',       line2: 'UNIVERSITY',    variant: 'crimson', domain: 'harvard.edu',   logo: 'harvard' },
+  { name: 'Yale',       caption: 'Yale',      line1: '',              line2: 'Yale',          variant: 'yale', serifName: true, domain: 'yale.edu',   logo: 'yale' },
+  { name: 'Princeton',  caption: 'Princeton', line1: 'PRINCETON',     line2: 'UNIVERSITY',    variant: 'orange',  domain: 'princeton.edu', logo: 'princeton' },
+  { name: 'Columbia',   caption: 'Columbia',  line1: 'COLUMBIA',      line2: 'UNIVERSITY',    variant: 'columbia', domain: 'columbia.edu', logo: 'columbia' },
+  { name: 'Penn',       caption: 'Penn',      line1: 'UNIVERSITY OF', line2: 'PENNSYLVANIA',  variant: 'penn',    domain: 'upenn.edu',     logo: 'upenn' },
+  { name: 'Brown',      caption: 'Brown',     line1: 'BROWN',         line2: 'UNIVERSITY',    variant: 'brown',   domain: 'brown.edu',     logo: 'brown' },
+  { name: 'Dartmouth',  caption: 'Dartmouth', line1: 'DARTMOUTH',     line2: 'COLLEGE',       variant: 'dart',    domain: 'dartmouth.edu', logo: 'dartmouth' },
+  { name: 'Cornell',    caption: 'Cornell',   line1: 'CORNELL',       line2: 'UNIVERSITY',    variant: 'cornell', domain: 'cornell.edu',   logo: 'cornell' },
+  { name: 'Stanford',   caption: 'Stanford',  line1: 'STANFORD',      line2: 'UNIVERSITY',    variant: 'cardinal',domain: 'stanford.edu',  logo: 'stanford' },
+  { name: 'MIT',        caption: 'MIT',       line1: 'MASSACHUSETTS INSTITUTE', line2: 'OF TECHNOLOGY', variant: 'mit', domain: 'mit.edu', logo: 'mit' },
+  { name: 'Oxford',     caption: 'Oxford',    line1: 'UNIVERSITY OF', line2: 'OXFORD',        variant: 'navy',    domain: 'ox.ac.uk',      logo: 'oxford' },
+  { name: 'Cambridge',  caption: 'Cambridge', line1: 'UNIVERSITY OF', line2: 'CAMBRIDGE',     variant: 'red',     domain: 'cam.ac.uk',     logo: 'cambridge' },
+  { name: 'Imperial',   caption: 'Imperial',  line1: 'IMPERIAL COLLEGE', line2: 'LONDON',     variant: 'imperial',domain: 'imperial.ac.uk',logo: 'imperial' },
+  { name: 'ETH Zürich', caption: 'ETH Zürich', line1: 'EIDGENÖSSISCHE',  line2: 'TECHNISCHE HOCHSCHULE', variant: 'eth', domain: 'ethz.ch', logo: 'ethz' },
+  { name: 'NUS',        caption: 'NUS Singapore', line1: 'NATIONAL UNIVERSITY OF', line2: 'SINGAPORE', variant: 'nus', domain: 'nus.edu.sg', logo: 'nus' },
 ]
 
-// Server-side proxy — bypasses CORS and delivers real 256px university logos
-// from each institution's official domain via /api/logo?domain=X
-const logoUrl = (domain) => `/api/logo?domain=${encodeURIComponent(domain)}&sz=256`
+// Local static high-quality logos live under /public/logos/{key}.png
+// If a local asset ever fails, we fall back to the multi-provider server proxy
+// (/api/logo) which chains Clearbit -> icon.horse -> DuckDuckGo -> Google Favicon.
+const staticLogoUrl = (key) => `/logos/${key}.png`
+const proxyUrl = (domain) => `/api/logo?domain=${encodeURIComponent(domain)}&sz=256`
 
 const PALETTE = {
   navy: ['#0F1B4C', '#1E2E7C'], red: ['#5A0F1A', '#8B1A2B'], crimson: ['#7A0019', '#A50034'],
@@ -53,23 +55,54 @@ function FallbackCrest({ variant }) {
 }
 
 function CrestTile({ uni }) {
-  const [failed, setFailed] = useState(false)
+  // 0 = local /logos/{key}.png (fast, no external calls, always same quality)
+  // 1 = /api/logo proxy (server chain: Clearbit -> icon.horse -> DDG -> Google)
+  // 2 = heraldic SVG crest
+  const [tier, setTier] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const imgRef = useRef(null)
+  const src = tier === 0 ? staticLogoUrl(uni.logo) : proxyUrl(uni.domain)
+  const showCrest = tier >= 2
+  const bumpTier = () => { setLoaded(false); setTier(t => t + 1) }
+
+  // If image was already cached and completed loading before React attached
+  // the onLoad handler, verify natural size manually on mount / tier change.
+  useEffect(() => {
+    const img = imgRef.current
+    if (!img || showCrest) return
+    if (img.complete) {
+      if (img.naturalWidth > 1 && img.naturalHeight > 1) setLoaded(true)
+      else bumpTier()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier])
+
   return (
     <div className="group shrink-0 flex flex-col items-center rounded-2xl border border-white/8 bg-black/40 hover:bg-white/[0.04] hover:border-[#D4AF37]/40 transition p-4 md:p-5 min-w-[240px] md:min-w-[260px]">
       <div className="flex items-center gap-4">
-        {failed ? (
+        {showCrest ? (
           <FallbackCrest variant={uni.variant}/>
         ) : (
           <div className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-white ring-1 ring-[#D4AF37]/40 flex items-center justify-center p-2">
             {!loaded && <div className="absolute inset-0 animate-pulse bg-white/10"/>}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={logoUrl(uni.domain)}
+              ref={imgRef}
+              key={`${uni.logo}-${tier}`}
+              src={src}
               alt={`${uni.name} logo`}
-              loading="lazy"
-              onLoad={() => setLoaded(true)}
-              onError={() => setFailed(true)}
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onLoad={(e) => {
+                const img = e.currentTarget
+                if (img.naturalWidth <= 1 || img.naturalHeight <= 1) {
+                  bumpTier()
+                } else {
+                  setLoaded(true)
+                }
+              }}
+              onError={bumpTier}
               className={`h-full w-full object-contain transition-opacity ${loaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </div>

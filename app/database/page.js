@@ -14,6 +14,7 @@ import {
   Heart, Sparkles, ArrowUpDown, X, Trophy, Filter,
 } from 'lucide-react'
 import { store } from '@/lib/client-store'
+import { ReadinessPill } from '@/components/site/Readiness'
 
 /* ---------- category chip taxonomy (ScholarshipOwl-style) ---------- */
 const CATEGORIES = [
@@ -280,6 +281,7 @@ function DatabaseInner() {
                     <a href={s.source_url} target="_blank" rel="noopener noreferrer">
                       <Button className="btn-gold btn-pill font-medium"><ExternalLink className="mr-2 h-4 w-4"/>Official source</Button>
                     </a>
+                    <ReadinessPill scholarshipId={s.id} scholarshipName={s.scholarship_name}/>
                     {s.application_link && s.application_link !== s.source_url && (
                       <a href={s.application_link} target="_blank" rel="noopener noreferrer">
                         <Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5 btn-pill">Apply</Button>

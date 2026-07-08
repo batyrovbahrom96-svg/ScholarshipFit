@@ -582,6 +582,113 @@ DATABASE:\n${dbBlock}`
       return withCORS(NextResponse.json({ items: items.map(({ _id, ...t }) => t) }))
     }
 
+    // ============ APPLICATION READINESS SCORE ============
+    // The killer differentiator. Given a profile + scholarship, Claude rates
+    // the applicant's competitiveness on a 0-100 scale and tells them exactly
+    // what to strengthen. Cached in `readiness_cache` (7-day TTL).
+    if (route === '/readiness' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const profile = body.profile
+      const scholarshipId = body.scholarship_id
+      const forceRefresh = !!body.force_refresh
+      if (!profile || !scholarshipId) {
+        return withCORS(NextResponse.json({ error: 'profile and scholarship_id required' }, { status: 400 }))
+      }
+
+      const sch = await db.collection('scholarships').findOne({ id: scholarshipId })
+      if (!sch) return withCORS(NextResponse.json({ error: 'scholarship not found' }, { status: 404 }))
+
+      // Cache key = profile fingerprint + scholarship id
+      const keyFields = {
+        nationality: profile.nationality,
+        degree_level: profile.degree_level,
+        intended_major: profile.intended_major,
+        gpa: profile.gpa, gpa_scale: profile.gpa_scale,
+        ielts: profile.ielts, toefl: profile.toefl,
+        sat: profile.sat, act: profile.act, gre: profile.gre,
+        achievements: profile.achievements || '',
+        scholarship_id: scholarshipId,
+      }
+      const cacheKey = crypto.createHash('sha256').update(JSON.stringify(keyFields)).digest('hex')
+      const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+      if (!forceRefresh) {
+        const cached = await db.collection('readiness_cache').findOne({ cache_key: cacheKey })
+        if (cached && (Date.now() - new Date(cached.created_at).getTime()) < CACHE_TTL_MS) {
+          return withCORS(NextResponse.json({ readiness: cached.result, cached: true }))
+        }
+      }
+
+      const system = `You are a scholarship admissions expert. Given a student profile and a single scholarship record, honestly assess the student's competitiveness on a 0-100 scale and provide a concrete, prioritized action plan. RULES:
+- Use ONLY the provided profile data and scholarship record; do not invent facts.
+- If a scholarship criterion isn't stated in the record, do not assume it — note it as "unclear from source".
+- Be honest, even blunt. Do not inflate scores.
+- Score buckets: 80-100 Strong · 60-79 Competitive · 40-59 Reach · 0-39 Long-shot
+- Each gap must include impact_points (0-30) = how many points the score would rise if that gap were closed.
+- Return STRICT JSON — no prose, no markdown fences.`
+
+      const user = `SCHOLARSHIP:
+${JSON.stringify({
+  name: sch.scholarship_name,
+  university: sch.university_name,
+  country: sch.country,
+  degree_levels: sch.degree_levels,
+  major_fields: sch.major_fields,
+  eligible_nationalities: sch.eligible_nationalities,
+  funding: sch.funding_type,
+  funding_summary: sch.funding_summary,
+  min_gpa: sch.min_gpa,
+  min_ielts: sch.min_ielts,
+  min_toefl: sch.min_toefl,
+  eligibility: sch.eligibility_summary,
+  required_documents: sch.required_documents,
+  deadline: sch.deadline_note || sch.deadline_status,
+}, null, 2)}
+
+PROFILE:
+${JSON.stringify(profile, null, 2)}
+
+Respond with STRICT JSON in this schema:
+{
+  "score": 0-100 integer,
+  "bucket": "Strong" | "Competitive" | "Reach" | "Long-shot",
+  "headline": "one honest sentence explaining the score",
+  "eligibility_status": "Eligible" | "Likely eligible" | "Ineligible" | "Unclear from source",
+  "eligibility_reason": "short explanation",
+  "strengths": [ { "label": "short", "detail": "sentence" } ],  // 2-4 items
+  "gaps": [ { "label": "short", "detail": "sentence", "impact_points": 5-25 } ],  // 2-4 items, sorted highest impact first
+  "actions": [ { "step": "concrete action", "impact_points": 5-25, "effort": "Low" | "Medium" | "High" } ],  // 3-5 items, sorted by ROI
+  "waste_risk": "Low" | "Medium" | "High"  // effort-vs-fit — should they even bother?
+}`
+
+      try {
+        const claudeRes = await callClaude({
+          system,
+          messages: [{ role: 'user', content: user }],
+          maxTokens: 2000,
+          temperature: 0.2,
+        })
+        let parsed
+        try {
+          const clean = claudeRes.replace(/```json\s*|```/g, '').trim()
+          parsed = JSON.parse(clean)
+        } catch (e) {
+          return withCORS(NextResponse.json({ error: 'AI returned invalid JSON', detail: claudeRes.slice(0, 300) }, { status: 502 }))
+        }
+
+        // Cache
+        await db.collection('readiness_cache').updateOne(
+          { cache_key: cacheKey },
+          { $set: { cache_key: cacheKey, result: parsed, created_at: new Date(), profile_snapshot: keyFields } },
+          { upsert: true },
+        )
+
+        return withCORS(NextResponse.json({ readiness: parsed, cached: false }))
+      } catch (e) {
+        return withCORS(NextResponse.json({ error: 'Readiness analysis failed', detail: String(e.message) }, { status: 502 }))
+      }
+    }
+
     // ------- Pre-orders / Founder reservations -------
     // Payments are not yet activated. This endpoint captures buyer intent
     // (email + chosen tier + billing cycle + locked-in founder price) so we

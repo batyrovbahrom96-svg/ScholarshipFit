@@ -10,6 +10,7 @@ import {
   ArrowRight, ArrowUpRight, GraduationCap, Globe2, Award, ShieldCheck,
   BadgeCheck, Zap, User2, ExternalLink, MousePointer2, ChevronDown, Sparkles
 } from 'lucide-react'
+import UniversityMarquee from '@/components/site/UniversityMarquee'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -152,16 +153,14 @@ function Home() {
             </div>
           </div>
 
-          {/* Trust divider */}
-          <div className="mt-16 md:mt-20">
+          {/* Trust divider + Scrolling 15-university crest marquee */}
+          <div className="mt-16 md:mt-20" id="universities">
             <div className="flex items-center gap-4 max-w-3xl mx-auto">
               <div className="h-px flex-1 divider-gold"/>
               <p className="text-[11px] uppercase tracking-[0.28em] text-[#D4AF37]/80">Trusted by students around the world</p>
               <div className="h-px flex-1 divider-gold"/>
             </div>
-            <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3" id="universities">
-              {CRESTS.map(c => <CrestTile key={c.name} crest={c}/>)}
-            </div>
+            <UniversityMarquee />
           </div>
 
           {/* Scroll cue */}

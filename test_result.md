@@ -726,6 +726,43 @@ agent_communication:
 
     -agent: "main"
     -date: "2026-07-08"
+
+    -agent: "main"
+    -date: "2026-07-08"
+    -message: |
+      **BUG FIX + FEATURE: Sign-in "Emergent auth exchange failed" resolved + ScholarshipOwl-style registration**
+
+      Root cause of sign-in failure:
+      - The Emergent session-data endpoint lives on `demobackend.emergentagent.com`, not
+        `auth.emergentagent.com`. The auth subdomain only serves the redirect landing page.
+      - Verified: `curl https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data`
+        returns proper JSON; `auth.emergentagent.com` returns HTML 404.
+
+      Fix (`app/api/[[...path]]/route.js` /auth/session):
+      - Now tries `demobackend.emergentagent.com/auth/v1/env/oauth/session-data` FIRST, falls
+        back to `auth.emergentagent.com` for backward compat
+      - Reads `session_id` from either X-Session-ID header OR JSON body
+      - Normalizes upstream response — accepts both flat {email,name,picture,session_token}
+        and nested {user:{...},session_token} shapes
+      - Returns detailed error including which upstream URL failed and why (400/401/502)
+      - Verified end-to-end: clicking "Sign in" now redirects to
+        accounts.google.com/v3/signin via Emergent's demobackend (real Google OAuth)
+
+      Registration flow (matches scholarshipowl.com/registration UX):
+      - `/app/app/onboarding/page.js` Step 1 now shows a prominent "Continue with Google"
+        button + "OR CONTINUE MANUALLY" divider, mirroring ScholarshipOwl exactly
+      - Auto-fills name/email from the authenticated user's Google profile
+      - Shows "Signed in as [name]" confirmation when already authenticated
+      - `/app/app/register/page.js` — new route that redirects to /onboarding
+        (preserves query params for hero-search deep-links)
+      - Multi-step questions already present: Basics → Origin → Academics → Scores →
+        Achievements → Preferences → Documents → AI Match → /dashboard (scholarship list)
+
+      Files changed:
+      - /app/app/api/[[...path]]/route.js (auth/session route rewritten)
+      - /app/app/onboarding/page.js (Google banner at Step 1, useAuth prefill, GoogleG icon)
+      - NEW: /app/app/register/page.js (ScholarshipOwl-style route alias)
+
     -message: |
       **BATCH: Backend completed 5 backlog items — needs full backend testing**
 

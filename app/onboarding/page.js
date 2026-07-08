@@ -13,7 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { store } from '@/lib/client-store'
 import { toast } from 'sonner'
-import { ArrowLeft, ArrowRight, Sparkles, Rocket, ShieldCheck, Brain, Compass, GraduationCap, Award, Globe, FileText, User, Calendar } from 'lucide-react'
+import { useAuth, buildSignInUrl } from '@/hooks/use-auth'
+import { ArrowLeft, ArrowRight, Sparkles, Rocket, ShieldCheck, Brain, Compass, GraduationCap, Award, Globe, FileText, User, Calendar, CheckCircle2 } from 'lucide-react'
 
 const STEPS = [
   { key: 'basics', title: 'Basics', icon: <User className="h-4 w-4"/> },
@@ -35,6 +36,7 @@ const PROC_LINES = [
 
 function Onboarding() {
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const [i, setI] = useState(0)
   const [form, setForm] = useState({
     full_name: '', email: '', birthdate: '',
@@ -53,6 +55,23 @@ function Onboarding() {
     const cached = store.getProfile()
     if (cached) setForm(f => ({ ...f, ...cached, documents_ready: { ...f.documents_ready, ...(cached.documents_ready||{}) } }))
   }, [])
+
+  // Auto-fill from Google sign-in — name & email from Emergent
+  useEffect(() => {
+    if (user && (!form.full_name || !form.email)) {
+      setForm(f => ({
+        ...f,
+        full_name: f.full_name || user.name || '',
+        email:     f.email     || user.email || '',
+      }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  const signInWithGoogle = () => {
+    if (typeof window === 'undefined') return
+    window.location.href = buildSignInUrl(window.location.pathname)
+  }
 
   const progress = useMemo(() => Math.round(((i + 1) / STEPS.length) * 100), [i])
 
@@ -130,6 +149,43 @@ function Onboarding() {
             <CardContent className="p-6 md:p-8">
               {step==='basics' && (
                 <StepShell title="Let's start with the basics" caption="Your name and email so we can label your ScholarshipFit cabinet.">
+                  {/* Google sign-in banner — mirrors ScholarshipOwl's registration UX.
+                      Skipped once the user is signed in (shows a confirmation instead). */}
+                  {!user ? (
+                    <div className="mb-5 rounded-2xl border border-[#D4AF37]/25 bg-black/60 backdrop-blur px-5 py-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-white font-medium">Sign up with Google to save your cabinet</p>
+                          <p className="text-xs text-white/60 mt-0.5">One click. Your matches persist across devices.</p>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={signInWithGoogle}
+                          disabled={authLoading}
+                          className="h-11 px-5 rounded-full bg-white text-black hover:bg-white/90 font-semibold shadow-md"
+                        >
+                          <GoogleG className="mr-2 h-5 w-5"/> Continue with Google
+                        </Button>
+                      </div>
+                      <div className="mt-4 flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-white/40">
+                        <div className="flex-1 h-px bg-white/10"/> OR CONTINUE MANUALLY <div className="flex-1 h-px bg-white/10"/>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[#D4AF37]/25 bg-black/60 px-4 py-3">
+                      {user.picture ? (
+                        <img src={user.picture} alt={user.name} referrerPolicy="no-referrer" className="h-9 w-9 rounded-full object-cover"/>
+                      ) : (
+                        <div className="h-9 w-9 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center text-sm font-medium">
+                          {(user.name || user.email || '?').trim()[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm text-white truncate">Signed in as {user.name || user.email}</p>
+                        <p className="text-xs text-[#D4AF37]/80 flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/>Cabinet linked to your account</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="First & Last name" val={form.full_name} on={v=>upd('full_name',v)} placeholder="Aisha Khan"/>
                     <Field label="Email" val={form.email} on={v=>upd('email',v)} placeholder="you@email.com" type="email"/>
@@ -274,6 +330,19 @@ function SelectField({ label, val, on, options }) {
         <SelectContent>{options.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
       </Select>
     </div>
+  )
+}
+
+/* Official-style Google "G" — inline SVG so it works without loading external assets. */
+function GoogleG({ className = 'h-4 w-4' }) {
+  return (
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      <path fill="none" d="M0 0h48v48H0z"/>
+    </svg>
   )
 }
 

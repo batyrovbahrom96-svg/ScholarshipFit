@@ -595,75 +595,109 @@ DATABASE:\n${dbBlock}`
     // Flow:
     //   1. Frontend redirects to auth.emergentagent.com/?redirect=<callback>
     //   2. Emergent handles Google OAuth
-    //   3. Redirects back with ?session_id=<sid>
-    //   4. Frontend hits /api/auth/session with X-Session-ID
-    //   5. We exchange with Emergent, upsert user in Mongo, set HttpOnly cookie
+    //   3. Redirects back with #session_id=<sid> (URL fragment)
+    //   4. Frontend hits /api/auth/session with X-Session-ID header
+    //   5. We exchange with Emergent's data endpoint, upsert user in Mongo,
+    //      set HttpOnly cookie
     // ---------------------------------------------
-    const EMERGENT_AUTH_BASE = 'https://auth.emergentagent.com'
 
     if (route === '/auth/session' && method === 'POST') {
       // Exchange session_id from Emergent → real user + persistent cookie
-      const sid = request.headers.get('x-session-id') || (await request.json().catch(() => ({}))).session_id
+      let sid = request.headers.get('x-session-id')
+      if (!sid) {
+        try { sid = (await request.json())?.session_id } catch { /* ignore */ }
+      }
       if (!sid) {
         return withCORS(NextResponse.json({ error: 'Missing session_id' }, { status: 400 }))
       }
-      try {
-        const r = await fetch(`${EMERGENT_AUTH_BASE}/auth/v1/env/oauth/session-data`, {
-          method: 'GET',
-          headers: { 'X-Session-ID': sid },
-        })
-        if (!r.ok) {
-          const txt = await r.text().catch(() => '')
-          return withCORS(NextResponse.json({ error: 'Emergent auth exchange failed', detail: txt.slice(0, 300) }, { status: 401 }))
-        }
-        const emergentUser = await r.json()
-        // { id, email, name, picture, session_token }
 
-        // Upsert user + cabinet
-        const users = db.collection('users')
-        const now = new Date()
-        const existing = await users.findOne({ emergent_id: emergentUser.id })
-        let userDoc
-        if (existing) {
-          await users.updateOne(
-            { emergent_id: emergentUser.id },
-            { $set: { email: emergentUser.email, name: emergentUser.name, picture: emergentUser.picture, last_login: now } },
-          )
-          userDoc = { ...existing, email: emergentUser.email, name: emergentUser.name, picture: emergentUser.picture, last_login: now }
-        } else {
-          userDoc = {
-            id: uuidv4(),
-            emergent_id: emergentUser.id,
-            email: emergentUser.email,
-            name: emergentUser.name,
-            picture: emergentUser.picture,
-            cabinet: { favorites: [], recent_searches: [], profile: {} },
-            created_at: now,
-            last_login: now,
+      // Try multiple upstream URLs — Emergent has served this endpoint from
+      // different subdomains historically; we try each until one succeeds.
+      const upstreamCandidates = [
+        'https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data',
+        'https://auth.emergentagent.com/auth/v1/env/oauth/session-data',
+      ]
+
+      let emergentUser = null
+      let lastError = ''
+      for (const url of upstreamCandidates) {
+        try {
+          const controller = new AbortController()
+          const t = setTimeout(() => controller.abort(), 10000)
+          const r = await fetch(url, {
+            method: 'GET',
+            headers: { 'X-Session-ID': sid, 'Accept': 'application/json' },
+            signal: controller.signal,
+          })
+          clearTimeout(t)
+          if (!r.ok) {
+            lastError = `${url.split('/')[2]} → ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`
+            continue
           }
-          await users.insertOne(userDoc)
+          emergentUser = await r.json()
+          break
+        } catch (e) {
+          lastError = `${url.split('/')[2]} → ${e.message}`
         }
-
-        // Set HttpOnly session cookie (7 days) — trust Emergent's session_token
-        const cookieStore = await cookies()
-        cookieStore.set('sf_session', emergentUser.session_token, {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'none',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7,
-        })
-        // Also store server-side mapping token→user id (short lookup)
-        await db.collection('sessions').updateOne(
-          { session_token: emergentUser.session_token },
-          { $set: { session_token: emergentUser.session_token, user_id: userDoc.id, created_at: now } },
-          { upsert: true },
-        )
-        const { _id, ...cleanUser } = userDoc
-        return withCORS(NextResponse.json({ user: cleanUser, ok: true }))
-      } catch (e) {
-        return withCORS(NextResponse.json({ error: 'Auth failed', detail: String(e.message) }, { status: 500 }))
       }
+
+      if (!emergentUser) {
+        return withCORS(NextResponse.json({ error: 'Emergent auth exchange failed', detail: lastError }, { status: 401 }))
+      }
+
+      // Normalize the Emergent response — different versions of their API
+      // return slightly different shapes. We accept both { email, name,
+      // picture, session_token } and { user: { ... }, session_token }.
+      const raw = emergentUser
+      const emgId    = raw.id    || raw.user_id || raw.user?.id    || raw.email
+      const email    = raw.email || raw.user?.email
+      const name     = raw.name  || raw.user?.name || (email || '').split('@')[0]
+      const picture  = raw.picture || raw.user?.picture || null
+      const emgToken = raw.session_token || raw.token || raw.access_token
+
+      if (!email || !emgToken) {
+        return withCORS(NextResponse.json({ error: 'Malformed Emergent response', got_keys: Object.keys(raw) }, { status: 502 }))
+      }
+
+      // Upsert user + cabinet
+      const users = db.collection('users')
+      const now = new Date()
+      const existing = await users.findOne({ emergent_id: emgId })
+      let userDoc
+      if (existing) {
+        await users.updateOne(
+          { emergent_id: emgId },
+          { $set: { email, name, picture, last_login: now } },
+        )
+        userDoc = { ...existing, email, name, picture, last_login: now }
+      } else {
+        userDoc = {
+          id: uuidv4(),
+          emergent_id: emgId,
+          email, name, picture,
+          cabinet: { favorites: [], recent_searches: [], profile: {} },
+          created_at: now,
+          last_login: now,
+        }
+        await users.insertOne(userDoc)
+      }
+
+      // Set HttpOnly session cookie (7 days)
+      const cookieStore = await cookies()
+      cookieStore.set('sf_session', emgToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      })
+      await db.collection('sessions').updateOne(
+        { session_token: emgToken },
+        { $set: { session_token: emgToken, user_id: userDoc.id, created_at: now } },
+        { upsert: true },
+      )
+      const { _id, ...cleanUser } = userDoc
+      return withCORS(NextResponse.json({ user: cleanUser, ok: true }))
     }
 
     // Get current session (from cookie)

@@ -25,7 +25,7 @@ function Md({ text }) {
   const html = (text || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a target="_blank" rel="noopener noreferrer" class="text-cyan-300 underline underline-offset-2 hover:text-cyan-200" href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a target="_blank" rel="noopener noreferrer" class="text-[#D4AF37] underline underline-offset-2 hover:text-[#F5D67B]" href="$2">$1</a>')
     .replace(/(^|\n)-\s(.+)/g,'$1<li>$2</li>')
     .replace(/\n\n/g,'<br/><br/>')
     .replace(/\n/g,'<br/>')
@@ -77,11 +77,11 @@ function Advisor() {
         <div className="container mx-auto max-w-4xl px-4 py-10 relative">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200"><Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5</Badge>
+              <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]"><Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5</Badge>
               <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">AI Scholarship Advisor</h1>
               <p className="mt-1 text-white/60">Ask in plain language. Nova only references scholarships from our source-linked database.</p>
             </div>
-            <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-cyan-500/30 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
+            <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-[#D4AF37]/30 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
               <Image src={NOVA_URL} alt="Nova" fill sizes="80px" className="object-cover object-top scale-125"/>
               <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#05070d]"/>
             </div>
@@ -95,15 +95,15 @@ function Advisor() {
                     <p className="text-sm text-white/60">Start with an example:</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {STARTERS.map((s,i)=>(
-                        <button key={i} onClick={()=>send(s)} className="text-left rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white hover:border-cyan-500/30 hover:bg-cyan-500/10">{s}</button>
+                        <button key={i} onClick={()=>send(s)} className="text-left rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/10">{s}</button>
                       ))}
                     </div>
                   </div>
                 )}
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.role==='user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user' ? 'bg-cyan-500/100 text-black' : 'bg-white border border-white/10 text-white'}`}>
-                      {m.role==='assistant' && <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-300">Nova</p>}
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user' ? 'bg-[#D4AF37]/100 text-black' : 'bg-white border border-white/10 text-white'}`}>
+                      {m.role==='assistant' && <p className="mb-1 text-[11px] uppercase tracking-widest text-[#D4AF37]">Nova</p>}
                       {m.role==='user' ? <p>{m.content}</p> : <Md text={m.content}/>}
                     </div>
                   </div>
@@ -111,7 +111,7 @@ function Advisor() {
                 {busy && (
                   <div className="flex justify-start">
                     <div className="rounded-2xl px-4 py-3 text-sm bg-white/[0.03] border border-white/10 text-white">
-                      <p className="mb-1 text-[11px] uppercase tracking-widest text-cyan-300">Nova</p>
+                      <p className="mb-1 text-[11px] uppercase tracking-widest text-[#D4AF37]">Nova</p>
                       <span className="inline-flex gap-1">
                         <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce"/>
                         <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce" style={{animationDelay:'0.1s'}}/>
@@ -123,7 +123,7 @@ function Advisor() {
               </div>
               <form onSubmit={e=>{e.preventDefault(); send()}} className="border-t border-white/10 p-3 flex gap-2">
                 <Input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Nova anything about scholarships..." className="bg-white/[0.04] border-white/10 text-white placeholder:text-white/40"/>
-                <Button type="submit" disabled={busy || !input.trim()} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium"><Send className="h-4 w-4"/></Button>
+                <Button type="submit" disabled={busy || !input.trim()} className="btn-gold btn-pill font-medium"><Send className="h-4 w-4"/></Button>
               </form>
             </CardContent>
           </Card>

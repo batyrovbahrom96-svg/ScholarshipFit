@@ -10,7 +10,7 @@ function Methodology() {
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-4xl px-4 py-14">
-        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Methodology</Badge>
+        <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">Methodology</Badge>
         <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">How ScholarshipFit works — and where it stops</h1>
         <p className="mt-2 text-white/60">Transparent scoring, source-linked records, honest limits.</p>
 
@@ -73,7 +73,7 @@ function Section({ title, icon, children }) {
   return (
     <Card className="mt-6 border-white/10 bg-white/[0.03]">
       <CardContent className="p-6">
-        <div className="flex items-center gap-2 text-cyan-300">{icon}<h2 className="text-white text-lg font-semibold">{title}</h2></div>
+        <div className="flex items-center gap-2 text-[#D4AF37]">{icon}<h2 className="text-white text-lg font-semibold">{title}</h2></div>
         <div className="mt-3 space-y-2 text-white/80 leading-relaxed">{children}</div>
       </CardContent>
     </Card>

@@ -96,12 +96,12 @@ function Dashboard() {
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-widest text-cyan-300">Personal cabinet</p>
+            <p className="text-xs uppercase tracking-widest text-[#D4AF37]">Personal cabinet</p>
             <h1 className="text-3xl font-semibold text-white">Welcome, {profile?.full_name || 'Explorer'}</h1>
             <p className="mt-1 text-sm text-white/60">Your AI shortlist, powered by Claude Sonnet 4.5 — source-linked, honest, no invented results.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={rerun} disabled={rematching} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">
+            <Button onClick={rerun} disabled={rematching} className="btn-gold btn-pill font-medium">
               <RefreshCw className={`mr-2 h-4 w-4 ${rematching?'animate-spin':''}`}/>{rematching?'Rematching...':'Rerun AI match'}
             </Button>
             <Link href="/onboarding"><Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5">Edit profile</Button></Link>
@@ -116,12 +116,12 @@ function Dashboard() {
                 <nav className="flex flex-col gap-1">
                   {SIDEBAR.map(item => item.href ? (
                     <Link key={item.key} href={item.href} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white">
-                      <span className="text-cyan-300">{item.icon}</span>{item.label}
+                      <span className="text-[#D4AF37]">{item.icon}</span>{item.label}
                     </Link>
                   ) : (
                     <button key={item.key} onClick={()=>setTab(item.key)}
-                      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm text-left ${tab===item.key ? 'bg-cyan-500/10 text-white border border-cyan-500/30' : 'text-white/80 hover:bg-white/5 hover:text-white border border-transparent'}`}>
-                      <span className={tab===item.key ? 'text-cyan-300' : 'text-white/60'}>{item.icon}</span>{item.label}
+                      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm text-left ${tab===item.key ? 'bg-[#D4AF37]/10 text-white border border-[#D4AF37]/30' : 'text-white/80 hover:bg-white/5 hover:text-white border border-transparent'}`}>
+                      <span className={tab===item.key ? 'text-[#D4AF37]' : 'text-white/60'}>{item.icon}</span>{item.label}
                     </button>
                   ))}
                 </nav>
@@ -133,13 +133,13 @@ function Dashboard() {
           <div className="lg:col-span-9 space-y-6">
             {/* No profile yet */}
             {!profile && (
-              <Card className="border-cyan-500/30 bg-cyan-500/10">
+              <Card className="border-[#D4AF37]/30 bg-[#D4AF37]/10">
                 <CardContent className="p-6 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-semibold text-white">No profile yet</h3>
                     <p className="text-sm text-white/60">Complete onboarding to see your first AI shortlist.</p>
                   </div>
-                  <Link href="/onboarding"><Button className="bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Start onboarding</Button></Link>
+                  <Link href="/onboarding"><Button className="btn-gold btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Start onboarding</Button></Link>
                 </CardContent>
               </Card>
             )}
@@ -158,7 +158,7 @@ function Dashboard() {
             {(summary || advisory) && (
               <Card className="border-white/10 bg-gradient-to-br from-cyan-500/10 to-white/5">
                 <CardContent className="p-5">
-                  <p className="text-[11px] uppercase tracking-widest text-cyan-300">AI portfolio summary</p>
+                  <p className="text-[11px] uppercase tracking-widest text-[#D4AF37]">AI portfolio summary</p>
                   {summary && <p className="mt-1 text-white">{summary}</p>}
                   {advisory && <p className="mt-2 text-sm text-white/80 italic">{advisory}</p>}
                   <p className="mt-3 flex items-center gap-1.5 text-[11px] text-white/40"><Info className="h-3 w-3"/> ScholarshipFit provides informational scholarship research only. Users apply directly through official provider websites.</p>

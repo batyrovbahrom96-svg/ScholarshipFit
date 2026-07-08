@@ -1,22 +1,26 @@
 import Link from 'next/link'
+import Image from 'next/image'
+
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_stellar-fit/artifacts/qwce98g3_image.png'
 
 export default function Logo({ size = 'md', href = '/' }) {
-  const sizes = {
-    sm: { text: 'text-lg', dot: 'h-6 w-6' },
-    md: { text: 'text-xl', dot: 'h-7 w-7' },
-    lg: { text: 'text-3xl', dot: 'h-10 w-10' },
+  const dims = {
+    sm: { w: 140, h: 26 },
+    md: { w: 180, h: 32 },
+    lg: { w: 240, h: 44 },
   }
-  const s = sizes[size] || sizes.md
+  const d = dims[size] || dims.md
   return (
-    <Link href={href} className="group inline-flex items-center gap-2.5 whitespace-nowrap">
-      <span className={`relative ${s.dot} shrink-0`}>
-        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-500" />
-        <span className="absolute inset-[3px] rounded-full bg-[#060608]" />
-        <span className="absolute inset-[7px] rounded-full bg-gradient-to-br from-cyan-300 to-blue-400" />
-      </span>
-      <span className={`${s.text} font-semibold tracking-tight text-white`}>
-        Scholarship<span className="text-gradient-brand">Fit</span>
-      </span>
+    <Link href={href} className="inline-flex items-center whitespace-nowrap" aria-label="Scholarshipfit.com home">
+      <Image
+        src={LOGO_URL}
+        alt="Scholarshipfit.com"
+        width={d.w * 2}
+        height={d.h * 2}
+        priority
+        className="h-auto object-contain"
+        style={{ height: d.h, width: 'auto' }}
+      />
     </Link>
   )
 }

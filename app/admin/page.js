@@ -51,11 +51,11 @@ function Admin() {
       <div className="container mx-auto max-w-7xl px-4 py-10">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Admin</Badge>
+            <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">Admin</Badge>
             <h1 className="mt-2 text-3xl font-semibold text-white">ScholarshipFit control</h1>
             <p className="text-white/60 text-sm">Manage database records, trust levels, and AI activity.</p>
           </div>
-          <Button onClick={()=>setCreating(true)} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium"><Plus className="mr-2 h-4 w-4"/>Add scholarship</Button>
+          <Button onClick={()=>setCreating(true)} className="btn-gold btn-pill font-medium"><Plus className="mr-2 h-4 w-4"/>Add scholarship</Button>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-4">
@@ -84,8 +84,8 @@ function Admin() {
                     <tr key={s.id} className="border-b border-white/10 text-white">
                       <td className="p-3"><div className="font-medium text-white">{s.scholarship_name}</div><div className="text-xs text-white/60">{s.university_name}</div></td>
                       <td className="p-3">{s.country}</td>
-                      <td className="p-3"><Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust_level}</Badge></td>
-                      <td className="p-3">{s.source_url ? <a target="_blank" rel="noopener noreferrer" href={s.source_url} className="inline-flex items-center gap-1 text-cyan-300 hover:underline"><ExternalLink className="h-3 w-3"/>Open</a> : <span className="text-amber-300">missing</span>}</td>
+                      <td className="p-3"><Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#D4AF37]"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust_level}</Badge></td>
+                      <td className="p-3">{s.source_url ? <a target="_blank" rel="noopener noreferrer" href={s.source_url} className="inline-flex items-center gap-1 text-[#D4AF37] hover:underline"><ExternalLink className="h-3 w-3"/>Open</a> : <span className="text-amber-300">missing</span>}</td>
                       <td className="p-3">{s.public_status === 'hidden' ? <Badge className="bg-amber-500/100/15 text-amber-300 hover:bg-amber-500/100/15">hidden</Badge> : <Badge className="bg-emerald-500/100/15 text-emerald-300 hover:bg-emerald-500/100/15">public</Badge>}</td>
                       <td className="p-3 text-right">
                         <Button size="sm" variant="ghost" onClick={()=>setEditing(s)} className="text-white/80 hover:text-white hover:bg-white/5"><Pencil className="h-4 w-4"/></Button>
@@ -135,7 +135,7 @@ function Admin() {
 function Stat({ icon, label, value }) {
   return (
     <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5">
-      <div className="flex items-center gap-2 text-cyan-300">{icon}<span className="text-xs uppercase tracking-widest text-white/60">{label}</span></div>
+      <div className="flex items-center gap-2 text-[#D4AF37]">{icon}<span className="text-xs uppercase tracking-widest text-white/60">{label}</span></div>
       <p className="mt-1 text-3xl font-semibold text-white">{value}</p>
     </CardContent></Card>
   )
@@ -191,7 +191,7 @@ function ScholarshipDialog({ open, initial, isNew, onClose, onSave }) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/5">Cancel</Button>
-          <Button onClick={()=>onSave(doc, isNew)} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">Save</Button>
+          <Button onClick={()=>onSave(doc, isNew)} className="btn-gold btn-pill font-medium">Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

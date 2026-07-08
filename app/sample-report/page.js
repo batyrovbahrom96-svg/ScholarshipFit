@@ -72,20 +72,20 @@ function SampleReport() {
       <Navbar />
       <div className="relative">
         <div className="container mx-auto max-w-6xl px-4 py-10 relative">
-          <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200"><Sparkles className="mr-1 h-3 w-3"/>Sample report</Badge>
+          <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]"><Sparkles className="mr-1 h-3 w-3"/>Sample report</Badge>
           <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">What your ScholarshipFit shortlist looks like</h1>
           <p className="mt-2 text-white/60 max-w-3xl">A preview of the AI report ScholarshipFit generates — grounded in real, source-linked records. This is an illustrative sample built from a fictional student profile.</p>
 
           <Card className="mt-6 border-white/10 bg-gradient-to-br from-cyan-500/10 to-white/5">
             <CardContent className="p-5">
-              <p className="text-[11px] uppercase tracking-widest text-cyan-300">Student profile summary</p>
+              <p className="text-[11px] uppercase tracking-widest text-[#D4AF37]">Student profile summary</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm text-white">
                 <Info2 icon={<User className="h-4 w-4"/>} label={SAMPLE_PROFILE.full_name} sub={`${SAMPLE_PROFILE.nationality} → international`}/>
                 <Info2 icon={<GraduationCap className="h-4 w-4"/>} label={`${SAMPLE_PROFILE.degree_level} — ${SAMPLE_PROFILE.intended_major}`} sub={`GPA ${SAMPLE_PROFILE.gpa}/${SAMPLE_PROFILE.gpa_scale} · IELTS ${SAMPLE_PROFILE.ielts}`}/>
                 <Info2 icon={<Globe className="h-4 w-4"/>} label={SAMPLE_PROFILE.preferred_countries.join(', ')} sub="Preferred countries"/>
                 <Info2 icon={<DollarSign className="h-4 w-4"/>} label={`$${SAMPLE_PROFILE.annual_budget_usd}/yr budget`} sub={SAMPLE_PROFILE.full_funding_only ? 'Full funding only' : 'Open to partial'}/>
               </div>
-              {meta && (<p className="mt-4 text-sm text-white/80">{meta.count} source-linked matches. Average fit <span className="text-cyan-300 font-medium">{meta.avg}</span>.</p>)}
+              {meta && (<p className="mt-4 text-sm text-white/80">{meta.count} source-linked matches. Average fit <span className="text-[#D4AF37] font-medium">{meta.avg}</span>.</p>)}
             </CardContent>
           </Card>
 
@@ -101,7 +101,7 @@ function SampleReport() {
           </Card>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/onboarding"><Button size="lg" className="bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium"><Rocket className="mr-2 h-5 w-5"/>Build my real report</Button></Link>
+            <Link href="/onboarding"><Button size="lg" className="btn-gold btn-pill font-medium"><Rocket className="mr-2 h-5 w-5"/>Build my real report</Button></Link>
             <Link href="/advisor"><Button size="lg" variant="outline" className="border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.03]">Ask Nova</Button></Link>
           </div>
         </div>
@@ -114,7 +114,7 @@ function SampleReport() {
 function Info2({ icon, label, sub }) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-      <div className="flex items-center gap-2 text-cyan-300">{icon}<span className="text-white text-sm font-medium">{label}</span></div>
+      <div className="flex items-center gap-2 text-[#D4AF37]">{icon}<span className="text-white text-sm font-medium">{label}</span></div>
       <p className="mt-1 text-xs text-white/60">{sub}</p>
     </div>
   )

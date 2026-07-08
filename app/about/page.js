@@ -9,7 +9,7 @@ function About() {
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-4xl px-4 py-14">
-        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">About</Badge>
+        <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">About</Badge>
         <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">Scholarship research, honestly done</h1>
         <p className="mt-2 text-white/60 max-w-2xl">ScholarshipFit is built for international students who are tired of scholarship blogs full of dead links, invented deadlines, and fake outcomes.</p>
 

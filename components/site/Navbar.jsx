@@ -7,61 +7,60 @@ import Logo from './Logo'
 import { Button } from '@/components/ui/button'
 
 const LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/database', label: 'Database' },
-  { href: '/advisor', label: 'AI Advisor' },
-  { href: '/sample-report', label: 'Sample Report' },
-  { href: '/methodology', label: 'Methodology' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/database', label: 'Scholarships' },
+  { href: '/#universities', label: 'Universities' },
+  { href: '/methodology', label: 'Resources' },
+  { href: '/about', label: 'About' },
 ]
 
 export default function Navbar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-[#060608]/80 backdrop-blur-xl">
-      <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Logo />
-        <nav className="hidden items-center gap-1 md:flex">
-          {LINKS.map(l => (
-            <Link key={l.href} href={l.href}
-              className={`rounded-md px-3 py-2 text-sm transition ${pathname===l.href ? 'text-white bg-white/5' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="hidden items-center gap-2 md:flex">
-          <Link href="/dashboard"><Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/5">Dashboard</Button></Link>
-          <Link href="/onboarding">
-            <Button className="bg-white hover:bg-white/90 text-[#060608] btn-pill px-5 font-medium">
-              Check My Scholarships
-            </Button>
-          </Link>
-        </div>
-        <button className="md:hidden text-white" onClick={() => setOpen(!open)} aria-label="menu">
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
-      </div>
-      {open && (
-        <div className="md:hidden border-t border-white/5 bg-[#060608]">
-          <div className="container mx-auto max-w-7xl px-4 py-3 flex flex-col gap-1">
+    <header className="sticky top-0 z-40 pt-4">
+      <div className="container mx-auto max-w-6xl px-4">
+        <div className="flex h-14 md:h-16 items-center justify-between rounded-full border border-white/10 bg-black/70 backdrop-blur-xl px-4 md:px-6"
+             style={{ boxShadow: '0 0 0 1px rgba(212,175,55,0.08), 0 10px 40px -10px rgba(0,0,0,0.6)' }}>
+          <Logo />
+          <nav className="hidden md:flex items-center gap-6">
             {LINKS.map(l => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)}
-                className={`rounded-md px-3 py-2 text-sm ${pathname===l.href ? 'text-white bg-white/5' : 'text-white/70 hover:bg-white/5'}`}>
+              <Link key={l.href} href={l.href}
+                className={`text-sm transition ${pathname===l.href ? 'text-white' : 'text-white/70 hover:text-white'}`}>
                 {l.label}
               </Link>
             ))}
-            <div className="mt-2 flex gap-2">
-              <Link href="/dashboard" className="flex-1" onClick={()=>setOpen(false)}>
-                <Button variant="outline" className="w-full bg-transparent border-white/15 text-white hover:bg-white/5">Dashboard</Button>
-              </Link>
-              <Link href="/onboarding" className="flex-1" onClick={()=>setOpen(false)}>
-                <Button className="w-full bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium">Check Matches</Button>
-              </Link>
+          </nav>
+          <div className="hidden md:flex items-center gap-3">
+            <Link href="/dashboard" className="text-sm text-white/80 hover:text-white transition">Sign in</Link>
+            <Link href="/onboarding">
+              <Button className="btn-gold btn-pill px-5 h-10 font-medium">Get Started</Button>
+            </Link>
+          </div>
+          <button className="md:hidden text-white" onClick={()=>setOpen(!open)} aria-label="menu">
+            {open ? <X className="h-5 w-5"/> : <Menu className="h-5 w-5"/>}
+          </button>
+        </div>
+        {open && (
+          <div className="md:hidden mt-2 rounded-3xl border border-white/10 bg-black/90 backdrop-blur-xl p-3">
+            <div className="flex flex-col gap-1">
+              {LINKS.map(l => (
+                <Link key={l.href} href={l.href} onClick={()=>setOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+                  {l.label}
+                </Link>
+              ))}
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Link href="/dashboard" onClick={()=>setOpen(false)}>
+                  <Button variant="outline" className="w-full bg-transparent border-white/15 text-white hover:bg-white/5">Sign in</Button>
+                </Link>
+                <Link href="/onboarding" onClick={()=>setOpen(false)}>
+                  <Button className="w-full btn-gold btn-pill font-medium">Get Started</Button>
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </header>
   )
 }

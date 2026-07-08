@@ -9,7 +9,7 @@ function Legal() {
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-4xl px-4 py-14">
-        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Legal</Badge>
+        <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">Legal</Badge>
         <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">Terms, Privacy, Disclaimer & Refund policy</h1>
         <p className="mt-2 text-white/60">Plain-language, honest legal notes for ScholarshipFit.</p>
 

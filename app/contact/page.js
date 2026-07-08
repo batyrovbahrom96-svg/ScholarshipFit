@@ -20,7 +20,7 @@ function Contact() {
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-4xl px-4 py-14">
-        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Contact</Badge>
+        <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">Contact</Badge>
         <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">Talk to the ScholarshipFit team</h1>
         <p className="mt-2 text-white/60 max-w-2xl">Report a broken source link, correct a record, share an outcome, or say hello. We read every message.</p>
 
@@ -28,16 +28,16 @@ function Contact() {
           <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5 space-y-3">
             <Input placeholder="Your name" value={form.name} onChange={e=>setForm(f=>({...f, name:e.target.value}))} className="bg-white/[0.04] border-white/10 text-white"/>
             <Input placeholder="Email" type="email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} className="bg-white/[0.04] border-white/10 text-white"/>
-            <textarea placeholder="Your message..." rows={6} value={form.message} onChange={e=>setForm(f=>({...f, message:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"/>
-            <Button onClick={send} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">Send message</Button>
+            <textarea placeholder="Your message..." rows={6} value={form.message} onChange={e=>setForm(f=>({...f, message:e.target.value}))} className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"/>
+            <Button onClick={send} className="btn-gold btn-pill font-medium">Send message</Button>
           </CardContent></Card>
           <div className="space-y-4">
             <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5 flex items-start gap-3">
-              <div className="h-9 w-9 rounded-lg bg-cyan-500/100/15 border border-cyan-500/30 text-cyan-300 flex items-center justify-center"><Mail className="h-4 w-4"/></div>
+              <div className="h-9 w-9 rounded-lg bg-[#D4AF37]/100/15 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center"><Mail className="h-4 w-4"/></div>
               <div><p className="text-white font-medium">Email</p><p className="text-sm text-white/60">hello@scholarshipfit.app</p></div>
             </CardContent></Card>
             <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5 flex items-start gap-3">
-              <div className="h-9 w-9 rounded-lg bg-cyan-500/100/15 border border-cyan-500/30 text-cyan-300 flex items-center justify-center"><MessageCircle className="h-4 w-4"/></div>
+              <div className="h-9 w-9 rounded-lg bg-[#D4AF37]/100/15 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center"><MessageCircle className="h-4 w-4"/></div>
               <div><p className="text-white font-medium">Ask Nova</p><p className="text-sm text-white/60">Our AI advisor answers scholarship questions 24/7.</p></div>
             </CardContent></Card>
           </div>

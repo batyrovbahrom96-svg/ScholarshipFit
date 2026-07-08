@@ -15,30 +15,30 @@ export default function Footer() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Product</p>
             <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li><Link className="hover:text-cyan-300" href="/onboarding">Match Flow</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/advisor">AI Advisor</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/database">Database</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/sample-report">Sample Report</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/pricing">Pricing</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/onboarding">Match Flow</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/advisor">AI Advisor</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/database">Database</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/sample-report">Sample Report</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/pricing">Pricing</Link></li>
             </ul>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Company</p>
             <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li><Link className="hover:text-cyan-300" href="/about">About</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/methodology">Methodology</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/outcomes">Outcomes</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/contact">Contact</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/admin">Admin</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/about">About</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/methodology">Methodology</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/outcomes">Outcomes</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/contact">Contact</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/admin">Admin</Link></li>
             </ul>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Legal</p>
             <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li><Link className="hover:text-cyan-300" href="/legal#terms">Terms</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/legal#privacy">Privacy</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/legal#disclaimer">Disclaimer</Link></li>
-              <li><Link className="hover:text-cyan-300" href="/legal#refund">Refund policy</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/legal#terms">Terms</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/legal#privacy">Privacy</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/legal#disclaimer">Disclaimer</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/legal#refund">Refund policy</Link></li>
             </ul>
           </div>
         </div>

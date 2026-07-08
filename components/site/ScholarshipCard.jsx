@@ -7,8 +7,8 @@ import { ExternalLink, ShieldCheck, MapPin, GraduationCap, Sparkles, CheckCircle
 function trustColor(t) {
   const s = (t || '').toLowerCase()
   if (s.includes('verified')) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-  if (s.includes('strongly')) return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-  if (s.includes('source')) return 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+  if (s.includes('strongly')) return 'bg-[#D4AF37]/15 text-[#D4AF37] border-[#D4AF37]/30'
+  if (s.includes('source')) return 'bg-[#D4AF37]/15 text-[#D4AF37] border-[#D4AF37]/30'
   return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
 }
 
@@ -16,7 +16,7 @@ export default function ScholarshipCard({ match, onSave, onIgnore, onApply }) {
   const score = Math.round(match.overall_fit_score || 0)
   return (
     <Card className="group relative overflow-hidden card-dark rounded-2xl hover:border-white/20 transition-all">
-      <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl group-hover:bg-cyan-500/15 transition"/>
+      <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#D4AF37]/10 blur-3xl group-hover:bg-[#D4AF37]/15 transition"/>
       <CardContent className="relative p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -91,8 +91,8 @@ export default function ScholarshipCard({ match, onSave, onIgnore, onApply }) {
         )}
 
         {match.next_steps?.length > 0 && (
-          <div className="mt-4 rounded-lg border border-cyan-500/25 bg-cyan-500/[0.06] p-3">
-            <p className="text-[11px] uppercase tracking-widest text-cyan-300">Next steps</p>
+          <div className="mt-4 rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/[0.06] p-3">
+            <p className="text-[11px] uppercase tracking-widest text-[#D4AF37]">Next steps</p>
             <ul className="mt-2 space-y-1">
               {match.next_steps.slice(0,5).map((r,i)=>(
                 <li key={i} className="flex gap-2 text-sm text-white/90"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-cyan-300"/><span>{r}</span></li>
@@ -103,7 +103,7 @@ export default function ScholarshipCard({ match, onSave, onIgnore, onApply }) {
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <a href={match.source_url || match.application_link} target="_blank" rel="noopener noreferrer" className="inline-flex">
-            <Button className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium"><ExternalLink className="mr-1.5 h-4 w-4"/>Official source</Button>
+            <Button className="btn-gold btn-pill font-medium"><ExternalLink className="mr-1.5 h-4 w-4"/>Official source</Button>
           </a>
           {onApply && <Button variant="outline" onClick={()=>onApply(match)} className="border-white/15 bg-transparent text-white hover:bg-white/[0.06] btn-pill">Start application</Button>}
           {onSave && <Button variant="ghost" onClick={()=>onSave(match)} className="text-white/70 hover:text-white hover:bg-white/[0.06] btn-pill">Save</Button>}

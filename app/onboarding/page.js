@@ -121,7 +121,7 @@ function Onboarding() {
       <div className="relative">
         <div className="container mx-auto max-w-4xl px-4 py-10 relative">
           <div className="flex items-center justify-between">
-            <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200"><ShieldCheck className="mr-1 h-3 w-3"/>Step {i+1} of {STEPS.length}</Badge>
+            <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]"><ShieldCheck className="mr-1 h-3 w-3"/>Step {i+1} of {STEPS.length}</Badge>
             <p className="text-sm text-white/60">{STEPS[i].title}</p>
           </div>
           <Progress value={progress} className="mt-3 h-1.5 bg-white/5 [&>div]:bg-cyan-400"/>
@@ -173,7 +173,7 @@ function Onboarding() {
 
               {step==='achievements' && (
                 <StepShell title="Achievements & experience" caption="Free-text — awards, olympiads, leadership, research, volunteering, work, portfolio.">
-                  <textarea value={form.achievements} onChange={e=>upd('achievements', e.target.value)} rows={6} placeholder="e.g. 2x national robotics finalist, 1 year research internship in fluid dynamics, volunteer STEM mentor..." className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"/>
+                  <textarea value={form.achievements} onChange={e=>upd('achievements', e.target.value)} rows={6} placeholder="e.g. 2x national robotics finalist, 1 year research internship in fluid dynamics, volunteer STEM mentor..." className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"/>
                 </StepShell>
               )}
 
@@ -195,7 +195,7 @@ function Onboarding() {
                     {[
                       ['passport','Passport'],['transcript','Academic transcript'],['cv','CV / Résumé'],['motivation','Motivation letter'],['recommendations','Recommendation letters'],['portfolio','Portfolio'],['research_proposal','Research proposal'],
                     ].map(([k,label])=>(
-                      <label key={k} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 cursor-pointer hover:border-cyan-500/30">
+                      <label key={k} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 cursor-pointer hover:border-[#D4AF37]/30">
                         <Checkbox checked={!!form.documents_ready[k]} onCheckedChange={v=>upd('documents_ready',{...form.documents_ready,[k]:!!v})}/>
                         <span className="text-sm text-white">{label}</span>
                       </label>
@@ -207,8 +207,8 @@ function Onboarding() {
               {step==='processing' && (
                 <div className="text-center py-6">
                   <div className="relative mx-auto h-24 w-24">
-                    <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30" style={{animation:'orbit 6s linear infinite'}}/>
-                    <div className="absolute inset-3 rounded-full border border-cyan-500/40" style={{animation:'orbit 4s linear infinite reverse'}}/>
+                    <div className="absolute inset-0 rounded-full border-2 border-[#D4AF37]/30" style={{animation:'orbit 6s linear infinite'}}/>
+                    <div className="absolute inset-3 rounded-full border border-[#D4AF37]/40" style={{animation:'orbit 4s linear infinite reverse'}}/>
                     <div className="absolute inset-6 rounded-full bg-gradient-to-br from-cyan-400/40 to-indigo-500/30 blur-md"/>
                     <div className="absolute inset-8 rounded-full bg-cyan-400"/>
                   </div>
@@ -216,7 +216,7 @@ function Onboarding() {
                   <p className="mt-1 text-sm text-white/60">Claude Sonnet 4.5 is analyzing your profile against every source-linked record.</p>
                   <ul className="mt-6 mx-auto max-w-md space-y-2 text-left">
                     {PROC_LINES.map((l, idx) => (
-                      <li key={idx} className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${idx <= procIdx ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-white/40'}`}>
+                      <li key={idx} className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${idx <= procIdx ? 'border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]' : 'border-white/10 bg-white/[0.04] text-white/40'}`}>
                         <span className={`h-2 w-2 rounded-full ${idx <= procIdx ? 'bg-cyan-300' : 'bg-slate-600'}`}/>
                         {l}
                       </li>
@@ -229,9 +229,9 @@ function Onboarding() {
                 <div className="mt-6 flex items-center justify-between">
                   <Button variant="ghost" onClick={back} disabled={i===0} className="text-white/80 hover:text-white hover:bg-white/5"><ArrowLeft className="mr-2 h-4 w-4"/>Back</Button>
                   {i < STEPS.length - 2 ? (
-                    <Button onClick={next} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">Continue <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    <Button onClick={next} className="btn-gold btn-pill font-medium">Continue <ArrowRight className="ml-2 h-4 w-4"/></Button>
                   ) : (
-                    <Button onClick={next} className="bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Run AI Match</Button>
+                    <Button onClick={next} className="btn-gold btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Run AI Match</Button>
                   )}
                 </div>
               )}

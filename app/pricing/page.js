@@ -27,23 +27,23 @@ function Pricing() {
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-6xl px-4 py-14">
-        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">Pricing</Badge>
+        <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">Pricing</Badge>
         <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">Simple SaaS plans, launching soon</h1>
         <p className="mt-2 text-white/60 max-w-2xl">Payments are not active yet. Join the waitlist to get early access and founder pricing.</p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           {PLANS.map((p,i)=>(
-            <Card key={i} className={`relative border-white/10 ${p.highlight ? 'bg-gradient-to-b from-cyan-500/10 to-white/5 border-cyan-500/30' : 'bg-white'}`}>
-              {p.highlight && <div className="absolute -top-2 left-1/2 -translate-x-1/2"><Badge className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium"><Star className="mr-1 h-3 w-3"/>{p.pill}</Badge></div>}
+            <Card key={i} className={`relative border-white/10 ${p.highlight ? 'bg-gradient-to-b from-cyan-500/10 to-white/5 border-[#D4AF37]/30' : 'bg-white'}`}>
+              {p.highlight && <div className="absolute -top-2 left-1/2 -translate-x-1/2"><Badge className="btn-gold btn-pill font-medium"><Star className="mr-1 h-3 w-3"/>{p.pill}</Badge></div>}
               <CardContent className="p-5">
                 <p className="text-sm text-white/60">{p.name}</p>
                 <p className="mt-1 text-3xl font-semibold text-white">{p.price}</p>
                 <ul className="mt-4 space-y-2 text-sm text-white/80">
-                  {p.features.map((f,j)=>(<li key={j} className="flex gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-400 mt-0.5"/><span>{f}</span></li>))}
+                  {p.features.map((f,j)=>(<li key={j} className="flex gap-2"><CheckCircle2 className="h-4 w-4 text-[#D4AF37] mt-0.5"/><span>{f}</span></li>))}
                 </ul>
                 <div className="mt-4">
                   {p.name === 'Free Research Check'
-                    ? <Link href="/onboarding"><Button className="w-full bg-white hover:bg-white/90 text-[#060608] btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Start free</Button></Link>
+                    ? <Link href="/onboarding"><Button className="w-full btn-gold btn-pill font-medium"><Rocket className="mr-2 h-4 w-4"/>Start free</Button></Link>
                     : <Button variant="outline" className="w-full border-white/10 bg-transparent text-white hover:bg-white/5" disabled>Join waitlist</Button>}
                 </div>
               </CardContent>
@@ -58,8 +58,8 @@ function Pricing() {
               <p className="text-sm text-white/60">Enter your email to be notified when we open paid plans.</p>
             </div>
             <div className="flex gap-2">
-              <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"/>
-              <Button onClick={joinWaitlist} className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium">Join waitlist</Button>
+              <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"/>
+              <Button onClick={joinWaitlist} className="btn-gold btn-pill font-medium">Join waitlist</Button>
             </div>
           </CardContent>
         </Card>

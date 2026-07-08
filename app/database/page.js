@@ -37,11 +37,11 @@ function Database() {
       <div className="container mx-auto max-w-7xl px-4 py-10">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-widest text-cyan-300">Scholarship database</p>
+            <p className="text-xs uppercase tracking-widest text-[#D4AF37]">Scholarship database</p>
             <h1 className="mt-1 text-3xl md:text-4xl font-semibold text-white">Source-linked records</h1>
             <p className="mt-1 text-white/60">Every record links to an official university or government source. No invented scholarships.</p>
           </div>
-          <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">{items.length} records</Badge>
+          <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">{items.length} records</Badge>
         </div>
 
         <Card className="mt-6 border-white/10 bg-white/[0.03]">
@@ -63,8 +63,8 @@ function Database() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           {filtered.map(s => (
-            <Card key={s.id} className="group relative overflow-hidden border-white/10 bg-white/[0.03] hover:border-cyan-500/30 transition">
-              <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl group-hover:bg-cyan-500/100/15"/>
+            <Card key={s.id} className="group relative overflow-hidden border-white/10 bg-white/[0.03] hover:border-[#D4AF37]/30 transition">
+              <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#D4AF37]/10 blur-3xl group-hover:bg-[#D4AF37]/100/15"/>
               <CardContent className="relative p-5">
                 <div className="flex items-center gap-2 text-xs text-white/60">
                   <GraduationCap className="h-3.5 w-3.5"/><span>{s.university_name}</span>
@@ -74,7 +74,7 @@ function Database() {
                 <h3 className="mt-1 text-lg font-semibold text-white">{s.scholarship_name}</h3>
                 <p className="mt-2 text-sm text-white/80 line-clamp-3">{s.funding_summary}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust_level}</Badge>
+                  <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#D4AF37]"><ShieldCheck className="mr-1 h-3 w-3"/>{s.trust_level}</Badge>
                   {s.degree_levels?.slice(0,3).map((d,i)=>(<Badge key={i} variant="outline" className="border-white/10 bg-white/5 text-white">{d}</Badge>))}
                   <Badge variant="outline" className="border-white/10 bg-white/5 text-white">{s.funding_type}</Badge>
                 </div>
@@ -83,7 +83,7 @@ function Database() {
                   <div><p className="text-[11px] uppercase tracking-widest text-white/40">Deadline</p><p className="text-white">{s.deadline_note || s.deadline_status}</p></div>
                 </div>
                 <div className="mt-4 flex gap-2">
-                  <a href={s.source_url} target="_blank" rel="noopener noreferrer"><Button className="bg-white text-[#060608] hover:bg-white/90 btn-pill font-medium"><ExternalLink className="mr-2 h-4 w-4"/>Official source</Button></a>
+                  <a href={s.source_url} target="_blank" rel="noopener noreferrer"><Button className="btn-gold btn-pill font-medium"><ExternalLink className="mr-2 h-4 w-4"/>Official source</Button></a>
                   {s.application_link && s.application_link !== s.source_url && (
                     <a href={s.application_link} target="_blank" rel="noopener noreferrer"><Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5">Apply</Button></a>
                   )}

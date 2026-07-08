@@ -582,6 +582,63 @@ DATABASE:\n${dbBlock}`
       return withCORS(NextResponse.json({ items: items.map(({ _id, ...t }) => t) }))
     }
 
+    // ------- Pre-orders / Founder reservations -------
+    // Payments are not yet activated. This endpoint captures buyer intent
+    // (email + chosen tier + billing cycle + locked-in founder price) so we
+    // can send checkout links when LemonSqueezy goes live.
+    if (route === '/preorder' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      const tier  = String(body.tier  || '').trim().toLowerCase()
+      const cycle = String(body.cycle || 'monthly').trim().toLowerCase()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Valid email required' }, { status: 400 }))
+      }
+      if (!['pro', 'elite'].includes(tier)) {
+        return withCORS(NextResponse.json({ error: 'Invalid tier' }, { status: 400 }))
+      }
+      const now = new Date()
+      const doc = {
+        id: uuidv4(),
+        email,
+        tier,
+        cycle,
+        founder_price_monthly: body.founder_price_monthly || null,
+        founder_price_yearly:  body.founder_price_yearly  || null,
+        status: 'reserved',
+        source: String(body.source || 'unknown').slice(0, 60),
+        ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null,
+        user_agent: (request.headers.get('user-agent') || '').slice(0, 200),
+        created_at: now,
+      }
+      // Idempotent — same email+tier+cycle upserts, bumps updated_at
+      await db.collection('preorders').updateOne(
+        { email, tier, cycle },
+        { $setOnInsert: doc, $set: { updated_at: now } },
+        { upsert: true },
+      )
+      // If the user is signed in, also flag their user document with
+      // `entitlement: 'founder_pending'` so premium features unlock early.
+      const cookieStore = await cookies()
+      const sessionToken = cookieStore.get('sf_session')?.value
+      if (sessionToken) {
+        const s = await db.collection('sessions').findOne({ session_token: sessionToken })
+        if (s?.user_id) {
+          await db.collection('users').updateOne(
+            { id: s.user_id },
+            { $set: { entitlement: 'founder_pending', founder_tier: tier, founder_cycle: cycle, founder_since: now } },
+          )
+        }
+      }
+      return withCORS(NextResponse.json({ ok: true, message: 'Your founder spot is reserved.' }))
+    }
+
+    if (route === '/preorders' && method === 'GET') {
+      if (!adminOK()) return requireAdmin()
+      const items = await db.collection('preorders').find({}).sort({ created_at: -1 }).limit(500).toArray()
+      return withCORS(NextResponse.json({ items: items.map(({ _id, ...i }) => i) }))
+    }
+
     // ------- Admin auth login endpoint -------
     if (route === '/admin/login' && method === 'POST') {
       const body = await request.json().catch(() => ({}))
@@ -851,7 +908,7 @@ DATABASE:\n${dbBlock}`
     // ------- Admin -------
     if (route === '/admin/stats' && method === 'GET') {
       if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
-      const [s, p, m, a, w, c, cache] = await Promise.all([
+      const [s, p, m, a, w, c, cache, po] = await Promise.all([
         db.collection('scholarships').countDocuments({}),
         db.collection('profiles').countDocuments({}),
         db.collection('match_runs').countDocuments({}),
@@ -859,8 +916,9 @@ DATABASE:\n${dbBlock}`
         db.collection('waitlist').countDocuments({}),
         db.collection('contacts').countDocuments({}),
         db.collection('match_cache').countDocuments({}),
+        db.collection('preorders').countDocuments({}),
       ])
-      return withCORS(NextResponse.json({ scholarships: s, profiles: p, match_runs: m, advisor_messages: a, waitlist: w, contacts: c, match_cache: cache }))
+      return withCORS(NextResponse.json({ scholarships: s, profiles: p, match_runs: m, advisor_messages: a, waitlist: w, contacts: c, match_cache: cache, preorders: po }))
     }
 
     if (route === '/admin/logs' && method === 'GET') {

@@ -788,6 +788,61 @@ agent_communication:
 
       Backend `/api/match` was already returning proper JSON errors (502 with
       `{error, detail}`). The issue was purely client-side parsing of HTML
+
+    -agent: "main"
+    -date: "2026-07-08"
+    -message: |
+      **FEATURE: Pre-launch pricing panel (payments not activated)**
+
+      Rebuilt `/pricing` with the exact 3-column layout the user showed
+      (Free / Pro Recommended / Elite), adapted to ScholarshipFit content
+      + our dark luxury theme. Payments are NOT wired to a processor yet
+      — clicking "Get Started" on Pro/Elite opens a Founder Access modal
+      that captures the reservation (email + tier + billing cycle) so we
+      can send checkout links when LemonSqueezy activates.
+
+      What's on `/pricing`:
+      1. "FOUNDER PRICING · LOCKED FOREVER" badge over hero
+      2. Monthly / Yearly toggle (yearly shows "save 33%")
+      3. 3-card layout:
+         - Free ($0) → Get Started button routes to /onboarding
+         - Pro ($9.90/mo regular, $4.90/mo founder locked-for-life) with
+           gold glow ring + "Recommended" pill + animate-gold-pulse CTA
+         - Elite ($29/mo regular, $19/mo founder) with "Contact Sales" CTA
+      4. Trust row: 7-day money-back · Cancel anytime · Setup <2 minutes
+      5. Compare-features table (9 rows, Pro column highlighted gold)
+      6. FAQ (7 questions covering when payments launch, refund policy,
+         founder pricing lock, cancellation, country support, plan switching)
+      7. BottomCTA banner + WinnerTicker retained
+
+      Backend `/api/preorder` endpoint (POST):
+      - Validates email + tier (pro | elite only, free stays free)
+      - Upserts to MongoDB `preorders` collection by {email, tier, cycle}
+        so duplicate submissions are idempotent
+      - If user is signed in, tags their user doc with
+        `entitlement: 'founder_pending'` so they can unlock premium
+        features immediately (rewards early adopters)
+      - Admin dashboard `/api/preorders` (GET, admin-only) lists all
+        pre-orders for the launch email blast
+
+      Admin panel stats endpoint now includes preorders count.
+
+      When LemonSqueezy activates:
+      - One env flag `PAYMENT_MODE=live` will switch the modal from
+        "reserve founder spot" mode to "checkout with LS" mode
+      - All `founder_pending` users get a magic checkout link honoring
+        their locked-in price
+
+      Files touched:
+      - REWRITE: /app/app/pricing/page.js (3-tier + founder modal + FAQ + comparison table)
+      - /app/app/api/[[...path]]/route.js (POST /api/preorder + GET admin list + stats)
+
+      Verified locally:
+      - POST /api/preorder returns 200 with valid payload
+      - Idempotent (duplicate returns 200, only one record persists)
+      - Invalid tier → 400
+      - Admin list returns items with x-admin-key header
+
       responses returned by the Cloudflare edge on ingress timeout.
 
       Files changed:

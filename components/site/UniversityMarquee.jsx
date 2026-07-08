@@ -24,9 +24,9 @@ const UNIS = [
   { name: 'NUS',        caption: 'NUS Singapore', line1: 'NATIONAL UNIVERSITY OF', line2: 'SINGAPORE', variant: 'nus', domain: 'nus.edu.sg' },
 ]
 
-// Google's favicon service — 100% CORS-friendly, returns each university's real
-// brand mark hosted on their own .edu / .ac.uk / .ch / .sg domain.
-const logoUrl = (domain, size=128) => `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`
+// Server-side proxy — bypasses CORS and delivers real 256px university logos
+// from each institution's official domain via /api/logo?domain=X
+const logoUrl = (domain) => `/api/logo?domain=${encodeURIComponent(domain)}&sz=256`
 
 const PALETTE = {
   navy: ['#0F1B4C', '#1E2E7C'], red: ['#5A0F1A', '#8B1A2B'], crimson: ['#7A0019', '#A50034'],
@@ -53,14 +53,27 @@ function FallbackCrest({ variant }) {
 }
 
 function CrestTile({ uni }) {
-  // We tried loading real logos from Wikipedia (server-side blocked by their UA rules)
-  // and Google's favicon service (loads but returns 16-32px browser icons that render
-  // blank at logo size). For 100% reliability + elite aesthetic we render bespoke
-  // heraldic SVG crests colored to each university's traditional heraldry.
+  const [failed, setFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   return (
-    <div className="group shrink-0 flex flex-col items-center rounded-2xl border border-white/8 bg-black/40 hover:bg-white/[0.04] hover:border-[#D4AF37]/40 transition p-4 md:p-5 min-w-[220px] md:min-w-[240px]">
-      <div className="flex items-center gap-3">
-        <FallbackCrest variant={uni.variant}/>
+    <div className="group shrink-0 flex flex-col items-center rounded-2xl border border-white/8 bg-black/40 hover:bg-white/[0.04] hover:border-[#D4AF37]/40 transition p-4 md:p-5 min-w-[240px] md:min-w-[260px]">
+      <div className="flex items-center gap-4">
+        {failed ? (
+          <FallbackCrest variant={uni.variant}/>
+        ) : (
+          <div className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-white ring-1 ring-[#D4AF37]/40 flex items-center justify-center p-2">
+            {!loaded && <div className="absolute inset-0 animate-pulse bg-white/10"/>}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl(uni.domain)}
+              alt={`${uni.name} logo`}
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              onError={() => setFailed(true)}
+              className={`h-full w-full object-contain transition-opacity ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            />
+          </div>
+        )}
         <div className="min-w-0">
           {uni.serifName ? (
             <>

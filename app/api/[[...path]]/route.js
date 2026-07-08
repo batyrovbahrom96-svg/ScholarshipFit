@@ -188,6 +188,34 @@ async function handleRoute(request, { params }) {
       return withCORS(NextResponse.json({ ok: true, service: 'ScholarshipFit API' }))
     }
 
+    // ------- Logo Proxy -------
+    // Fetches real university logos server-side (browser CORS-safe) via Google's
+    // favicon service which returns 256px PNGs for any domain.
+    if (route === '/logo' && method === 'GET') {
+      const url = new URL(request.url)
+      const domain = url.searchParams.get('domain')
+      if (!domain || !/^[a-z0-9.-]+$/i.test(domain)) {
+        return withCORS(NextResponse.json({ error: 'bad domain' }, { status: 400 }))
+      }
+      const size = url.searchParams.get('sz') || '256'
+      const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`
+      try {
+        const r = await fetch(src, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0' } })
+        if (!r.ok) throw new Error(`upstream ${r.status}`)
+        const buf = Buffer.from(await r.arrayBuffer())
+        const res = new NextResponse(buf, {
+          status: 200,
+          headers: {
+            'Content-Type': r.headers.get('content-type') || 'image/png',
+            'Cache-Control': 'public, max-age=604800, immutable',
+          },
+        })
+        return withCORS(res)
+      } catch (e) {
+        return withCORS(NextResponse.json({ error: 'fetch failed', detail: String(e.message) }, { status: 502 }))
+      }
+    }
+
     // ------- Scholarships -------
     if (route === '/scholarships' && method === 'GET') {
       const url = new URL(request.url)

@@ -12,6 +12,9 @@ import {
 } from 'lucide-react'
 import UniversityMarquee from '@/components/site/UniversityMarquee'
 import Hero3DObjects from '@/components/site/Hero3DObjects'
+import HeroSearch from '@/components/site/HeroSearch'
+import WinnerTicker from '@/components/site/WinnerTicker'
+import BottomCTA from '@/components/site/BottomCTA'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -127,22 +130,21 @@ function Home() {
                 Find real <span className="text-gold-hi">scholarships</span>
                 <br className="hidden md:block"/> that fit your profile.
               </h1>
-            <p className="mx-auto mt-6 max-w-xl text-base md:text-lg text-white/60 leading-relaxed">
-              AI-powered, source-linked scholarship shortlist. Real records only. No spam. No fake promises.
-            </p>
-            <div className="mt-8 flex justify-center">
-              <Link href="/onboarding">
-                <Button size="lg" className="btn-gold btn-pill px-8 h-12 text-base font-semibold animate-gold-pulse">
-                  Check My Scholarships <ArrowRight className="ml-2 h-4 w-4"/>
-                </Button>
-              </Link>
+              <p className="mx-auto mt-6 max-w-xl text-base md:text-lg text-white/60 leading-relaxed">
+                AI-powered, source-linked scholarship shortlist. Real records only. No spam. No fake promises.
+              </p>
+
+              {/* Inline search engine (ScholarshipOwl-style) */}
+              <div className="mt-8 relative z-10">
+                <HeroSearch />
+              </div>
+
+              <div className="mt-6 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-white/70">
+                <span className="inline-flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-[#D4AF37]"/> 100% Free</span>
+                <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Takes 2 Minutes</span>
+                <span className="inline-flex items-center gap-1.5"><User2 className="h-4 w-4 text-[#D4AF37]"/> Your personal cabinet</span>
+              </div>
             </div>
-            <div className="mt-6 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-white/70">
-              <span className="inline-flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-[#D4AF37]"/> 100% Free</span>
-              <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Takes 2 Minutes</span>
-              <span className="inline-flex items-center gap-1.5"><User2 className="h-4 w-4 text-[#D4AF37]"/> Personalized for You</span>
-            </div>
-          </div>
           </div>
 
           {/* Trust divider + Scrolling 15-university crest marquee */}
@@ -236,6 +238,8 @@ function Home() {
         </div>
       </section>
 
+      <BottomCTA />
+      <WinnerTicker />
       <Footer />
     </div>
   )

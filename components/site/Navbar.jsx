@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/database', label: 'Scholarships' },
   { href: '/#universities', label: 'Universities' },
   { href: '/methodology', label: 'Resources' },
+  { href: '/dashboard', label: 'My Cabinet' },
   { href: '/about', label: 'About' },
 ]
 

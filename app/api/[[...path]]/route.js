@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
 
 export const runtime = 'nodejs'
@@ -755,6 +756,86 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ ok: false, error: 'Invalid password' }, { status: 401 }))
     }
 
+    // ============ Email + Password Auth ============
+    // Alternative to Google — users can register/login with a password.
+    // The session cookie is the same `sf_session`, sessions collection
+    // still stores {session_token, user_id, created_at}, so downstream
+    // getSessionUser() works transparently for both auth methods.
+
+    const setSessionCookie = async (userId) => {
+      const token = uuidv4() + '-' + crypto.randomBytes(24).toString('hex')
+      const cookieStore = await cookies()
+      cookieStore.set('sf_session', token, {
+        httpOnly: true, secure: true, sameSite: 'none', path: '/',
+        maxAge: 60 * 60 * 24 * 30, // 30 days for password login
+      })
+      await db.collection('sessions').insertOne({
+        session_token: token, user_id: userId, auth_method: 'password', created_at: new Date(),
+      })
+      return token
+    }
+
+    if (route === '/auth/register' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email    = String(body.email    || '').trim().toLowerCase()
+      const password = String(body.password || '')
+      const name     = String(body.name     || '').trim().slice(0, 120) || email.split('@')[0]
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Please enter a valid email' }, { status: 400 }))
+      }
+      if (password.length < 8) {
+        return withCORS(NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 }))
+      }
+      const users = db.collection('users')
+      const existing = await users.findOne({ email })
+      if (existing?.password_hash) {
+        return withCORS(NextResponse.json({ error: 'Account already exists — sign in instead' }, { status: 409 }))
+      }
+      const password_hash = await bcrypt.hash(password, 10)
+      const now = new Date()
+      let userDoc
+      if (existing) {
+        // Existing Google user is adding a password — merge, don't duplicate
+        await users.updateOne({ id: existing.id }, { $set: { password_hash, name: existing.name || name, last_login: now } })
+        userDoc = { ...existing, password_hash, name: existing.name || name, last_login: now }
+      } else {
+        userDoc = {
+          id: uuidv4(),
+          email, name, password_hash,
+          picture: null,
+          cabinet: { favorites: [], recent_searches: [], profile: {} },
+          created_at: now,
+          last_login: now,
+          auth_method: 'password',
+        }
+        await users.insertOne(userDoc)
+      }
+      await setSessionCookie(userDoc.id)
+      const { _id, password_hash: _p, ...clean } = userDoc
+      return withCORS(NextResponse.json({ user: clean, ok: true }))
+    }
+
+    if (route === '/auth/login' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email    = String(body.email    || '').trim().toLowerCase()
+      const password = String(body.password || '')
+      if (!email || !password) {
+        return withCORS(NextResponse.json({ error: 'Email and password required' }, { status: 400 }))
+      }
+      const user = await db.collection('users').findOne({ email })
+      if (!user || !user.password_hash) {
+        return withCORS(NextResponse.json({ error: 'Invalid email or password' }, { status: 401 }))
+      }
+      const ok = await bcrypt.compare(password, user.password_hash)
+      if (!ok) {
+        return withCORS(NextResponse.json({ error: 'Invalid email or password' }, { status: 401 }))
+      }
+      await db.collection('users').updateOne({ id: user.id }, { $set: { last_login: new Date() } })
+      await setSessionCookie(user.id)
+      const { _id, password_hash, ...clean } = user
+      return withCORS(NextResponse.json({ user: clean, ok: true }))
+    }
+
     // ============ Emergent Google Auth ============
     // Flow:
     //   1. Frontend redirects to auth.emergentagent.com/?redirect=<callback>
@@ -873,7 +954,7 @@ Respond with STRICT JSON in this schema:
       if (!s) return null
       const u = await db.collection('users').findOne({ id: s.user_id })
       if (!u) return null
-      const { _id, ...clean } = u
+      const { _id, password_hash, ...clean } = u
       return clean
     }
 

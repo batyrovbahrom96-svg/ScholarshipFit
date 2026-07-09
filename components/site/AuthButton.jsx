@@ -1,35 +1,31 @@
 'use client'
 import Link from 'next/link'
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogIn, LogOut, User as UserIcon, Sparkles, LayoutDashboard } from 'lucide-react'
-import { useAuth, buildSignInUrl } from '@/hooks/use-auth'
+import { LogIn, LogOut, Sparkles, LayoutDashboard } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function AuthButton({ compact = false }) {
   const { user, loading, signOut } = useAuth()
-  const [busy, setBusy] = useState(false)
 
   if (loading) return <div className="h-9 w-16 rounded-full bg-white/[0.04] border border-white/10 animate-pulse"/>
 
   if (!user) {
-    const goSignIn = () => {
-      setBusy(true)
-      const returnTo = (typeof window !== 'undefined') ? window.location.pathname + window.location.search : '/'
-      window.location.href = buildSignInUrl(returnTo)
-    }
+    const returnTo = (typeof window !== 'undefined') ? window.location.pathname + window.location.search : '/dashboard'
     return (
-      <Button
-        onClick={goSignIn}
-        disabled={busy}
-        variant="ghost"
-        className={`text-white hover:text-[#D4AF37] hover:bg-white/5 ${compact ? 'h-9 px-3' : 'h-9 px-4'}`}
-      >
-        <LogIn className="h-4 w-4 mr-1.5"/>{busy ? '…' : 'Sign in'}
-      </Button>
+      <div className="flex items-center gap-1">
+        <Link href={`/login?return=${encodeURIComponent(returnTo)}`}>
+          <Button
+            variant="ghost"
+            className={`text-white hover:text-[#D4AF37] hover:bg-white/5 ${compact ? 'h-9 px-3' : 'h-9 px-4'}`}
+          >
+            <LogIn className="h-4 w-4 mr-1.5"/>Sign in
+          </Button>
+        </Link>
+      </div>
     )
   }
 

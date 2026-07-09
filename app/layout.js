@@ -4,7 +4,20 @@ import { Providers } from './providers'
 export const metadata = {
   title: 'ScholarshipFit — AI-powered, source-linked scholarship research',
   description: 'Turn your academic profile into an AI-powered, source-linked scholarship shortlist. Real records, official sources, honest reasoning — no invented results.',
-  icons: { icon: '/favicon.svg' },
+  metadataBase: new URL('https://scholarshipfit.com'),
+  openGraph: {
+    title: 'ScholarshipFit — AI-powered scholarship research',
+    description: 'Real records, official sources, honest reasoning — no invented results.',
+    images: ['/brand-logo-full.png'],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ScholarshipFit',
+    description: 'AI-powered, source-linked scholarship research for international students.',
+    images: ['/brand-logo-full.png'],
+  },
+  // icons auto-discovered from app/icon.png, app/apple-icon.png, app/favicon.ico
 }
 
 export default function RootLayout({ children }) {

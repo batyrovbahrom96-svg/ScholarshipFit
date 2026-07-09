@@ -35,10 +35,11 @@ export default function Footer() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Legal</p>
             <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li><Link className="hover:text-[#D4AF37]" href="/legal#terms">Terms</Link></li>
-              <li><Link className="hover:text-[#D4AF37]" href="/legal#privacy">Privacy</Link></li>
-              <li><Link className="hover:text-[#D4AF37]" href="/legal#disclaimer">Disclaimer</Link></li>
-              <li><Link className="hover:text-[#D4AF37]" href="/legal#refund">Refund policy</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/terms">Terms of Service</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/privacy">Privacy Policy</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/refunds">Refund Policy</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/dpa">Data Processing</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/dmca">DMCA &amp; Abuse</Link></li>
             </ul>
           </div>
         </div>

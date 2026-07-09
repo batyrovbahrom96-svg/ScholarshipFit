@@ -29,7 +29,7 @@ const STEPS = [
 
 const PROC_LINES = [
   'Analyzing your academic profile',
-  'Checking eligibility signals across 28 records',
+  'Checking eligibility signals across 68+ scholarships',
   'Comparing funding tiers and deadlines',
   'Running Claude Sonnet 4.5 fit analysis',
   'Ranking scholarships by your fit score',

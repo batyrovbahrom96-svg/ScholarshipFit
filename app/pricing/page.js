@@ -18,72 +18,7 @@ import { useAuth } from '@/hooks/use-auth'
    to a real checkout URL.
    ========================================================================== */
 
-const PLANS = [
-  {
-    key: 'free',
-    name: 'Free',
-    tagline: 'Try before you commit',
-    price: '$0',
-    unit: '/ month',
-    cta: 'Get Started',
-    ctaVariant: 'outline',
-    features: [
-      '1 AI scholarship match per week',
-      'Browse full 28+ record database',
-      '3 favourites in your cabinet',
-      '10 AI advisor messages · lifetime',
-      'Weekly deadline digest',
-    ],
-    highlighted: false,
-  },
-  {
-    key: 'pro',
-    name: 'Pro',
-    tagline: 'Everything serious applicants need',
-    price: '$9.90',
-    unit: '/ month',
-    yearlyPrice: '$79',
-    yearlyUnit: '/ year',
-    yearlySavings: 'save 33%',
-    founderPrice: '$4.90',
-    founderYearly: '$49',
-    cta: 'Get Started',
-    ctaVariant: 'gold',
-    features: [
-      'Unlimited AI scholarship matches',
-      'Unlimited AI advisor · Claude Sonnet 4.5',
-      'Unlimited favourites & saved searches',
-      'Deadline calendar + email reminders',
-      'PDF match-report export',
-      'Priority support',
-    ],
-    highlighted: true,
-    badge: 'Recommended',
-  },
-  {
-    key: 'elite',
-    name: 'Elite',
-    tagline: 'Human concierge + expert review',
-    price: '$29',
-    unit: '/ month',
-    yearlyPrice: '$249',
-    yearlyUnit: '/ year',
-    yearlySavings: 'save 28%',
-    founderPrice: '$19',
-    founderYearly: '$149',
-    cta: 'Contact Sales',
-    ctaVariant: 'outline',
-    features: [
-      'Everything in Pro',
-      'Claude Opus advisor (deeper reasoning)',
-      '2 essay reviews / month by expert editor',
-      '1 × 30-min strategy call / month',
-      'Deadline concierge (we hand-check deadlines)',
-      'Early access to new scholarships',
-    ],
-    highlighted: false,
-  },
-]
+import { PLANS, LIFETIME_DEAL } from '@/lib/pricing-plans'
 
 function Pricing() {
   const { user } = useAuth()
@@ -218,9 +153,52 @@ function Pricing() {
 
           {/* Trust row under plans */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/60">
-            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 7-day money-back guarantee</span>
+            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 14-day money-back guarantee</span>
             <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-[#D4AF37]"/> Cancel anytime</span>
             <span className="inline-flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#D4AF37]"/> Setup in under 2 minutes</span>
+          </div>
+
+          {/* ============ LIFETIME FOUNDER DEAL — cash-flow booster ============ */}
+          <div className="mx-auto mt-16 max-w-4xl">
+            <div className="relative overflow-hidden rounded-3xl border-2 border-[#D4AF37]/40 bg-gradient-to-br from-[#D4AF37]/[0.10] via-black to-black p-6 md:p-10 shadow-[0_0_80px_-20px_rgba(212,175,55,0.35)]">
+              <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-[#D4AF37]/25 blur-3xl"/>
+              <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-[#D4AF37]/15 blur-3xl"/>
+              <div className="relative grid gap-6 md:grid-cols-[1.4fr_1fr] md:items-center">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#D4AF37] font-semibold">
+                    <Sparkles className="h-3 w-3"/>Limited to first {LIFETIME_DEAL.limitedTo} signups
+                  </div>
+                  <h3 className="mt-3 text-3xl md:text-4xl font-semibold tracking-tight text-white">
+                    {LIFETIME_DEAL.name}
+                  </h3>
+                  <p className="mt-2 text-white/70 text-base md:text-lg">{LIFETIME_DEAL.tagline}</p>
+                  <ul className="mt-5 space-y-2">
+                    {LIFETIME_DEAL.features.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-white/85">
+                        <Check className="h-4 w-4 text-[#D4AF37] shrink-0 mt-0.5"/>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-4 text-[11px] text-white/45">{LIFETIME_DEAL.disclaimer}</p>
+                </div>
+                <div className="rounded-2xl border border-[#D4AF37]/30 bg-black/50 backdrop-blur p-6 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-[#D4AF37]/80 font-semibold">Founder price</p>
+                  <div className="mt-2 flex items-baseline justify-center gap-2">
+                    <span className="text-5xl md:text-6xl font-semibold text-white">{LIFETIME_DEAL.price}</span>
+                    <span className="text-sm text-white/50">{LIFETIME_DEAL.unit}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-white/50">vs {LIFETIME_DEAL.originalValue}</p>
+                  <Button
+                    onClick={() => { setSelectedPlan({ ...LIFETIME_DEAL, key: 'lifetime', ctaVariant: 'gold' }); setCycle('lifetime'); setOpen(true) }}
+                    className="btn-gold btn-pill font-semibold w-full mt-5 h-11"
+                  >
+                    {LIFETIME_DEAL.cta}
+                  </Button>
+                  <p className="mt-3 text-[10px] text-white/40">One-time · No renewals · No surprises</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -271,7 +249,7 @@ function Pricing() {
               ['Is my card charged today?',
                'No. Reserving your spot only saves your email + chosen plan. You\'ll receive a checkout link when payments open, and only pay then.'],
               ['Can I cancel later?',
-               'Yes — cancel any time from your cabinet. If you cancel before the 7-day period after payment starts, you get a full refund, no questions.'],
+               'Yes — cancel any time from your cabinet. If you cancel within the 14 days after your first paid subscription cycle, you get a full refund, no questions asked. See our refund policy for details.'],
               ['Do I keep founder pricing forever?',
                'Yes. If you\'re one of the first 200 users to reserve, your monthly/annual rate is locked for life. Even if we raise regular prices to $19/month, you keep yours.'],
               ['Which countries can pay?',

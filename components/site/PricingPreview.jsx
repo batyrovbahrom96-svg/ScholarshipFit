@@ -127,7 +127,7 @@ export default function PricingPreview() {
 
         {/* Trust + full-pricing link */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/60">
-          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 7-day money-back guarantee</span>
+          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 14-day money-back guarantee</span>
           <span className="inline-flex items-center gap-1.5">Cancel anytime</span>
           <Link href="/pricing" className="text-[#D4AF37] hover:underline">See full comparison →</Link>
         </div>

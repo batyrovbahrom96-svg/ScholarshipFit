@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { store } from '@/lib/client-store'
 import ScholarshipCard from '@/components/site/ScholarshipCard'
+import MyDocuments from '@/components/site/MyDocuments'
+import MatchReportButton from '@/components/site/MatchReportButton'
+import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import {
   LayoutDashboard, Sparkles, Bookmark, ClipboardList, CheckCircle2, XCircle, Trophy, Ban,
@@ -33,6 +36,7 @@ const SIDEBAR = [
 
 function Dashboard() {
   const router = useRouter()
+  const { user } = useAuth()
   const [profile, setProfile] = useState(null)
   const [run, setRun] = useState(null)
   const [tab, setTab] = useState('recommended')
@@ -101,6 +105,7 @@ function Dashboard() {
             <p className="mt-1 text-sm text-white/60">Your AI shortlist, powered by Claude Sonnet 4.5 — source-linked, honest, no invented results.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <MatchReportButton profile={profile} matches={matches}/>
             <Button onClick={rerun} disabled={rematching} className="btn-gold btn-pill font-medium">
               <RefreshCw className={`mr-2 h-4 w-4 ${rematching?'animate-spin':''}`}/>{rematching?'Rematching...':'Rerun AI match'}
             </Button>
@@ -181,28 +186,39 @@ function Dashboard() {
               </Card>
             )}
 
-            {/* Matches list */}
-            <div>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">{tabLabel(tab)}</h2>
-                {matches.length > 0 && <span className="text-sm text-white/40">{filtered.length} of {matches.length}</span>}
+            {/* Matches list — hidden when on documents/profile/settings tab */}
+            {tab === 'documents' ? (
+              <div>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-white">My Documents</h2>
+                </div>
+                <div className="mt-4">
+                  <MyDocuments signedIn={!!user}/>
+                </div>
               </div>
-              <div className="mt-4 grid gap-4">
-                {filtered.length === 0 && (
-                  <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-10 text-center text-white/60">
-                    <p>Nothing here yet.</p>
-                    <p className="mt-1 text-xs text-white/40">Try another tab or rerun the AI match.</p>
-                  </CardContent></Card>
-                )}
-                {filtered.map((m,i)=>(
-                  <ScholarshipCard key={m.scholarship_id + i} match={m}
-                    onSave={x=>setStatus(x,'saved')}
-                    onApply={x=>setStatus(x,'preparing')}
-                    onIgnore={x=>setStatus(x,'ignored')}
-                  />
-                ))}
+            ) : (
+              <div>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-white">{tabLabel(tab)}</h2>
+                  {matches.length > 0 && <span className="text-sm text-white/40">{filtered.length} of {matches.length}</span>}
+                </div>
+                <div className="mt-4 grid gap-4">
+                  {filtered.length === 0 && (
+                    <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-10 text-center text-white/60">
+                      <p>Nothing here yet.</p>
+                      <p className="mt-1 text-xs text-white/40">Try another tab or rerun the AI match.</p>
+                    </CardContent></Card>
+                  )}
+                  {filtered.map((m,i)=>(
+                    <ScholarshipCard key={m.scholarship_id + i} match={m}
+                      onSave={x=>setStatus(x,'saved')}
+                      onApply={x=>setStatus(x,'preparing')}
+                      onIgnore={x=>setStatus(x,'ignored')}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

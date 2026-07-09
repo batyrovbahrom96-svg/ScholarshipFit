@@ -89,8 +89,8 @@ export function ReadinessPill({ scholarshipId, scholarshipName }) {
 }
 
 /* ---------- Document slot: upload OR paste ---------- */
-function DocSlot({ title, subtitle, kind, value, onChange }) {
-  // value = { source: 'upload' | 'paste' | 'none', filename?, text }
+function DocSlot({ title, subtitle, kind, value, onChange, savedToCabinet, onSaveToggle, canSave }) {
+  // value = { source: 'upload' | 'paste' | 'cabinet' | 'none', filename?, text }
   const inputRef = useRef(null)
   const [parsing, setParsing] = useState(false)
   const [err, setErr] = useState('')
@@ -120,6 +120,7 @@ function DocSlot({ title, subtitle, kind, value, onChange }) {
   }
 
   const clear = () => { onChange({ source: 'none', text: '' }); setErr('') }
+  const fromCabinet = value?.source === 'cabinet'
 
   const hasContent = value?.text && value.text.length > 0
 
@@ -144,16 +145,30 @@ function DocSlot({ title, subtitle, kind, value, onChange }) {
       </div>
 
       {hasContent ? (
-        <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
-          <div className="flex items-center gap-2 text-sm text-white">
-            <FileCheck2 className="h-4 w-4 text-emerald-400"/>
-            <span className="font-medium truncate">{value.filename || 'Pasted text'}</span>
+        <>
+          <div className={`mt-3 rounded-lg border p-3 ${fromCabinet ? 'border-[#D4AF37]/40 bg-[#D4AF37]/[0.06]' : 'border-emerald-500/25 bg-emerald-500/[0.06]'}`}>
+            <div className="flex items-center gap-2 text-sm text-white">
+              <FileCheck2 className={`h-4 w-4 ${fromCabinet ? 'text-[#D4AF37]' : 'text-emerald-400'}`}/>
+              <span className="font-medium truncate">{value.filename || 'Pasted text'}</span>
+              {fromCabinet && <span className="ml-auto text-[10px] uppercase tracking-wider text-[#D4AF37]/80">from cabinet</span>}
+            </div>
+            <p className="mt-1 text-[11px] text-white/55">
+              {value.chars ? value.chars.toLocaleString() : value.text.length.toLocaleString()} characters extracted
+              {value.truncated && ' · truncated to 60,000 for analysis'}
+            </p>
           </div>
-          <p className="mt-1 text-[11px] text-white/55">
-            {value.chars ? value.chars.toLocaleString() : value.text.length.toLocaleString()} characters extracted
-            {value.truncated && ' · truncated to 60,000 for analysis'}
-          </p>
-        </div>
+          {canSave && !fromCabinet && (
+            <label className="mt-2 flex items-center gap-2 text-[11px] text-white/70 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={!!savedToCabinet}
+                onChange={(e) => onSaveToggle?.(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[#D4AF37]"
+              />
+              Save to My Cabinet so I don&apos;t have to re-upload for other scholarships
+            </label>
+          )}
+        </>
       ) : (
         <Tabs value={tab} onValueChange={setTab} className="mt-3">
           <TabsList className="bg-white/[0.04] border border-white/10">
@@ -227,6 +242,10 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
   const [cached, setCached] = useState(false)
   const [transcript, setTranscript] = useState({ source: 'none', text: '' })
   const [essay, setEssay] = useState({ source: 'none', text: '' })
+  const [saveTranscript, setSaveTranscript] = useState(true)
+  const [saveEssay, setSaveEssay] = useState(true)
+  const [signedIn, setSignedIn] = useState(false)
+  const [cabinetLoading, setCabinetLoading] = useState(false)
 
   // Reset on close
   useEffect(() => {
@@ -234,8 +253,46 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
       setStage('prep'); setData(null); setError(''); setCached(false)
       setTranscript({ source: 'none', text: '' })
       setEssay({ source: 'none', text: '' })
+      setSaveTranscript(true); setSaveEssay(true)
     }
   }, [open])
+
+  // Auto-load cabinet documents when opening
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setCabinetLoading(true)
+    fetch('/api/cabinet', { credentials: 'include' })
+      .then(async (r) => {
+        if (!r.ok) return null
+        return r.json()
+      })
+      .then((j) => {
+        if (cancelled || !j) { setSignedIn(false); return }
+        setSignedIn(true)
+        const docs = j.cabinet?.documents || {}
+        if (docs.transcript?.text) {
+          setTranscript({ source: 'cabinet', filename: docs.transcript.filename, text: docs.transcript.text, chars: docs.transcript.chars })
+        }
+        if (docs.essay?.text) {
+          setEssay({ source: 'cabinet', filename: docs.essay.filename, text: docs.essay.text, chars: docs.essay.chars })
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setCabinetLoading(false) })
+    return () => { cancelled = true }
+  }, [open])
+
+  const persistToCabinet = async (type, doc) => {
+    try {
+      await fetch('/api/cabinet/documents', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, filename: doc.filename, text: doc.text, chars: doc.chars }),
+      })
+    } catch (_) { /* silent */ }
+  }
 
   const runAnalysis = async () => {
     const profile = store.getProfile()
@@ -245,6 +302,13 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
     }
     if (!scholarshipId) return
     setStage('loading'); setError('')
+
+    // Save to cabinet in the background (fire-and-forget)
+    if (signedIn) {
+      if (saveTranscript && transcript?.text && transcript.source !== 'cabinet') persistToCabinet('transcript', transcript)
+      if (saveEssay && essay?.text && essay.source !== 'cabinet') persistToCabinet('essay', essay)
+    }
+
     try {
       const r = await fetch('/api/readiness', {
         method: 'POST',
@@ -271,6 +335,7 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
   const wasteStyle = data ? WASTE_STYLE[data.waste_risk] : null
 
   const hasDocs = (transcript?.text?.length || 0) > 0 || (essay?.text?.length || 0) > 0
+  const usingCabinet = transcript?.source === 'cabinet' || essay?.source === 'cabinet'
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -294,8 +359,15 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
                   your transcript and essay/personal statement — Claude will read them and cite specific evidence in your score.
                 </p>
                 <p className="mt-2 text-[11px] text-white/50">
-                  Documents are parsed in-memory and never stored. Skip this step to get a profile-only score.
+                  {signedIn
+                    ? (usingCabinet
+                      ? '✓ Loaded from your cabinet. Remove any doc to upload a different one just for this scholarship.'
+                      : 'Documents are parsed in-memory and can optionally be saved to your cabinet for reuse. Skip to get a profile-only score.')
+                    : 'Sign in to save documents to your cabinet and reuse them across scholarships. Skip to get a profile-only score.'}
                 </p>
+                {cabinetLoading && (
+                  <p className="mt-1 text-[11px] text-[#D4AF37]/70 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/>Checking your cabinet…</p>
+                )}
               </div>
 
               <DocSlot
@@ -304,6 +376,9 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
                 kind="transcript"
                 value={transcript}
                 onChange={setTranscript}
+                savedToCabinet={saveTranscript}
+                onSaveToggle={setSaveTranscript}
+                canSave={signedIn}
               />
               <DocSlot
                 title="Essay / Personal Statement"
@@ -311,6 +386,9 @@ export function ReadinessDialog({ open, onClose, scholarshipId, scholarshipName 
                 kind="essay"
                 value={essay}
                 onChange={setEssay}
+                savedToCabinet={saveEssay}
+                onSaveToggle={setSaveEssay}
+                canSave={signedIn}
               />
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">

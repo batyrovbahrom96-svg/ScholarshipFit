@@ -1106,8 +1106,53 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ ok: true, profile: merged }))
     }
 
+    if (route === '/cabinet/documents' && method === 'POST') {
+      // Save an already-extracted document (transcript or essay) to the user's cabinet.
+      // Body: { type: 'transcript' | 'essay', filename, text, chars? }
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const type = String(body.type || '').toLowerCase()
+      if (!['transcript', 'essay'].includes(type)) {
+        return withCORS(NextResponse.json({ error: 'type must be "transcript" or "essay"' }, { status: 400 }))
+      }
+      const text = String(body.text || '').trim()
+      if (text.length < 20) {
+        return withCORS(NextResponse.json({ error: 'text is too short' }, { status: 400 }))
+      }
+      const CAP = 60000
+      const truncated = text.length > CAP
+      const finalText = truncated ? text.slice(0, CAP) : text
+      const doc = {
+        filename: String(body.filename || 'Uploaded document').slice(0, 200),
+        text: finalText,
+        chars: finalText.length,
+        truncated,
+        uploaded_at: new Date(),
+      }
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $set: { [`cabinet.documents.${type}`]: doc, updated_at: new Date() } },
+      )
+      return withCORS(NextResponse.json({ ok: true, type, document: doc }))
+    }
+
+    if (route === '/cabinet/documents' && method === 'DELETE') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const url = new URL(request.url)
+      const type = String(url.searchParams.get('type') || '').toLowerCase()
+      if (!['transcript', 'essay'].includes(type)) {
+        return withCORS(NextResponse.json({ error: 'type query param must be "transcript" or "essay"' }, { status: 400 }))
+      }
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $unset: { [`cabinet.documents.${type}`]: '' }, $set: { updated_at: new Date() } },
+      )
+      return withCORS(NextResponse.json({ ok: true, type, removed: true }))
+    }
+
     if (route === '/cabinet/sync' && method === 'POST') {
-      // One-time migration of localStorage cabinet into DB after first sign-in
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
       const body = await request.json().catch(() => ({}))

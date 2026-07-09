@@ -49,7 +49,21 @@ function Contact() {
           <div className="space-y-4">
             <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5 flex items-start gap-3">
               <div className="h-9 w-9 rounded-lg bg-[#D4AF37]/100/15 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center"><Mail className="h-4 w-4"/></div>
-              <div><p className="text-white font-medium">Email</p><p className="text-sm text-white/60">hello@scholarshipfit.app</p></div>
+              <div>
+                <p className="text-white font-medium">Email</p>
+                <a href="mailto:support@scholarshipfit.com" className="text-sm text-[#D4AF37] hover:underline">support@scholarshipfit.com</a>
+                <p className="mt-1 text-xs text-white/40">
+                  Managed by{' '}
+                  <a
+                    href="https://scholarshipfit.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#D4AF37] hover:underline"
+                  >
+                    scholarshipfit.com
+                  </a>
+                </p>
+              </div>
             </CardContent></Card>
             <Card className="border-white/10 bg-white/[0.03]"><CardContent className="p-5 flex items-start gap-3">
               <div className="h-9 w-9 rounded-lg bg-[#D4AF37]/100/15 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center"><MessageCircle className="h-4 w-4"/></div>

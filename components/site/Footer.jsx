@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Logo from './Logo'
+import { Mail, ExternalLink } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -11,6 +12,27 @@ export default function Footer() {
             <p className="mt-4 text-sm leading-relaxed text-white/60 max-w-xs">
               AI-powered, source-linked scholarship research for international students. Real records only.
             </p>
+            <div className="mt-5 space-y-2 text-sm">
+              <a
+                href="mailto:support@scholarshipfit.com"
+                className="inline-flex items-center gap-2 text-white/70 hover:text-[#D4AF37] transition-colors"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                support@scholarshipfit.com
+              </a>
+              <div className="text-xs text-white/40">
+                Managed by{' '}
+                <a
+                  href="https://scholarshipfit.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[#D4AF37] hover:underline"
+                >
+                  scholarshipfit.com
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Product</p>

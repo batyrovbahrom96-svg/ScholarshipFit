@@ -1,406 +1,279 @@
 #!/usr/bin/env python3
 """
-Backend API tests for ScholarshipFit - NEW FEATURES
-Tests POST/DELETE /api/cabinet/documents and GET /api/scholarships (68 records)
+Quick regression test for scholarship database expansion (68 → 303 records)
 """
-
 import requests
 import sys
-import time
+import os
+from dotenv import load_dotenv
 
-# Base URL from environment
-BASE_URL = "https://stellar-fit.preview.emergentagent.com/api"
+# Load environment variables
+load_dotenv('/app/.env')
 
-def test_cabinet_documents_auth_gate():
-    """
-    Test 1: POST/DELETE /api/cabinet/documents - Auth gate + validation
-    These endpoints require sf_session cookie. We test ONLY auth-gate behavior.
-    """
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://stellar-fit.preview.emergentagent.com')
+API_URL = f"{BASE_URL}/api"
+
+def test_scholarships_list():
+    """Test 1: GET /api/scholarships?limit=500 - verify 303+ records"""
     print("\n" + "="*80)
-    print("TEST 1: POST/DELETE /api/cabinet/documents - Auth Gate + Validation")
+    print("TEST 1: GET /api/scholarships?limit=500")
     print("="*80)
     
-    tests_passed = 0
-    tests_total = 5
-    
-    # Test 1.1: POST without cookie, valid body -> 401
     try:
-        print("\n[1.1] POST /api/cabinet/documents WITHOUT cookie, valid body -> expect 401")
-        body = {
-            "type": "transcript",
-            "filename": "transcript.pdf",
-            "text": "This is a sample transcript text with more than 20 characters to pass validation."
-        }
-        r = requests.post(f"{BASE_URL}/cabinet/documents", json=body, timeout=10)
-        if r.status_code == 401:
-            data = r.json()
-            if data.get("error") == "Not signed in":
-                print(f"✅ PASS: Got 401 with error 'Not signed in'")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Got 401 but error message is: {data.get('error')}")
-        else:
-            print(f"❌ FAIL: Expected 401, got {r.status_code}: {r.text[:200]}")
+        response = requests.get(f"{API_URL}/scholarships", params={"limit": 500}, timeout=30)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"❌ FAILED: Expected 200, got {response.status_code}")
+            print(f"Response: {response.text[:500]}")
+            return False
+        
+        # Check if response is valid JSON
+        try:
+            data = response.json()
+        except Exception as e:
+            print(f"❌ FAILED: Response is not valid JSON: {e}")
+            print(f"Response text: {response.text[:500]}")
+            return False
+        
+        # Check scholarships array
+        if 'scholarships' not in data:
+            print(f"❌ FAILED: Response missing 'scholarships' key")
+            print(f"Keys: {list(data.keys())}")
+            return False
+        
+        scholarships = data['scholarships']
+        count = len(scholarships)
+        print(f"✅ Total scholarships returned: {count}")
+        
+        if count < 300:
+            print(f"❌ FAILED: Expected >= 300 records, got {count}")
+            return False
+        
+        print(f"✅ Record count >= 300: PASS (expected 303, got {count})")
+        
+        # Check required fields on first 5 records
+        required_fields = ['id', 'slug', 'scholarship_name', 'country', 'source_url', 
+                          'application_link', 'degree_levels', 'funding_type', 'deadline_status']
+        
+        print(f"\nChecking required fields on sample records...")
+        for i, scholarship in enumerate(scholarships[:5]):
+            missing = [f for f in required_fields if f not in scholarship]
+            if missing:
+                print(f"❌ FAILED: Record {i} missing fields: {missing}")
+                print(f"   Record: {scholarship}")
+                return False
+        
+        print(f"✅ All required fields present in sample records")
+        
+        # Check for duplicate slugs
+        slugs = [s.get('slug') for s in scholarships if s.get('slug')]
+        unique_slugs = set(slugs)
+        
+        if len(slugs) != len(unique_slugs):
+            duplicates = [slug for slug in slugs if slugs.count(slug) > 1]
+            print(f"❌ FAILED: Found duplicate slugs: {set(duplicates)}")
+            return False
+        
+        print(f"✅ No duplicate slugs found ({len(unique_slugs)} unique slugs)")
+        
+        # Count distinct countries
+        countries = set(s.get('country') for s in scholarships if s.get('country'))
+        print(f"✅ Distinct countries: {len(countries)}")
+        
+        print(f"\n✅ TEST 1 PASSED")
+        return True
+        
     except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 1.2: DELETE without cookie -> 401
-    try:
-        print("\n[1.2] DELETE /api/cabinet/documents?type=transcript WITHOUT cookie -> expect 401")
-        r = requests.delete(f"{BASE_URL}/cabinet/documents?type=transcript", timeout=10)
-        if r.status_code == 401:
-            data = r.json()
-            if data.get("error") == "Not signed in":
-                print(f"✅ PASS: Got 401 with error 'Not signed in'")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Got 401 but error message is: {data.get('error')}")
-        else:
-            print(f"❌ FAIL: Expected 401, got {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 1.3: POST without cookie, invalid type -> 401 (auth check runs before validation)
-    try:
-        print("\n[1.3] POST WITHOUT cookie, invalid type -> expect 401 (auth before validation)")
-        body = {
-            "type": "invalid",
-            "filename": "test.pdf",
-            "text": "This is sample text with more than 20 characters."
-        }
-        r = requests.post(f"{BASE_URL}/cabinet/documents", json=body, timeout=10)
-        if r.status_code == 401:
-            print(f"✅ PASS: Got 401 (auth check runs before validation)")
-            tests_passed += 1
-        else:
-            print(f"❌ FAIL: Expected 401, got {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 1.4: POST with fake cookie -> 401
-    try:
-        print("\n[1.4] POST WITH fake cookie sf_session=fakevalue -> expect 401")
-        body = {
-            "type": "transcript",
-            "filename": "transcript.pdf",
-            "text": "This is a sample transcript text with more than 20 characters to pass validation."
-        }
-        cookies = {"sf_session": "fakevalue"}
-        r = requests.post(f"{BASE_URL}/cabinet/documents", json=body, cookies=cookies, timeout=10)
-        if r.status_code == 401:
-            print(f"✅ PASS: Got 401 with fake cookie (invalid session)")
-            tests_passed += 1
-        else:
-            print(f"❌ FAIL: Expected 401, got {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 1.5: DELETE with no type query param and no cookie -> 401
-    try:
-        print("\n[1.5] DELETE /api/cabinet/documents with no type param and no cookie -> expect 401")
-        r = requests.delete(f"{BASE_URL}/cabinet/documents", timeout=10)
-        if r.status_code == 401:
-            print(f"✅ PASS: Got 401 (auth check runs before validation)")
-            tests_passed += 1
-        else:
-            print(f"❌ FAIL: Expected 401, got {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    print(f"\n{'='*80}")
-    print(f"TEST 1 SUMMARY: {tests_passed}/{tests_total} tests passed")
-    print(f"{'='*80}")
-    
-    return tests_passed, tests_total
+        print(f"❌ FAILED: Exception occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
-def test_scholarships_expanded_seed():
-    """
-    Test 2: GET /api/scholarships - Expanded to 68 records
-    """
+def test_germany_filter():
+    """Test 2: GET /api/scholarships?country=Germany&limit=500"""
     print("\n" + "="*80)
-    print("TEST 2: GET /api/scholarships - Expanded Seed to 68 Records")
+    print("TEST 2: GET /api/scholarships?country=Germany&limit=500")
     print("="*80)
     
-    tests_passed = 0
-    tests_total = 7
-    
-    # Test 2.1: GET /api/scholarships -> count >= 60
     try:
-        print("\n[2.1] GET /api/scholarships -> count should be >= 60 (currently 68)")
-        r = requests.get(f"{BASE_URL}/scholarships", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            count = len(scholarships)
-            print(f"    Returned {count} scholarships")
-            if count >= 60:
-                print(f"✅ PASS: Count {count} >= 60")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Count {count} < 60")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}: {r.text[:200]}")
+        response = requests.get(f"{API_URL}/scholarships", 
+                              params={"country": "Germany", "limit": 500}, 
+                              timeout=30)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"❌ FAILED: Expected 200, got {response.status_code}")
+            return False
+        
+        data = response.json()
+        scholarships = data.get('scholarships', [])
+        count = len(scholarships)
+        
+        print(f"✅ Germany scholarships returned: {count}")
+        
+        if count < 15:
+            print(f"❌ FAILED: Expected >= 15 Germany records, got {count}")
+            return False
+        
+        # Verify all are Germany
+        non_germany = [s for s in scholarships if s.get('country') != 'Germany']
+        if non_germany:
+            print(f"❌ FAILED: Found {len(non_germany)} non-Germany records")
+            print(f"   Examples: {[s.get('country') for s in non_germany[:3]]}")
+            return False
+        
+        print(f"✅ All returned records have country == 'Germany'")
+        print(f"✅ TEST 2 PASSED (>= 15 Germany records: {count})")
+        return True
+        
     except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 2.2: Verify required fields
-    try:
-        print("\n[2.2] Verify every record has: id (UUID), slug, scholarship_name, university_name, source_url (https://)")
-        r = requests.get(f"{BASE_URL}/scholarships", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            all_valid = True
-            for i, s in enumerate(scholarships[:5]):  # Check first 5 as sample
-                if not all([s.get("id"), s.get("slug"), s.get("scholarship_name"), 
-                           s.get("university_name"), s.get("source_url")]):
-                    print(f"    Record {i} missing required fields")
-                    all_valid = False
-                if not s.get("source_url", "").startswith("https://"):
-                    print(f"    Record {i} source_url doesn't start with https://")
-                    all_valid = False
-            if all_valid:
-                print(f"✅ PASS: All sampled records have required fields with valid source_url")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Some records missing required fields or invalid source_url")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 2.3: Filter by country=Switzerland -> count >= 3
-    try:
-        print("\n[2.3] GET /api/scholarships?country=Switzerland -> count >= 3")
-        r = requests.get(f"{BASE_URL}/scholarships?country=Switzerland", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            count = len(scholarships)
-            print(f"    Returned {count} Swiss scholarships")
-            if count >= 3:
-                print(f"✅ PASS: Count {count} >= 3")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Count {count} < 3")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 2.4: Filter by degree=PhD -> count >= 5
-    try:
-        print("\n[2.4] GET /api/scholarships?degree=PhD -> count >= 5")
-        r = requests.get(f"{BASE_URL}/scholarships?degree=PhD", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            count = len(scholarships)
-            print(f"    Returned {count} PhD scholarships")
-            if count >= 5:
-                print(f"✅ PASS: Count {count} >= 5")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Count {count} < 5")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 2.5: Filter by q=fellowship -> count >= 3
-    try:
-        print("\n[2.5] GET /api/scholarships?q=fellowship -> count >= 3")
-        r = requests.get(f"{BASE_URL}/scholarships?q=fellowship", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            count = len(scholarships)
-            print(f"    Returned {count} scholarships matching 'fellowship'")
-            if count >= 3:
-                print(f"✅ PASS: Count {count} >= 3")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Count {count} < 3")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 2.6: Sample-check new records: epfl-excellence-fellowship
-    try:
-        print("\n[2.6] Sample-check: Search for slug 'epfl-excellence-fellowship'")
-        r = requests.get(f"{BASE_URL}/scholarships", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            found = any(s.get("slug") == "epfl-excellence-fellowship" for s in scholarships)
-            if found:
-                print(f"✅ PASS: Found 'epfl-excellence-fellowship'")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: 'epfl-excellence-fellowship' not found")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    # Test 2.7: Sample-check new records: ntu-ngs-singapore and hkpfs-hong-kong
-    try:
-        print("\n[2.7] Sample-check: Search for slugs 'ntu-ngs-singapore' and 'hkpfs-hong-kong'")
-        r = requests.get(f"{BASE_URL}/scholarships", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            scholarships = data.get("scholarships", [])
-            slugs = [s.get("slug") for s in scholarships]
-            found_ntu = "ntu-ngs-singapore" in slugs
-            found_hkpfs = "hkpfs-hong-kong" in slugs
-            if found_ntu and found_hkpfs:
-                print(f"✅ PASS: Found both 'ntu-ngs-singapore' and 'hkpfs-hong-kong'")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Missing one or both slugs (ntu: {found_ntu}, hkpfs: {found_hkpfs})")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    print(f"\n{'='*80}")
-    print(f"TEST 2 SUMMARY: {tests_passed}/{tests_total} tests passed")
-    print(f"{'='*80}")
-    
-    return tests_passed, tests_total
+        print(f"❌ FAILED: Exception occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
-def test_regression_checks():
-    """
-    Test 3: Regression checks - Quick sanity tests
-    """
+def test_us_filter():
+    """Test 3: GET /api/scholarships?country=United States&limit=500"""
     print("\n" + "="*80)
-    print("TEST 3: Regression Checks - Quick Sanity Tests")
+    print("TEST 3: GET /api/scholarships?country=United States&limit=500")
     print("="*80)
     
-    tests_passed = 0
-    tests_total = 3
-    
-    # Test 3.1: GET /api/ -> 200 OK health
     try:
-        print("\n[3.1] GET /api/ -> 200 OK health check")
-        r = requests.get(f"{BASE_URL}/", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("ok") and data.get("service") == "ScholarshipFit API":
-                print(f"✅ PASS: Health check OK")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Unexpected response: {data}")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}")
+        response = requests.get(f"{API_URL}/scholarships", 
+                              params={"country": "United States", "limit": 500}, 
+                              timeout=30)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"❌ FAILED: Expected 200, got {response.status_code}")
+            return False
+        
+        data = response.json()
+        scholarships = data.get('scholarships', [])
+        count = len(scholarships)
+        
+        print(f"✅ US scholarships returned: {count}")
+        
+        if count < 25:
+            print(f"❌ FAILED: Expected >= 25 US records, got {count}")
+            return False
+        
+        # Verify all are United States
+        non_us = [s for s in scholarships if s.get('country') != 'United States']
+        if non_us:
+            print(f"❌ FAILED: Found {len(non_us)} non-US records")
+            print(f"   Examples: {[s.get('country') for s in non_us[:3]]}")
+            return False
+        
+        print(f"✅ All returned records have country == 'United States'")
+        print(f"✅ TEST 3 PASSED (>= 25 US records: {count})")
+        return True
+        
     except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
+        print(f"❌ FAILED: Exception occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_health_check():
+    """Test 4: GET /api/ - health check"""
+    print("\n" + "="*80)
+    print("TEST 4: GET /api/ - Health Check")
+    print("="*80)
     
-    # Test 3.2: POST /api/readiness/parse with small TXT file -> 200
     try:
-        print("\n[3.2] POST /api/readiness/parse with small TXT file -> 200")
-        # Create a small text file
-        from io import BytesIO
-        txt_content = "This is a sample transcript with GPA 3.8 and coursework in Computer Science. " * 3
-        files = {"file": ("transcript.txt", BytesIO(txt_content.encode()), "text/plain")}
-        r = requests.post(f"{BASE_URL}/readiness/parse", files=files, timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("ok") and data.get("kind") == "txt" and len(data.get("text", "")) > 0:
-                print(f"✅ PASS: Parse returned ok=true, kind=txt, text extracted ({data.get('chars')} chars)")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Unexpected response: {data}")
-        else:
-            print(f"❌ FAIL: Expected 200, got {r.status_code}: {r.text[:200]}")
+        response = requests.get(f"{API_URL}/", timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"❌ FAILED: Expected 200, got {response.status_code}")
+            return False
+        
+        data = response.json()
+        print(f"Response: {data}")
+        
+        if data.get('ok') != True:
+            print(f"❌ FAILED: Expected ok=true, got {data.get('ok')}")
+            return False
+        
+        print(f"✅ TEST 4 PASSED (Health check OK)")
+        return True
+        
     except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
+        print(f"❌ FAILED: Exception occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_cabinet_documents_auth():
+    """Test 5: POST /api/cabinet/documents WITHOUT cookie - expect 401 (regression)"""
+    print("\n" + "="*80)
+    print("TEST 5: POST /api/cabinet/documents WITHOUT cookie - Regression Check")
+    print("="*80)
     
-    # Test 3.3: POST /api/readiness with profile + scholarship_id (no docs) -> 200
     try:
-        print("\n[3.3] POST /api/readiness with profile + scholarship_id (no docs) -> 200")
-        # First get a scholarship ID
-        r_sch = requests.get(f"{BASE_URL}/scholarships", timeout=10)
-        if r_sch.status_code == 200:
-            scholarships = r_sch.json().get("scholarships", [])
-            if scholarships:
-                scholarship_id = scholarships[0].get("id")
-                profile = {
-                    "nationality": "Pakistan",
-                    "degree_level": "Master",
-                    "intended_major": "Mechanical Engineering",
-                    "gpa": 3.7,
-                    "gpa_scale": 4.0,
-                    "ielts": 7.0
-                }
-                body = {
-                    "profile": profile,
-                    "scholarship_id": scholarship_id
-                }
-                r = requests.post(f"{BASE_URL}/readiness", json=body, timeout=40)
-                if r.status_code == 200:
-                    data = r.json()
-                    readiness = data.get("readiness", {})
-                    if "score" in readiness:
-                        print(f"✅ PASS: Readiness returned score={readiness.get('score')}, bucket={readiness.get('bucket')}")
-                        tests_passed += 1
-                    else:
-                        print(f"❌ FAIL: No score in response: {data}")
-                else:
-                    print(f"❌ FAIL: Expected 200, got {r.status_code}: {r.text[:200]}")
-            else:
-                print(f"❌ FAIL: No scholarships found to test with")
-        else:
-            print(f"❌ FAIL: Could not fetch scholarships")
+        response = requests.post(f"{API_URL}/cabinet/documents", 
+                               json={"type": "transcript", "filename": "test.txt", "text": "test content"},
+                               timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code != 401:
+            print(f"❌ FAILED: Expected 401 (Unauthorized), got {response.status_code}")
+            print(f"Response: {response.text[:200]}")
+            return False
+        
+        print(f"✅ Correctly returns 401 Unauthorized without session cookie")
+        print(f"✅ TEST 5 PASSED (Auth gate working)")
+        return True
+        
     except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-    
-    print(f"\n{'='*80}")
-    print(f"TEST 3 SUMMARY: {tests_passed}/{tests_total} tests passed")
-    print(f"{'='*80}")
-    
-    return tests_passed, tests_total
+        print(f"❌ FAILED: Exception occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def main():
     print("\n" + "="*80)
-    print("SCHOLARSHIPFIT BACKEND TESTING - NEW FEATURES")
-    print("Testing POST/DELETE /api/cabinet/documents and GET /api/scholarships (68 records)")
+    print("SCHOLARSHIP DATABASE EXPANSION REGRESSION TEST")
+    print("Testing expansion from 68 → 303 records")
     print("="*80)
+    print(f"Base URL: {BASE_URL}")
+    print(f"API URL: {API_URL}")
     
-    total_passed = 0
-    total_tests = 0
+    results = []
     
-    # Test 1: Cabinet documents auth gate
-    passed, total = test_cabinet_documents_auth_gate()
-    total_passed += passed
-    total_tests += total
+    # Run all tests
+    results.append(("Scholarships List (303+ records)", test_scholarships_list()))
+    results.append(("Germany Filter (>= 15 records)", test_germany_filter()))
+    results.append(("US Filter (>= 25 records)", test_us_filter()))
+    results.append(("Health Check", test_health_check()))
+    results.append(("Cabinet Auth Regression", test_cabinet_documents_auth()))
     
-    # Test 2: Scholarships expanded seed
-    passed, total = test_scholarships_expanded_seed()
-    total_passed += passed
-    total_tests += total
-    
-    # Test 3: Regression checks
-    passed, total = test_regression_checks()
-    total_passed += passed
-    total_tests += total
-    
-    # Final summary
+    # Summary
     print("\n" + "="*80)
-    print("FINAL SUMMARY")
+    print("TEST SUMMARY")
     print("="*80)
-    print(f"Total tests passed: {total_passed}/{total_tests}")
-    print(f"Success rate: {(total_passed/total_tests*100):.1f}%")
     
-    if total_passed == total_tests:
-        print("\n✅ ALL TESTS PASSED")
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
+    
+    for test_name, result in results:
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{status}: {test_name}")
+    
+    print(f"\nTotal: {passed}/{total} tests passed ({int(passed/total*100)}%)")
+    
+    if passed == total:
+        print("\n🎉 ALL TESTS PASSED - Database expansion verified successfully!")
         return 0
     else:
-        print(f"\n❌ {total_tests - total_passed} TEST(S) FAILED")
+        print(f"\n⚠️  {total - passed} test(s) failed")
         return 1
 
 

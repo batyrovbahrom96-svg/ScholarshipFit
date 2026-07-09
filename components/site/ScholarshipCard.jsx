@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ExternalLink, ShieldCheck, MapPin, GraduationCap, Sparkles, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { TrackButton } from '@/components/site/ApplicationTracker'
+import { ReadinessPill } from '@/components/site/Readiness'
 
 function trustColor(t) {
   const s = (t || '').toLowerCase()
@@ -105,6 +107,16 @@ export default function ScholarshipCard({ match, onSave, onIgnore, onApply }) {
           <a href={match.source_url || match.application_link} target="_blank" rel="noopener noreferrer" className="inline-flex">
             <Button className="btn-gold btn-pill font-medium"><ExternalLink className="mr-1.5 h-4 w-4"/>Official source</Button>
           </a>
+          <TrackButton scholarship={{
+            id: match.scholarship_id || match.id,
+            scholarship_name: match.scholarship_name,
+            university_name: match.university_name,
+            country: match.country,
+            source_url: match.source_url,
+            funding_summary: match.funding_summary,
+            deadline_note: match.deadline_note || match.deadline_status,
+          }}/>
+          <ReadinessPill scholarshipId={match.scholarship_id || match.id} scholarshipName={match.scholarship_name}/>
           {onApply && <Button variant="outline" onClick={()=>onApply(match)} className="border-white/15 bg-transparent text-white hover:bg-white/[0.06] btn-pill">Start application</Button>}
           {onSave && <Button variant="ghost" onClick={()=>onSave(match)} className="text-white/70 hover:text-white hover:bg-white/[0.06] btn-pill">Save</Button>}
           {onIgnore && <Button variant="ghost" onClick={()=>onIgnore(match)} className="text-white/40 hover:text-white hover:bg-white/[0.06] btn-pill">Ignore</Button>}

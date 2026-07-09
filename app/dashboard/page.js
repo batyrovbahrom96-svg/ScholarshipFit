@@ -16,18 +16,16 @@ import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import {
   LayoutDashboard, Sparkles, Bookmark, ClipboardList, CheckCircle2, XCircle, Trophy, Ban,
-  FileText, User, Settings, MessageSquare, RefreshCw, Rocket, Info
+  FileText, User, Settings, MessageSquare, RefreshCw, Rocket, Info, Kanban,
 } from 'lucide-react'
+import ApplicationTracker from '@/components/site/ApplicationTracker'
 
 const SIDEBAR = [
   { key:'recommended', label:'Recommended', icon:<Sparkles className="h-4 w-4"/> },
   { key:'advisor', label:'AI Advisor', icon:<MessageSquare className="h-4 w-4"/>, href:'/advisor' },
   { key:'matches', label:'Matches', icon:<LayoutDashboard className="h-4 w-4"/> },
+  { key:'tracker', label:'Tracker', icon:<Kanban className="h-4 w-4"/> },
   { key:'saved', label:'Saved', icon:<Bookmark className="h-4 w-4"/> },
-  { key:'preparing', label:'Preparing', icon:<ClipboardList className="h-4 w-4"/> },
-  { key:'applied', label:'Applied', icon:<CheckCircle2 className="h-4 w-4"/> },
-  { key:'shortlisted', label:'Shortlisted', icon:<Trophy className="h-4 w-4"/> },
-  { key:'won', label:'Won', icon:<Trophy className="h-4 w-4"/> },
   { key:'ignored', label:'Ignored', icon:<Ban className="h-4 w-4"/> },
   { key:'documents', label:'Documents', icon:<FileText className="h-4 w-4"/> },
   { key:'profile', label:'Profile', icon:<User className="h-4 w-4"/> },
@@ -187,7 +185,19 @@ function Dashboard() {
             )}
 
             {/* Matches list — hidden when on documents/profile/settings tab */}
-            {tab === 'documents' ? (
+            {tab === 'tracker' ? (
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">Application Tracker</h2>
+                    <p className="mt-1 text-sm text-white/50">Kanban of every scholarship you&rsquo;re working on — from shortlist to won.</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <ApplicationTracker signedIn={!!user}/>
+                </div>
+              </div>
+            ) : tab === 'documents' ? (
               <div>
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-white">My Documents</h2>
@@ -239,7 +249,7 @@ function StatCard({ label, value }) {
 }
 
 function tabLabel(t) {
-  const m = { recommended:'Recommended matches', matches:'All matches', saved:'Saved', preparing:'Preparing', applied:'Applied', shortlisted:'Shortlisted', won:'Won', ignored:'Ignored', documents:'Documents', profile:'Profile', settings:'Settings' }
+  const m = { recommended:'Recommended matches', matches:'All matches', tracker:'Application Tracker', saved:'Saved', preparing:'Preparing', applied:'Applied', shortlisted:'Shortlisted', won:'Won', ignored:'Ignored', documents:'Documents', profile:'Profile', settings:'Settings' }
   return m[t] || t
 }
 

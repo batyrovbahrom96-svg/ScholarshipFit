@@ -1152,6 +1152,77 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ ok: true, type, removed: true }))
     }
 
+    // ============ APPLICATION TRACKER ============
+    // Kanban of a user's scholarship applications with status transitions.
+    // Stored under users.cabinet.applications = [{ id, scholarship_id, ...meta, status, notes, timestamps }].
+    const VALID_STATUSES = ['shortlisted', 'in_progress', 'submitted', 'won', 'rejected']
+
+    if (route === '/cabinet/applications' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const apps = (user.cabinet?.applications || []).slice().sort(
+        (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
+      )
+      return withCORS(NextResponse.json({ applications: apps }))
+    }
+
+    if (route === '/cabinet/applications' && method === 'POST') {
+      // Create OR update — upsert by scholarship_id so "Track" from a scholarship
+      // card is idempotent (won't create duplicates).
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const scholarshipId = String(body.scholarship_id || '').trim()
+      if (!scholarshipId) return withCORS(NextResponse.json({ error: 'scholarship_id required' }, { status: 400 }))
+      const status = String(body.status || 'shortlisted').toLowerCase()
+      if (!VALID_STATUSES.includes(status)) {
+        return withCORS(NextResponse.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 }))
+      }
+      const now = new Date()
+      const existing = (user.cabinet?.applications || []).find((a) => a.scholarship_id === scholarshipId)
+      const app = {
+        id: existing?.id || uuidv4(),
+        scholarship_id: scholarshipId,
+        scholarship_name: String(body.scholarship_name || existing?.scholarship_name || 'Scholarship'),
+        university_name: String(body.university_name || existing?.university_name || ''),
+        country: String(body.country || existing?.country || ''),
+        source_url: String(body.source_url || existing?.source_url || ''),
+        funding_summary: String(body.funding_summary || existing?.funding_summary || ''),
+        deadline_note: String(body.deadline_note || existing?.deadline_note || ''),
+        status,
+        notes: typeof body.notes === 'string' ? body.notes : (existing?.notes || ''),
+        submitted_at: body.submitted_at ? new Date(body.submitted_at) : existing?.submitted_at || (status === 'submitted' ? now : null),
+        decision_at: body.decision_at ? new Date(body.decision_at) : existing?.decision_at || (['won', 'rejected'].includes(status) ? now : null),
+        created_at: existing?.created_at || now,
+        updated_at: now,
+      }
+      if (existing) {
+        await db.collection('users').updateOne(
+          { id: user.id, 'cabinet.applications.id': existing.id },
+          { $set: { 'cabinet.applications.$': app, updated_at: now } },
+        )
+      } else {
+        await db.collection('users').updateOne(
+          { id: user.id },
+          { $push: { 'cabinet.applications': app }, $set: { updated_at: now } },
+        )
+      }
+      return withCORS(NextResponse.json({ ok: true, application: app, created: !existing }))
+    }
+
+    if (route === '/cabinet/applications' && method === 'DELETE') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const url = new URL(request.url)
+      const id = String(url.searchParams.get('id') || '').trim()
+      if (!id) return withCORS(NextResponse.json({ error: 'id query param required' }, { status: 400 }))
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $pull: { 'cabinet.applications': { id } }, $set: { updated_at: new Date() } },
+      )
+      return withCORS(NextResponse.json({ ok: true, removed: true, id }))
+    }
+
     if (route === '/cabinet/sync' && method === 'POST') {
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))

@@ -16,7 +16,7 @@ import HeroSearch from '@/components/site/HeroSearch'
 import WinnerTicker from '@/components/site/WinnerTicker'
 import BottomCTA from '@/components/site/BottomCTA'
 import PricingPreview from '@/components/site/PricingPreview'
-import RealTestimonials from '@/components/site/RealTestimonials'
+import StudentStories from '@/components/site/StudentStories'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -241,7 +241,7 @@ function Home() {
       </section>
 
       <PricingPreview />
-      <RealTestimonials compact />
+      <StudentStories compact />
       <BottomCTA />
       <WinnerTicker />
       <Footer />

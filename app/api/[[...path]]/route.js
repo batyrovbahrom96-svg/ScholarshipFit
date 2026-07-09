@@ -592,7 +592,12 @@ DATABASE:\n${dbBlock}`
     // client can review / edit and feed it into /api/readiness. Max 10 MB.
     if (route === '/readiness/parse' && method === 'POST') {
       try {
-        const form = await request.formData()
+        let form
+        try {
+          form = await request.formData()
+        } catch (e) {
+          return withCORS(NextResponse.json({ error: 'Expected multipart/form-data with a `file` field' }, { status: 400 }))
+        }
         const file = form.get('file')
         if (!file || typeof file === 'string') {
           return withCORS(NextResponse.json({ error: 'file field is required' }, { status: 400 }))

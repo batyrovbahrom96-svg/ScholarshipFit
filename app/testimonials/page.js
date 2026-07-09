@@ -1,17 +1,17 @@
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
-import Testimonials from '@/components/site/Testimonials'
+import RealTestimonials from '@/components/site/RealTestimonials'
 
 export const metadata = {
-  title: 'Testimonials — ScholarshipFit',
-  description: 'What our beta cohort of international students is saying about ScholarshipFit\u2019s AI-powered scholarship matching and Readiness Score.',
+  title: 'Scholarship Winners — ScholarshipFit',
+  description: 'Meet the real scholarship winners who used ScholarshipFit — verified on-camera stories from Uzbekistan to Qatar, Canada, France, and the United States.',
 }
 
 export default function TestimonialsPage() {
   return (
     <div className="min-h-dvh bg-black text-white">
       <Navbar />
-      <Testimonials />
+      <RealTestimonials />
       <Footer />
     </div>
   )

@@ -1,767 +1,512 @@
 #!/usr/bin/env python3
 """
-ScholarshipFit Backend API Test Suite
-Tests all backend endpoints per test_result.md requirements
+Backend API Testing for ScholarshipFit - Document Parsing & Readiness Endpoints
+Tests POST /api/readiness/parse and POST /api/readiness with transcript/essay support
 """
 
 import requests
-import json
 import time
-from typing import Dict, List, Any
+import json
+import io
+import os
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from docx import Document
 
-# Base URL from .env
-BASE_URL = "https://stellar-fit.preview.emergentagent.com/api"
+# Base URL from environment
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://stellar-fit.preview.emergentagent.com')
+API_BASE = f"{BASE_URL}/api"
 
-# Test results tracking
-test_results = []
+print(f"\n{'='*80}")
+print(f"BACKEND API TESTING - Document Parsing & Readiness Endpoints")
+print(f"Base URL: {API_BASE}")
+print(f"{'='*80}\n")
 
-def log_test(name: str, passed: bool, details: str = ""):
-    """Log test result"""
-    status = "✅ PASS" if passed else "❌ FAIL"
-    print(f"\n{status}: {name}")
-    if details:
-        print(f"  Details: {details}")
-    test_results.append({"name": name, "passed": passed, "details": details})
+# Test counters
+total_tests = 0
+passed_tests = 0
+failed_tests = 0
 
-def test_1_get_scholarships():
-    """Test 1: GET /api/scholarships - returns 8 seeded records"""
-    print("\n" + "="*80)
-    print("TEST 1: GET /api/scholarships (list all)")
-    print("="*80)
+def test_result(name, passed, detail=""):
+    global total_tests, passed_tests, failed_tests
+    total_tests += 1
+    if passed:
+        passed_tests += 1
+        print(f"✅ PASS: {name}")
+        if detail:
+            print(f"   {detail}")
+    else:
+        failed_tests += 1
+        print(f"❌ FAIL: {name}")
+        if detail:
+            print(f"   {detail}")
+
+# ============================================================================
+# HELPER: Generate test documents
+# ============================================================================
+
+def generate_pdf_with_text(text):
+    """Generate a PDF with the given text using reportlab"""
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    c.drawString(100, 750, text)
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+def generate_docx_with_text(text):
+    """Generate a DOCX with the given text using python-docx"""
+    buffer = io.BytesIO()
+    doc = Document()
+    doc.add_paragraph(text)
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+def generate_txt_with_text(text):
+    """Generate a TXT file with the given text"""
+    return io.BytesIO(text.encode('utf-8'))
+
+# ============================================================================
+# TEST SUITE 1: POST /api/readiness/parse (Document Text Extraction)
+# ============================================================================
+
+print("\n" + "="*80)
+print("TEST SUITE 1: POST /api/readiness/parse (Document Text Extraction)")
+print("="*80 + "\n")
+
+# Test 1.1: Upload TXT file with >= 50 chars
+print("\n[Test 1.1] Upload TXT file with >= 50 chars")
+try:
+    txt_content = "This is a test transcript with sufficient content to pass validation. It contains more than 50 characters."
+    txt_file = generate_txt_with_text(txt_content)
+    files = {'file': ('test_transcript.txt', txt_file, 'text/plain')}
+    response = requests.post(f"{API_BASE}/readiness/parse", files=files, timeout=30)
     
-    try:
-        response = requests.get(f"{BASE_URL}/scholarships", timeout=30)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET /api/scholarships", False, f"Status {response.status_code}: {response.text[:200]}")
-            return None
-        
+    if response.status_code == 200:
         data = response.json()
-        scholarships = data.get("scholarships", [])
-        
-        print(f"Found {len(scholarships)} scholarships")
-        
-        # Check we have at least 8 seeded records
-        if len(scholarships) < 8:
-            log_test("GET /api/scholarships", False, f"Expected >= 8 scholarships, got {len(scholarships)}")
-            return scholarships
-        
-        # Validate structure of first scholarship
+        if data.get('ok') and data.get('kind') == 'txt' and data.get('text') == txt_content:
+            test_result("TXT upload (>= 50 chars)", True, f"Extracted {data.get('chars')} chars correctly")
+        else:
+            test_result("TXT upload (>= 50 chars)", False, f"Response: {data}")
+    else:
+        test_result("TXT upload (>= 50 chars)", False, f"Status {response.status_code}: {response.text[:200]}")
+except Exception as e:
+    test_result("TXT upload (>= 50 chars)", False, f"Exception: {str(e)}")
+
+# Test 1.2: Upload PDF with text
+print("\n[Test 1.2] Upload PDF with text containing GPA")
+try:
+    pdf_content = "Academic Transcript: GPA: 3.75, Courses: Linear Algebra, Machine Learning, Data Structures"
+    pdf_file = generate_pdf_with_text(pdf_content)
+    files = {'file': ('test_transcript.pdf', pdf_file, 'application/pdf')}
+    response = requests.post(f"{API_BASE}/readiness/parse", files=files, timeout=30)
+    
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('ok') and data.get('kind') == 'pdf' and 'GPA' in data.get('text', ''):
+            test_result("PDF upload with GPA text", True, f"Extracted {data.get('chars')} chars, contains 'GPA'")
+        else:
+            test_result("PDF upload with GPA text", False, f"Text missing GPA: {data.get('text', '')[:100]}")
+    else:
+        test_result("PDF upload with GPA text", False, f"Status {response.status_code}: {response.text[:200]}")
+except Exception as e:
+    test_result("PDF upload with GPA text", False, f"Exception: {str(e)}")
+
+# Test 1.3: Upload DOCX with paragraph
+print("\n[Test 1.3] Upload DOCX with paragraph")
+try:
+    docx_content = "This is my personal statement. I am passionate about engineering and have completed several projects in robotics and machine learning. My goal is to pursue a Master's degree in Mechanical Engineering."
+    docx_file = generate_docx_with_text(docx_content)
+    files = {'file': ('test_essay.docx', docx_file, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}
+    response = requests.post(f"{API_BASE}/readiness/parse", files=files, timeout=30)
+    
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('ok') and data.get('kind') == 'docx' and len(data.get('text', '')) > 0:
+            test_result("DOCX upload with paragraph", True, f"Extracted {data.get('chars')} chars")
+        else:
+            test_result("DOCX upload with paragraph", False, f"Response: {data}")
+    else:
+        test_result("DOCX upload with paragraph", False, f"Status {response.status_code}: {response.text[:200]}")
+except Exception as e:
+    test_result("DOCX upload with paragraph", False, f"Exception: {str(e)}")
+
+# Test 1.4: Upload TXT with < 20 chars (should fail with 422)
+print("\n[Test 1.4] Upload TXT with < 20 chars (should return 422)")
+try:
+    tiny_txt = generate_txt_with_text("hi")
+    files = {'file': ('tiny.txt', tiny_txt, 'text/plain')}
+    response = requests.post(f"{API_BASE}/readiness/parse", files=files, timeout=30)
+    
+    if response.status_code == 422:
+        data = response.json()
+        if 'readable text' in data.get('error', '').lower():
+            test_result("TXT < 20 chars returns 422", True, f"Error: {data.get('error')}")
+        else:
+            test_result("TXT < 20 chars returns 422", False, f"Wrong error message: {data}")
+    else:
+        test_result("TXT < 20 chars returns 422", False, f"Expected 422, got {response.status_code}")
+except Exception as e:
+    test_result("TXT < 20 chars returns 422", False, f"Exception: {str(e)}")
+
+# Test 1.5: Upload unsupported file type (.exe)
+print("\n[Test 1.5] Upload unsupported file type (.exe)")
+try:
+    fake_exe = io.BytesIO(b"MZ\x90\x00")  # Fake EXE header
+    files = {'file': ('malware.exe', fake_exe, 'application/x-msdownload')}
+    response = requests.post(f"{API_BASE}/readiness/parse", files=files, timeout=30)
+    
+    if response.status_code == 400:
+        data = response.json()
+        if 'unsupported' in data.get('error', '').lower():
+            test_result("Unsupported file type returns 400", True, f"Error: {data.get('error')}")
+        else:
+            test_result("Unsupported file type returns 400", False, f"Wrong error: {data}")
+    else:
+        test_result("Unsupported file type returns 400", False, f"Expected 400, got {response.status_code}")
+except Exception as e:
+    test_result("Unsupported file type returns 400", False, f"Exception: {str(e)}")
+
+# Test 1.6: POST with no file field
+print("\n[Test 1.6] POST with no file field (should return 400)")
+try:
+    response = requests.post(f"{API_BASE}/readiness/parse", data={}, timeout=30)
+    
+    if response.status_code == 400:
+        data = response.json()
+        if 'file' in data.get('error', '').lower():
+            test_result("No file field returns 400", True, f"Error: {data.get('error')}")
+        else:
+            test_result("No file field returns 400", False, f"Wrong error: {data}")
+    else:
+        test_result("No file field returns 400", False, f"Expected 400, got {response.status_code}")
+except Exception as e:
+    test_result("No file field returns 400", False, f"Exception: {str(e)}")
+
+# ============================================================================
+# TEST SUITE 2: POST /api/readiness (Enhanced with transcript_text and essay_text)
+# ============================================================================
+
+print("\n" + "="*80)
+print("TEST SUITE 2: POST /api/readiness (Enhanced with transcript/essay support)")
+print("="*80 + "\n")
+
+# First, get a valid scholarship_id
+print("\n[Setup] Getting valid scholarship_id from GET /api/scholarships")
+scholarship_id = None
+try:
+    response = requests.get(f"{API_BASE}/scholarships", timeout=30)
+    if response.status_code == 200:
+        data = response.json()
+        scholarships = data.get('scholarships', [])
         if scholarships:
-            s = scholarships[0]
-            required_fields = ["id", "slug", "scholarship_name", "university_name", 
-                             "country", "source_url", "trust_level", "degree_levels", "public_status"]
-            missing = [f for f in required_fields if f not in s]
-            
-            if missing:
-                log_test("GET /api/scholarships", False, f"Missing fields: {missing}")
-                return scholarships
-            
-            # Check source_url starts with https://
-            if not s["source_url"].startswith("https://"):
-                log_test("GET /api/scholarships", False, f"source_url doesn't start with https://: {s['source_url']}")
-                return scholarships
-            
-            print(f"Sample scholarship: {s['scholarship_name']} ({s['country']})")
-            print(f"  ID: {s['id']}")
-            print(f"  Source: {s['source_url']}")
-            print(f"  Trust: {s['trust_level']}")
-            print(f"  Degrees: {s['degree_levels']}")
-        
-        log_test("GET /api/scholarships", True, f"Retrieved {len(scholarships)} scholarships with correct structure")
-        return scholarships
-        
-    except Exception as e:
-        log_test("GET /api/scholarships", False, f"Exception: {str(e)}")
-        return None
+            scholarship_id = scholarships[0]['id']
+            print(f"✓ Got scholarship_id: {scholarship_id} ({scholarships[0].get('scholarship_name', 'Unknown')})")
+        else:
+            print("❌ No scholarships found in database")
+    else:
+        print(f"❌ Failed to get scholarships: {response.status_code}")
+except Exception as e:
+    print(f"❌ Exception getting scholarships: {str(e)}")
 
-def test_2_filter_scholarships(all_scholarships):
-    """Test 2: Filter tests - country, degree, text search"""
-    print("\n" + "="*80)
-    print("TEST 2: Scholarship Filters")
-    print("="*80)
-    
-    # Test 2a: Filter by country=Italy
-    try:
-        response = requests.get(f"{BASE_URL}/scholarships?country=Italy", timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            italy_items = data.get("scholarships", [])
-            print(f"\nFilter country=Italy: {len(italy_items)} results")
-            
-            # Verify all are Italy
-            non_italy = [s for s in italy_items if s.get("country") != "Italy"]
-            if non_italy:
-                log_test("Filter country=Italy", False, f"Found {len(non_italy)} non-Italy items")
-            else:
-                if italy_items:
-                    print(f"  Sample: {italy_items[0]['scholarship_name']}")
-                log_test("Filter country=Italy", True, f"{len(italy_items)} Italy scholarships")
-        else:
-            log_test("Filter country=Italy", False, f"Status {response.status_code}")
-    except Exception as e:
-        log_test("Filter country=Italy", False, f"Exception: {str(e)}")
-    
-    # Test 2b: Filter by degree=Master
-    try:
-        response = requests.get(f"{BASE_URL}/scholarships?degree=Master", timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            master_items = data.get("scholarships", [])
-            print(f"\nFilter degree=Master: {len(master_items)} results")
-            
-            # Verify all contain Master in degree_levels
-            non_master = [s for s in master_items if "Master" not in s.get("degree_levels", [])]
-            if non_master:
-                log_test("Filter degree=Master", False, f"Found {len(non_master)} non-Master items")
-            else:
-                if master_items:
-                    print(f"  Sample: {master_items[0]['scholarship_name']}")
-                log_test("Filter degree=Master", True, f"{len(master_items)} Master scholarships")
-        else:
-            log_test("Filter degree=Master", False, f"Status {response.status_code}")
-    except Exception as e:
-        log_test("Filter degree=Master", False, f"Exception: {str(e)}")
-    
-    # Test 2c: Text search q=engineering
-    try:
-        response = requests.get(f"{BASE_URL}/scholarships?q=engineering", timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            eng_items = data.get("scholarships", [])
-            print(f"\nFilter q=engineering: {len(eng_items)} results")
-            
-            if eng_items:
-                print(f"  Sample: {eng_items[0]['scholarship_name']}")
-            log_test("Filter q=engineering", True, f"{len(eng_items)} results for 'engineering'")
-        else:
-            log_test("Filter q=engineering", False, f"Status {response.status_code}")
-    except Exception as e:
-        log_test("Filter q=engineering", False, f"Exception: {str(e)}")
-
-def test_3_scholarship_crud(all_scholarships):
-    """Test 3: POST/PUT/GET scholarship CRUD"""
-    print("\n" + "="*80)
-    print("TEST 3: Scholarship CRUD")
-    print("="*80)
-    
-    # Test 3a: POST new scholarship
-    new_scholarship = {
-        "scholarship_name": "Test Scholarship for API Testing",
-        "university_name": "Test University",
-        "country": "TestLand",
-        "source_url": "https://example.com/test",
-        "trust_level": "Test",
-        "degree_levels": ["Master"],
-        "major_fields": ["Testing"],
-        "funding_type": "Test",
-        "eligible_nationalities": ["All"]
-    }
-    
-    try:
-        response = requests.post(f"{BASE_URL}/scholarships", json=new_scholarship, timeout=30)
-        print(f"\nPOST /scholarships status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("POST /api/scholarships", False, f"Status {response.status_code}: {response.text[:200]}")
-            return
-        
-        data = response.json()
-        created = data.get("scholarship")
-        
-        if not created or "id" not in created:
-            log_test("POST /api/scholarships", False, "No id in response")
-            return
-        
-        scholarship_id = created["id"]
-        print(f"Created scholarship with ID: {scholarship_id}")
-        log_test("POST /api/scholarships", True, f"Created with UUID: {scholarship_id}")
-        
-        # Test 3b: PUT update
-        update_data = {"trust_level": "Verified"}
-        response = requests.put(f"{BASE_URL}/scholarships/{scholarship_id}", json=update_data, timeout=30)
-        print(f"\nPUT /scholarships/{scholarship_id} status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("PUT /api/scholarships/{id}", False, f"Status {response.status_code}")
-            return
-        
-        log_test("PUT /api/scholarships/{id}", True, "Updated trust_level")
-        
-        # Test 3c: GET by id
-        response = requests.get(f"{BASE_URL}/scholarships/{scholarship_id}", timeout=30)
-        print(f"\nGET /scholarships/{scholarship_id} status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET /api/scholarships/{id}", False, f"Status {response.status_code}")
-            return
-        
-        data = response.json()
-        retrieved = data.get("scholarship")
-        
-        if retrieved and retrieved.get("trust_level") == "Verified":
-            print(f"Verified trust_level updated: {retrieved['trust_level']}")
-            log_test("GET /api/scholarships/{id}", True, "Retrieved updated record")
-        else:
-            log_test("GET /api/scholarships/{id}", False, f"trust_level not updated: {retrieved.get('trust_level')}")
-            
-    except Exception as e:
-        log_test("Scholarship CRUD", False, f"Exception: {str(e)}")
-
-def test_4_profiles():
-    """Test 4: POST/GET profiles with upsert"""
-    print("\n" + "="*80)
-    print("TEST 4: Profiles")
-    print("="*80)
-    
-    profile_data = {
-        "full_name": "Ahmed Hassan",
+if not scholarship_id:
+    print("\n❌ CRITICAL: Cannot proceed with readiness tests without scholarship_id")
+else:
+    # Sample profile from review request
+    sample_profile = {
         "nationality": "Pakistan",
         "degree_level": "Master",
         "intended_major": "Mechanical Engineering",
-        "gpa": 3.5,
-        "ielts": 7.0,
-        "annual_budget_usd": 5000,
-        "preferred_countries": ["Germany", "Italy"],
-        "full_funding_only": False
-    }
-    
-    try:
-        # Test 4a: POST create
-        response = requests.post(f"{BASE_URL}/profiles", json=profile_data, timeout=30)
-        print(f"\nPOST /profiles status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("POST /api/profiles", False, f"Status {response.status_code}: {response.text[:200]}")
-            return
-        
-        data = response.json()
-        profile = data.get("profile")
-        
-        if not profile or "id" not in profile:
-            log_test("POST /api/profiles", False, "No id in response")
-            return
-        
-        profile_id = profile["id"]
-        print(f"Created profile with ID: {profile_id}")
-        print(f"  Name: {profile.get('full_name')}")
-        print(f"  GPA: {profile.get('gpa')}")
-        log_test("POST /api/profiles (create)", True, f"Created with UUID: {profile_id}")
-        
-        # Test 4b: POST upsert (update GPA)
-        upsert_data = {
-            "id": profile_id,
-            "gpa": 3.9
-        }
-        response = requests.post(f"{BASE_URL}/profiles", json=upsert_data, timeout=30)
-        print(f"\nPOST /profiles (upsert) status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("POST /api/profiles (upsert)", False, f"Status {response.status_code}")
-            return
-        
-        log_test("POST /api/profiles (upsert)", True, "Upserted GPA")
-        
-        # Test 4c: GET by id
-        response = requests.get(f"{BASE_URL}/profiles/{profile_id}", timeout=30)
-        print(f"\nGET /profiles/{profile_id} status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET /api/profiles/{id}", False, f"Status {response.status_code}")
-            return
-        
-        data = response.json()
-        retrieved = data.get("profile")
-        
-        if retrieved and retrieved.get("gpa") == 3.9:
-            print(f"Verified GPA updated: {retrieved['gpa']}")
-            log_test("GET /api/profiles/{id}", True, f"Retrieved updated GPA: {retrieved['gpa']}")
-            return profile_id
-        else:
-            log_test("GET /api/profiles/{id}", False, f"GPA not updated: {retrieved.get('gpa')}")
-            return profile_id
-            
-    except Exception as e:
-        log_test("Profiles", False, f"Exception: {str(e)}")
-        return None
-
-def test_5_ai_match(all_scholarships):
-    """Test 5: CRITICAL - AI matching engine with Claude Sonnet 4.5"""
-    print("\n" + "="*80)
-    print("TEST 5: AI Matching Engine (CRITICAL - may take 60s)")
-    print("="*80)
-    
-    match_profile = {
-        "degree_level": "Master",
-        "intended_major": "Mechanical Engineering",
-        "nationality": "Pakistan",
         "gpa": 3.7,
+        "gpa_scale": 4.0,
         "ielts": 7.0,
-        "preferred_countries": ["Germany", "Italy", "Türkiye"],
-        "annual_budget_usd": 3000,
-        "full_funding_only": True
+        "achievements": "Robotics club president, 2 conference papers"
     }
-    
+
+    # Test 2.1: Call WITHOUT transcript_text/essay_text
+    print("\n[Test 2.1] POST /api/readiness WITHOUT transcript_text/essay_text (30-90s)")
+    print("⏳ This will take 30-90 seconds (real Claude API call)...")
     try:
-        print("\nSending match request (timeout: 120s)...")
         start_time = time.time()
-        
-        response = requests.post(
-            f"{BASE_URL}/match",
-            json={"profile": match_profile},
-            timeout=120
-        )
-        
+        payload = {
+            "profile": sample_profile,
+            "scholarship_id": scholarship_id
+        }
+        response = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
         elapsed = time.time() - start_time
-        print(f"Response received in {elapsed:.1f}s")
-        print(f"Status: {response.status_code}")
         
-        if response.status_code != 200:
-            error_body = response.text[:500]
-            log_test("POST /api/match", False, f"Status {response.status_code}: {error_body}")
-            return
-        
-        data = response.json()
-        
-        # Check structure
-        if "run" not in data:
-            log_test("POST /api/match", False, "No 'run' in response")
-            return
-        
-        run = data["run"]
-        if "result" not in run:
-            log_test("POST /api/match", False, "No 'result' in run")
-            return
-        
-        result = run["result"]
-        matches = result.get("matches", [])
-        summary = result.get("summary", "")
-        
-        print(f"\nMatches returned: {len(matches)}")
-        print(f"Summary: {summary[:100]}...")
-        
-        # Assert: matches array length >= 3
-        if len(matches) < 3:
-            log_test("POST /api/match - match count", False, f"Expected >= 3 matches, got {len(matches)}")
-        else:
-            log_test("POST /api/match - match count", True, f"{len(matches)} matches returned")
-        
-        # Build scholarship ID map from all_scholarships
-        if not all_scholarships:
-            log_test("POST /api/match - validation", False, "No scholarships to validate against")
-            return
-        
-        scholarship_ids = {s["id"] for s in all_scholarships}
-        scholarship_urls = {s["id"]: s["source_url"] for s in all_scholarships}
-        
-        # Validate each match
-        invalid_ids = []
-        invalid_urls = []
-        unsorted = False
-        prev_score = 101
-        
-        for i, match in enumerate(matches):
-            print(f"\nMatch {i+1}:")
-            print(f"  Scholarship: {match.get('scholarship_name')}")
-            print(f"  Country: {match.get('country')}")
-            print(f"  Fit Score: {match.get('overall_fit_score')}")
-            print(f"  Source: {match.get('source_url', '')[:60]}...")
+        if response.status_code == 200:
+            data = response.json()
+            readiness = data.get('readiness', {})
+            score = readiness.get('score')
+            bucket = readiness.get('bucket')
+            essay_feedback = readiness.get('essay_feedback')
+            transcript_signals = readiness.get('transcript_signals')
             
-            # Check scholarship_id exists in DB
-            match_id = match.get("scholarship_id")
-            if match_id not in scholarship_ids:
-                invalid_ids.append(match.get("scholarship_name", match_id))
+            checks = []
+            checks.append(("score is integer 0-100", isinstance(score, int) and 0 <= score <= 100))
+            checks.append(("bucket is valid", bucket in ['Strong', 'Competitive', 'Reach', 'Long-shot']))
+            checks.append(("essay_feedback is null", essay_feedback is None))
+            checks.append(("transcript_signals is null", transcript_signals is None))
             
-            # Check source_url matches DB
-            if match_id in scholarship_urls:
-                db_url = scholarship_urls[match_id]
-                match_url = match.get("source_url")
-                if db_url != match_url:
-                    invalid_urls.append(f"{match.get('scholarship_name')}: expected {db_url}, got {match_url}")
+            all_passed = all(c[1] for c in checks)
+            details = f"Elapsed: {elapsed:.1f}s, Score: {score}, Bucket: {bucket}"
+            for check_name, check_result in checks:
+                details += f"\n   - {check_name}: {'✓' if check_result else '✗'}"
             
-            # Check sorting
-            score = match.get("overall_fit_score", 0)
-            if score > prev_score:
-                unsorted = True
-            prev_score = score
-            
-            # Check requirements arrays
-            if i == 0:  # Check first match
-                req_met = match.get("requirements_met", [])
-                req_miss = match.get("requirements_missing", [])
-                print(f"  Requirements met: {len(req_met)}")
-                print(f"  Requirements missing: {len(req_miss)}")
-        
-        # Assert: all scholarship_ids exist in DB
-        if invalid_ids:
-            log_test("POST /api/match - no invented records", False, f"Invented scholarships: {invalid_ids}")
+            test_result("Readiness WITHOUT documents", all_passed, details)
         else:
-            log_test("POST /api/match - no invented records", True, "All scholarship_ids exist in DB")
-        
-        # Assert: all source_urls match DB
-        if invalid_urls:
-            log_test("POST /api/match - source_url integrity", False, f"Mismatched URLs: {invalid_urls}")
-        else:
-            log_test("POST /api/match - source_url integrity", True, "All source_urls match DB records")
-        
-        # Assert: sorted by overall_fit_score DESC
-        if unsorted:
-            log_test("POST /api/match - sorting", False, "Matches not sorted by overall_fit_score DESC")
-        else:
-            log_test("POST /api/match - sorting", True, "Matches sorted by fit score DESC")
-        
-        # Assert: summary is non-empty
-        if not summary or len(summary) < 10:
-            log_test("POST /api/match - summary", False, f"Summary too short: {summary}")
-        else:
-            log_test("POST /api/match - summary", True, f"Summary present ({len(summary)} chars)")
-        
-        # Assert: at least one match has requirements arrays
-        has_requirements = any(
-            match.get("requirements_met") and match.get("requirements_missing")
-            for match in matches
-        )
-        if has_requirements:
-            log_test("POST /api/match - requirements arrays", True, "Requirements met/missing present")
-        else:
-            log_test("POST /api/match - requirements arrays", False, "No match has requirements arrays")
-        
-    except requests.Timeout:
-        log_test("POST /api/match", False, "Request timeout (>120s)")
+            test_result("Readiness WITHOUT documents", False, f"Status {response.status_code}: {response.text[:300]}")
     except Exception as e:
-        log_test("POST /api/match", False, f"Exception: {str(e)}")
+        test_result("Readiness WITHOUT documents", False, f"Exception: {str(e)}")
 
-def test_6_ai_advisor():
-    """Test 6: AI Advisor multi-turn chat"""
-    print("\n" + "="*80)
-    print("TEST 6: AI Advisor Multi-turn Chat")
-    print("="*80)
-    
+    # Test 2.2: Call WITH transcript_text
+    print("\n[Test 2.2] POST /api/readiness WITH transcript_text (30-90s)")
+    print("⏳ This will take 30-90 seconds (real Claude API call)...")
     try:
-        # Test 6a: First message
-        msg1 = "I want full funding in Germany for engineering with IELTS 7.0"
-        response = requests.post(
-            f"{BASE_URL}/advisor",
-            json={"message": msg1},
-            timeout=60
-        )
+        start_time = time.time()
+        transcript_text = """
+        Academic Transcript - University of Engineering and Technology, Lahore
         
-        print(f"\nFirst message status: {response.status_code}")
+        Student: Test Student
+        Program: Bachelor of Science in Mechanical Engineering
         
-        if response.status_code != 200:
-            log_test("POST /api/advisor (first)", False, f"Status {response.status_code}: {response.text[:200]}")
-            return
+        Semester 1 (Fall 2020):
+        - Calculus I: A (4.0)
+        - Physics I: A- (3.7)
+        - Engineering Drawing: B+ (3.3)
+        - Introduction to Programming: A (4.0)
+        Semester GPA: 3.75
         
-        data = response.json()
-        session_id = data.get("session_id")
-        reply1 = data.get("reply", "")
+        Semester 2 (Spring 2021):
+        - Calculus II: A (4.0)
+        - Physics II: A (4.0)
+        - Linear Algebra: A- (3.7)
+        - Thermodynamics: B+ (3.3)
+        Semester GPA: 3.75
         
-        if not session_id:
-            log_test("POST /api/advisor (first)", False, "No session_id returned")
-            return
+        Cumulative GPA: 3.75 / 4.0
+        Class Rank: Top 10%
+        """
         
-        print(f"Session ID: {session_id}")
-        print(f"Reply preview: {reply1[:150]}...")
-        
-        # Check reply doesn't invent scholarships
-        invented_names = ["fake scholarship", "example scholarship", "test scholarship"]
-        has_invented = any(name in reply1.lower() for name in invented_names)
-        
-        # Check reply mentions known scholarships
-        known_names = ["DAAD", "Padua", "Bologna", "Türkiye", "Stipendium Hungaricum", "KAIST", "UBC", "Toronto"]
-        mentions_known = any(name.lower() in reply1.lower() for name in known_names)
-        
-        log_test("POST /api/advisor (first)", True, f"Session created: {session_id}")
-        
-        # Test 6b: Second message (follow-up)
-        time.sleep(1)
-        msg2 = "What about Italy?"
-        response = requests.post(
-            f"{BASE_URL}/advisor",
-            json={"session_id": session_id, "message": msg2},
-            timeout=60
-        )
-        
-        print(f"\nSecond message status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("POST /api/advisor (second)", False, f"Status {response.status_code}")
-            return
-        
-        data = response.json()
-        reply2 = data.get("reply", "")
-        
-        print(f"Reply preview: {reply2[:150]}...")
-        log_test("POST /api/advisor (second)", True, "Follow-up message sent")
-        
-        # Test 6c: Get history
-        time.sleep(1)
-        response = requests.get(
-            f"{BASE_URL}/advisor/history",
-            params={"session_id": session_id},
-            timeout=30
-        )
-        
-        print(f"\nGET /advisor/history status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET /api/advisor/history", False, f"Status {response.status_code}")
-            return
-        
-        data = response.json()
-        messages = data.get("messages", [])
-        
-        print(f"History messages: {len(messages)}")
-        
-        # Should have at least 4 messages (2 user + 2 assistant)
-        if len(messages) < 4:
-            log_test("GET /api/advisor/history - count", False, f"Expected >= 4 messages, got {len(messages)}")
-        else:
-            log_test("GET /api/advisor/history - count", True, f"{len(messages)} messages in history")
-        
-        # Check alternating order
-        if len(messages) >= 4:
-            roles = [m.get("role") for m in messages]
-            print(f"Message roles: {roles}")
-            
-            expected_pattern = ["user", "assistant", "user", "assistant"]
-            if roles[:4] == expected_pattern:
-                log_test("GET /api/advisor/history - order", True, "Messages alternate user/assistant")
-            else:
-                log_test("GET /api/advisor/history - order", False, f"Unexpected order: {roles[:4]}")
-        
-        # Check reply doesn't invent scholarships
-        if has_invented:
-            log_test("AI Advisor - no invented names", False, "Reply contains invented scholarship names")
-        elif mentions_known:
-            log_test("AI Advisor - references seeded scholarships", True, "Reply mentions known scholarships")
-        else:
-            log_test("AI Advisor - references seeded scholarships", True, "Reply doesn't invent scholarships")
-        
-        # Check for official source mention
-        has_official = "official" in reply1.lower() or "official" in reply2.lower()
-        has_link = "http" in reply1 or "http" in reply2
-        
-        if has_official or has_link:
-            log_test("AI Advisor - official source reference", True, "Reply mentions official sources or links")
-        else:
-            log_test("AI Advisor - official source reference", False, "No official source reference found")
-        
-    except Exception as e:
-        log_test("AI Advisor", False, f"Exception: {str(e)}")
-
-def test_7_tracker():
-    """Test 7: Application tracker"""
-    print("\n" + "="*80)
-    print("TEST 7: Application Tracker")
-    print("="*80)
-    
-    # Get a scholarship ID from the list
-    try:
-        response = requests.get(f"{BASE_URL}/scholarships", timeout=30)
-        if response.status_code != 200:
-            log_test("Tracker setup", False, "Could not fetch scholarships")
-            return
-        
-        scholarships = response.json().get("scholarships", [])
-        if not scholarships:
-            log_test("Tracker setup", False, "No scholarships available")
-            return
-        
-        scholarship_id = scholarships[0]["id"]
-        user_id = "test_user_123"
-        
-        # Test 7a: POST tracker (saved)
-        tracker_data = {
-            "user_id": user_id,
+        payload = {
+            "profile": sample_profile,
             "scholarship_id": scholarship_id,
-            "status": "saved"
+            "transcript_text": transcript_text
+        }
+        response = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
+        elapsed = time.time() - start_time
+        
+        if response.status_code == 200:
+            data = response.json()
+            readiness = data.get('readiness', {})
+            transcript_signals = readiness.get('transcript_signals')
+            
+            checks = []
+            if transcript_signals:
+                checks.append(("transcript_signals exists", True))
+                checks.append(("gpa_verified present", 'gpa_verified' in transcript_signals))
+                checks.append(("course_rigor present", 'course_rigor' in transcript_signals))
+                checks.append(("trend present", 'trend' in transcript_signals))
+                checks.append(("notes present", 'notes' in transcript_signals))
+            else:
+                checks.append(("transcript_signals exists", False))
+            
+            all_passed = all(c[1] for c in checks)
+            details = f"Elapsed: {elapsed:.1f}s"
+            for check_name, check_result in checks:
+                details += f"\n   - {check_name}: {'✓' if check_result else '✗'}"
+            if transcript_signals:
+                details += f"\n   - Signals: {json.dumps(transcript_signals, indent=2)}"
+            
+            test_result("Readiness WITH transcript_text", all_passed, details)
+        else:
+            test_result("Readiness WITH transcript_text", False, f"Status {response.status_code}: {response.text[:300]}")
+    except Exception as e:
+        test_result("Readiness WITH transcript_text", False, f"Exception: {str(e)}")
+
+    # Test 2.3: Call WITH essay_text
+    print("\n[Test 2.3] POST /api/readiness WITH essay_text (30-90s)")
+    print("⏳ This will take 30-90 seconds (real Claude API call)...")
+    try:
+        start_time = time.time()
+        essay_text = """
+        Personal Statement for Master's in Mechanical Engineering
+        
+        My passion for mechanical engineering began in my childhood when I would disassemble and reassemble household appliances to understand their inner workings. This curiosity evolved into a dedicated pursuit of engineering excellence during my undergraduate studies at the University of Engineering and Technology, Lahore.
+        
+        As president of the Robotics Club, I led a team of 15 students in developing an autonomous navigation system for agricultural robots. Our project won first place at the National Engineering Competition 2022 and has been featured in two international conferences. This experience taught me the importance of interdisciplinary collaboration and innovative problem-solving.
+        
+        I have published two conference papers on machine learning applications in predictive maintenance, which sparked my interest in pursuing graduate research. My goal is to contribute to sustainable manufacturing technologies that can address global challenges in resource efficiency and environmental impact.
+        
+        I am particularly drawn to your program because of its strong focus on advanced manufacturing and robotics research. I believe my background in both theoretical foundations and practical applications makes me a strong candidate for this scholarship.
+        """
+        
+        payload = {
+            "profile": sample_profile,
+            "scholarship_id": scholarship_id,
+            "essay_text": essay_text
+        }
+        response = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
+        elapsed = time.time() - start_time
+        
+        if response.status_code == 200:
+            data = response.json()
+            readiness = data.get('readiness', {})
+            essay_feedback = readiness.get('essay_feedback')
+            
+            checks = []
+            if essay_feedback:
+                checks.append(("essay_feedback exists", True))
+                checks.append(("clarity present (0-100)", isinstance(essay_feedback.get('clarity'), int)))
+                checks.append(("specificity present (0-100)", isinstance(essay_feedback.get('specificity'), int)))
+                checks.append(("alignment present (0-100)", isinstance(essay_feedback.get('alignment'), int)))
+                checks.append(("notes present", 'notes' in essay_feedback))
+            else:
+                checks.append(("essay_feedback exists", False))
+            
+            all_passed = all(c[1] for c in checks)
+            details = f"Elapsed: {elapsed:.1f}s"
+            for check_name, check_result in checks:
+                details += f"\n   - {check_name}: {'✓' if check_result else '✗'}"
+            if essay_feedback:
+                details += f"\n   - Feedback: {json.dumps(essay_feedback, indent=2)}"
+            
+            test_result("Readiness WITH essay_text", all_passed, details)
+        else:
+            test_result("Readiness WITH essay_text", False, f"Status {response.status_code}: {response.text[:300]}")
+    except Exception as e:
+        test_result("Readiness WITH essay_text", False, f"Exception: {str(e)}")
+
+    # Test 2.4: Cache validation - call twice with SAME data
+    print("\n[Test 2.4] Cache validation - call twice with SAME profile+scholarship+transcript+essay")
+    print("⏳ First call will take 30-90s, second should be < 2s...")
+    try:
+        test_transcript = "Test transcript for cache validation. GPA: 3.7, Courses: Advanced topics."
+        test_essay = "Test essay for cache validation. This is a personal statement about my goals and achievements."
+        
+        payload = {
+            "profile": sample_profile,
+            "scholarship_id": scholarship_id,
+            "transcript_text": test_transcript,
+            "essay_text": test_essay
         }
         
-        response = requests.post(f"{BASE_URL}/tracker", json=tracker_data, timeout=30)
-        print(f"\nPOST /tracker (saved) status: {response.status_code}")
+        # First call
+        start1 = time.time()
+        response1 = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
+        elapsed1 = time.time() - start1
         
-        if response.status_code != 200:
-            log_test("POST /api/tracker", False, f"Status {response.status_code}: {response.text[:200]}")
-            return
-        
-        data = response.json()
-        tracker = data.get("tracker")
-        
-        if not tracker:
-            log_test("POST /api/tracker", False, "No tracker in response")
-            return
-        
-        print(f"Tracker created: {tracker.get('status')}")
-        log_test("POST /api/tracker (create)", True, f"Created with status: saved")
-        
-        # Test 7b: GET tracker
-        response = requests.get(f"{BASE_URL}/tracker", params={"user_id": user_id}, timeout=30)
-        print(f"\nGET /tracker status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET /api/tracker", False, f"Status {response.status_code}")
-            return
-        
-        data = response.json()
-        items = data.get("items", [])
-        
-        print(f"Tracker items: {len(items)}")
-        
-        if len(items) == 0:
-            log_test("GET /api/tracker", False, "No items returned")
-            return
-        
-        log_test("GET /api/tracker", True, f"Retrieved {len(items)} tracker items")
-        
-        # Test 7c: POST tracker (upsert to 'applied')
-        tracker_data["status"] = "applied"
-        response = requests.post(f"{BASE_URL}/tracker", json=tracker_data, timeout=30)
-        print(f"\nPOST /tracker (upsert) status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("POST /api/tracker (upsert)", False, f"Status {response.status_code}")
-            return
-        
-        data = response.json()
-        tracker = data.get("tracker")
-        
-        if tracker and tracker.get("status") == "applied":
-            print(f"Tracker updated: {tracker.get('status')}")
-            log_test("POST /api/tracker (upsert)", True, "Updated status to: applied")
+        if response1.status_code != 200:
+            test_result("Cache validation (first call)", False, f"Status {response1.status_code}")
         else:
-            log_test("POST /api/tracker (upsert)", False, f"Status not updated: {tracker.get('status')}")
-        
-    except Exception as e:
-        log_test("Tracker", False, f"Exception: {str(e)}")
-
-def test_8_admin():
-    """Test 8: Admin endpoints"""
-    print("\n" + "="*80)
-    print("TEST 8: Admin Endpoints")
-    print("="*80)
-    
-    # Test 8a: GET /admin/stats
-    try:
-        response = requests.get(f"{BASE_URL}/admin/stats", timeout=30)
-        print(f"\nGET /admin/stats status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET /api/admin/stats", False, f"Status {response.status_code}: {response.text[:200]}")
-        else:
-            data = response.json()
-            print(f"Stats: {json.dumps(data, indent=2)}")
+            data1 = response1.json()
+            cached1 = data1.get('cached', False)
             
-            scholarships = data.get("scholarships", 0)
-            profiles = data.get("profiles", 0)
-            match_runs = data.get("match_runs", 0)
-            advisor_messages = data.get("advisor_messages", 0)
+            # Second call (should be cached)
+            time.sleep(1)  # Small delay
+            start2 = time.time()
+            response2 = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
+            elapsed2 = time.time() - start2
             
-            # Check expected counts
-            issues = []
-            if scholarships < 8:
-                issues.append(f"scholarships={scholarships} (expected >=8)")
-            if profiles < 1:
-                issues.append(f"profiles={profiles} (expected >=1)")
-            if match_runs < 1:
-                issues.append(f"match_runs={match_runs} (expected >=1)")
-            if advisor_messages < 4:
-                issues.append(f"advisor_messages={advisor_messages} (expected >=4)")
-            
-            if issues:
-                log_test("GET /api/admin/stats", False, f"Count issues: {', '.join(issues)}")
+            if response2.status_code != 200:
+                test_result("Cache validation", False, f"Second call failed: {response2.status_code}")
             else:
-                log_test("GET /api/admin/stats", True, f"All counts valid: s={scholarships}, p={profiles}, m={match_runs}, a={advisor_messages}")
-    
+                data2 = response2.json()
+                cached2 = data2.get('cached', False)
+                
+                checks = []
+                checks.append(("First call cached=false", cached1 == False))
+                checks.append(("Second call cached=true", cached2 == True))
+                checks.append(("Second call < 2s", elapsed2 < 2.0))
+                
+                all_passed = all(c[1] for c in checks)
+                details = f"First: {elapsed1:.1f}s (cached={cached1}), Second: {elapsed2:.1f}s (cached={cached2})"
+                for check_name, check_result in checks:
+                    details += f"\n   - {check_name}: {'✓' if check_result else '✗'}"
+                
+                test_result("Cache validation", all_passed, details)
     except Exception as e:
-        log_test("GET /api/admin/stats", False, f"Exception: {str(e)}")
-    
-    # Test 8b: GET /admin/logs
+        test_result("Cache validation", False, f"Exception: {str(e)}")
+
+    # Test 2.5: Cache-key differentiation - change transcript_text
+    print("\n[Test 2.5] Cache-key differentiation - change transcript_text (30-90s)")
+    print("⏳ This will take 30-90 seconds (new cache entry)...")
     try:
-        response = requests.get(f"{BASE_URL}/admin/logs", timeout=30)
-        print(f"\nGET /admin/logs status: {response.status_code}")
+        start_time = time.time()
+        modified_transcript = test_transcript + " Additional sentence to change cache key."
         
-        if response.status_code != 200:
-            log_test("GET /api/admin/logs", False, f"Status {response.status_code}: {response.text[:200]}")
-        else:
+        payload = {
+            "profile": sample_profile,
+            "scholarship_id": scholarship_id,
+            "transcript_text": modified_transcript,
+            "essay_text": test_essay
+        }
+        
+        response = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
+        elapsed = time.time() - start_time
+        
+        if response.status_code == 200:
             data = response.json()
-            match_runs = data.get("match_runs", [])
-            advisor_messages = data.get("advisor_messages", [])
+            cached = data.get('cached', False)
             
-            print(f"Match runs: {len(match_runs)}")
-            print(f"Advisor messages: {len(advisor_messages)}")
-            
-            if "match_runs" in data and "advisor_messages" in data:
-                log_test("GET /api/admin/logs", True, f"Logs returned: {len(match_runs)} runs, {len(advisor_messages)} messages")
+            if cached == False:
+                test_result("Cache-key differentiation", True, f"Elapsed: {elapsed:.1f}s, cached=false (new cache entry)")
             else:
-                log_test("GET /api/admin/logs", False, "Missing match_runs or advisor_messages")
-    
+                test_result("Cache-key differentiation", False, f"Expected cached=false, got cached=true")
+        else:
+            test_result("Cache-key differentiation", False, f"Status {response.status_code}: {response.text[:300]}")
     except Exception as e:
-        log_test("GET /api/admin/logs", False, f"Exception: {str(e)}")
+        test_result("Cache-key differentiation", False, f"Exception: {str(e)}")
 
-def print_summary():
-    """Print test summary"""
-    print("\n" + "="*80)
-    print("TEST SUMMARY")
-    print("="*80)
-    
-    passed = sum(1 for t in test_results if t["passed"])
-    failed = sum(1 for t in test_results if not t["passed"])
-    total = len(test_results)
-    
-    print(f"\nTotal: {total} tests")
-    print(f"Passed: {passed} ✅")
-    print(f"Failed: {failed} ❌")
-    print(f"Success rate: {(passed/total*100):.1f}%")
-    
-    if failed > 0:
-        print("\n" + "="*80)
-        print("FAILED TESTS:")
-        print("="*80)
-        for t in test_results:
-            if not t["passed"]:
-                print(f"\n❌ {t['name']}")
-                print(f"   {t['details']}")
-    
-    print("\n" + "="*80)
+    # Test 2.6: Backwards compatibility - repeat test without documents
+    print("\n[Test 2.6] Backwards compatibility - call without documents (should still work)")
+    print("⏳ This will take 30-90 seconds OR be cached from Test 2.1...")
+    try:
+        start_time = time.time()
+        payload = {
+            "profile": sample_profile,
+            "scholarship_id": scholarship_id
+        }
+        response = requests.post(f"{API_BASE}/readiness", json=payload, timeout=120)
+        elapsed = time.time() - start_time
+        
+        if response.status_code == 200:
+            data = response.json()
+            readiness = data.get('readiness', {})
+            score = readiness.get('score')
+            bucket = readiness.get('bucket')
+            
+            checks = []
+            checks.append(("score is integer 0-100", isinstance(score, int) and 0 <= score <= 100))
+            checks.append(("bucket is valid", bucket in ['Strong', 'Competitive', 'Reach', 'Long-shot']))
+            
+            all_passed = all(c[1] for c in checks)
+            details = f"Elapsed: {elapsed:.1f}s, Score: {score}, Bucket: {bucket}"
+            for check_name, check_result in checks:
+                details += f"\n   - {check_name}: {'✓' if check_result else '✗'}"
+            
+            test_result("Backwards compatibility", all_passed, details)
+        else:
+            test_result("Backwards compatibility", False, f"Status {response.status_code}: {response.text[:300]}")
+    except Exception as e:
+        test_result("Backwards compatibility", False, f"Exception: {str(e)}")
 
-def main():
-    """Run all tests"""
-    print("="*80)
-    print("ScholarshipFit Backend API Test Suite")
-    print(f"Base URL: {BASE_URL}")
-    print("="*80)
-    
-    # Test 1: Get all scholarships
-    all_scholarships = test_1_get_scholarships()
-    
-    # Test 2: Filters
-    if all_scholarships:
-        test_2_filter_scholarships(all_scholarships)
-    
-    # Test 3: CRUD
-    if all_scholarships:
-        test_3_scholarship_crud(all_scholarships)
-    
-    # Test 4: Profiles
-    test_4_profiles()
-    
-    # Test 5: AI Match (CRITICAL)
-    if all_scholarships:
-        test_5_ai_match(all_scholarships)
-    
-    # Test 6: AI Advisor
-    test_6_ai_advisor()
-    
-    # Test 7: Tracker
-    test_7_tracker()
-    
-    # Test 8: Admin
-    test_8_admin()
-    
-    # Summary
-    print_summary()
+# ============================================================================
+# SUMMARY
+# ============================================================================
 
-if __name__ == "__main__":
-    main()
+print("\n" + "="*80)
+print("TEST SUMMARY")
+print("="*80)
+print(f"Total tests: {total_tests}")
+print(f"✅ Passed: {passed_tests}")
+print(f"❌ Failed: {failed_tests}")
+print(f"Success rate: {(passed_tests/total_tests*100) if total_tests > 0 else 0:.1f}%")
+print("="*80 + "\n")
+
+if failed_tests == 0:
+    print("🎉 ALL TESTS PASSED!")
+else:
+    print(f"⚠️  {failed_tests} test(s) failed. Review details above.")

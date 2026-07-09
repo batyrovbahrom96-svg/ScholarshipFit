@@ -4,7 +4,10 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { createRequire } from 'module'
 import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
+
+const nodeRequire = createRequire(import.meta.url)
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -583,15 +586,85 @@ DATABASE:\n${dbBlock}`
       return withCORS(NextResponse.json({ items: items.map(({ _id, ...t }) => t) }))
     }
 
+    // ============ DOCUMENT PARSING (TRANSCRIPT / ESSAY) ============
+    // Accepts multipart/form-data with a `file` field (PDF, DOCX, or TXT).
+    // Extracts raw text in-memory (no persistence) and returns it so the
+    // client can review / edit and feed it into /api/readiness. Max 10 MB.
+    if (route === '/readiness/parse' && method === 'POST') {
+      try {
+        const form = await request.formData()
+        const file = form.get('file')
+        if (!file || typeof file === 'string') {
+          return withCORS(NextResponse.json({ error: 'file field is required' }, { status: 400 }))
+        }
+        const MAX = 10 * 1024 * 1024 // 10 MB
+        if (file.size > MAX) {
+          return withCORS(NextResponse.json({ error: 'File too large (max 10 MB)' }, { status: 400 }))
+        }
+        const name = String(file.name || '').toLowerCase()
+        const type = String(file.type || '').toLowerCase()
+        const buf = Buffer.from(await file.arrayBuffer())
+
+        let text = ''
+        let kind = ''
+        if (name.endsWith('.pdf') || type === 'application/pdf') {
+          kind = 'pdf'
+          const { PDFParse } = nodeRequire('pdf-parse')
+          const parser = new PDFParse(new Uint8Array(buf))
+          try {
+            const out = await parser.getText()
+            text = String(out?.text || '').trim()
+          } finally {
+            try { await parser.destroy?.() } catch (_) {}
+          }
+        } else if (name.endsWith('.docx') || type.includes('officedocument.wordprocessingml')) {
+          kind = 'docx'
+          const mammoth = nodeRequire('mammoth')
+          const { value } = await mammoth.extractRawText({ buffer: buf })
+          text = String(value || '').trim()
+        } else if (name.endsWith('.txt') || type.startsWith('text/')) {
+          kind = 'txt'
+          text = buf.toString('utf-8').trim()
+        } else {
+          return withCORS(NextResponse.json({ error: 'Unsupported file type. Please upload PDF, DOCX, or TXT.' }, { status: 400 }))
+        }
+
+        if (!text || text.length < 20) {
+          return withCORS(NextResponse.json({ error: 'Could not extract readable text from this file. If it is a scanned image PDF, please paste the text instead.' }, { status: 422 }))
+        }
+        // Hard cap on returned text — Claude context safety (approx 60k chars ~ 15k tokens)
+        const CAP = 60000
+        const truncated = text.length > CAP
+        if (truncated) text = text.slice(0, CAP)
+
+        return withCORS(NextResponse.json({
+          ok: true,
+          kind,
+          filename: file.name,
+          size: file.size,
+          chars: text.length,
+          truncated,
+          text,
+        }))
+      } catch (e) {
+        return withCORS(NextResponse.json({ error: 'Failed to parse document', detail: String(e?.message || e) }, { status: 500 }))
+      }
+    }
+
     // ============ APPLICATION READINESS SCORE ============
     // The killer differentiator. Given a profile + scholarship, Claude rates
     // the applicant's competitiveness on a 0-100 scale and tells them exactly
     // what to strengthen. Cached in `readiness_cache` (7-day TTL).
+    // Optionally accepts transcript_text and essay_text (extracted from the
+    // user's uploaded documents via /api/readiness/parse) for a deeper,
+    // evidence-weighted analysis.
     if (route === '/readiness' && method === 'POST') {
       const body = await request.json().catch(() => ({}))
       const profile = body.profile
       const scholarshipId = body.scholarship_id
       const forceRefresh = !!body.force_refresh
+      const transcriptText = String(body.transcript_text || '').trim()
+      const essayText = String(body.essay_text || '').trim()
       if (!profile || !scholarshipId) {
         return withCORS(NextResponse.json({ error: 'profile and scholarship_id required' }, { status: 400 }))
       }
@@ -599,7 +672,12 @@ DATABASE:\n${dbBlock}`
       const sch = await db.collection('scholarships').findOne({ id: scholarshipId })
       if (!sch) return withCORS(NextResponse.json({ error: 'scholarship not found' }, { status: 404 }))
 
-      // Cache key = profile fingerprint + scholarship id
+      // Hash uploaded document contents into the cache key so different
+      // transcripts/essays produce fresh analyses.
+      const docHash = crypto.createHash('sha256')
+        .update(transcriptText + '\n---\n' + essayText).digest('hex').slice(0, 16)
+
+      // Cache key = profile fingerprint + scholarship id + document hash
       const keyFields = {
         nationality: profile.nationality,
         degree_level: profile.degree_level,
@@ -609,6 +687,7 @@ DATABASE:\n${dbBlock}`
         sat: profile.sat, act: profile.act, gre: profile.gre,
         achievements: profile.achievements || '',
         scholarship_id: scholarshipId,
+        doc_hash: docHash,
       }
       const cacheKey = crypto.createHash('sha256').update(JSON.stringify(keyFields)).digest('hex')
       const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -620,14 +699,23 @@ DATABASE:\n${dbBlock}`
         }
       }
 
+      const hasDocs = !!(transcriptText || essayText)
+
       const system = `You are a scholarship admissions expert. Given a student profile and a single scholarship record, honestly assess the student's competitiveness on a 0-100 scale and provide a concrete, prioritized action plan. RULES:
-- Use ONLY the provided profile data and scholarship record; do not invent facts.
+- Use ONLY the provided profile data, scholarship record, and any uploaded transcript/essay text; do not invent facts.
 - If a scholarship criterion isn't stated in the record, do not assume it — note it as "unclear from source".
 - Be honest, even blunt. Do not inflate scores.
 - Score buckets: 80-100 Strong · 60-79 Competitive · 40-59 Reach · 0-39 Long-shot
-- Each gap must include impact_points (0-30) = how many points the score would rise if that gap were closed.
+- Each gap must include impact_points (0-30) = how many points the score would rise if that gap were closed.${hasDocs ? `
+- **Documents provided:** the student uploaded ${transcriptText ? 'a transcript' : ''}${transcriptText && essayText ? ' and ' : ''}${essayText ? 'an essay/personal statement' : ''}. Weight this evidence heavily:
+  * Transcript: verify GPA, look at course rigor (advanced/graduate-level courses, math/science density, upward trend, failing grades, retakes), majors/minors, honors, transfer notes.
+  * Essay: judge narrative clarity, specificity of goals, alignment with the scholarship's mission, evidence of impact (numbers, outcomes), authenticity vs. cliché, grammar/prose quality, and whether it directly addresses this scholarship's stated criteria.
+  * Reference specific quotes or courses from the uploaded documents in "strengths" and "gaps" so the student knows the evidence base.
+  * If the transcript's GPA contradicts the profile's stated GPA, flag it as a "gap" with high impact_points.` : `
+- No transcript or essay was uploaded. Note in the headline that a deeper analysis is possible if the student uploads their documents.`}
 - Return STRICT JSON — no prose, no markdown fences.`
 
+      const truncate = (s, n) => (s.length > n ? s.slice(0, n) + '\n[...truncated]' : s)
       const user = `SCHOLARSHIP:
 ${JSON.stringify({
   name: sch.scholarship_name,
@@ -648,6 +736,8 @@ ${JSON.stringify({
 
 PROFILE:
 ${JSON.stringify(profile, null, 2)}
+${transcriptText ? `\nUPLOADED TRANSCRIPT (raw extracted text):\n"""\n${truncate(transcriptText, 25000)}\n"""` : ''}
+${essayText ? `\nUPLOADED ESSAY / PERSONAL STATEMENT (raw extracted text):\n"""\n${truncate(essayText, 20000)}\n"""` : ''}
 
 Respond with STRICT JSON in this schema:
 {
@@ -656,10 +746,12 @@ Respond with STRICT JSON in this schema:
   "headline": "one honest sentence explaining the score",
   "eligibility_status": "Eligible" | "Likely eligible" | "Ineligible" | "Unclear from source",
   "eligibility_reason": "short explanation",
-  "strengths": [ { "label": "short", "detail": "sentence" } ],  // 2-4 items
-  "gaps": [ { "label": "short", "detail": "sentence", "impact_points": 5-25 } ],  // 2-4 items, sorted highest impact first
+  "strengths": [ { "label": "short", "detail": "sentence — cite transcript/essay evidence if available" } ],  // 2-4 items
+  "gaps": [ { "label": "short", "detail": "sentence — cite transcript/essay evidence if available", "impact_points": 5-25 } ],  // 2-4 items, sorted highest impact first
   "actions": [ { "step": "concrete action", "impact_points": 5-25, "effort": "Low" | "Medium" | "High" } ],  // 3-5 items, sorted by ROI
-  "waste_risk": "Low" | "Medium" | "High"  // effort-vs-fit — should they even bother?
+  "waste_risk": "Low" | "Medium" | "High",  // effort-vs-fit — should they even bother?
+  "essay_feedback": ${essayText ? '{ "clarity": 0-100, "specificity": 0-100, "alignment": 0-100, "notes": "2-3 sentences on how to strengthen the essay for this specific scholarship" }' : 'null'},
+  "transcript_signals": ${transcriptText ? '{ "gpa_verified": true|false, "course_rigor": "Low"|"Medium"|"High", "trend": "Upward"|"Flat"|"Downward"|"Mixed", "notes": "2-3 sentences on standout or concerning academic patterns" }' : 'null'}
 }`
 
       try {

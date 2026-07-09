@@ -33,7 +33,7 @@ const STORIES = [
     proof: 'Proof reviewed internally',
     quote: 'Persistence beats temptation.',
     videoUrl: `${CDN}/p6u66bir_jurabek-maxmudov-qatar-university-scholarship.mov`,
-    poster: '/outcomes/jurabek-maxmudov-qatar-university-scholarship.png',
+    poster: '/outcomes/jurabek-maxmudov-qatar-university-scholarship.jpg',
     help: 'Jurabek used ScholarshipFit during his scholarship research process to organize source-linked opportunities, compare funding notes, and keep official application information in one place. His Qatar University scholarship offer was later reviewed internally by the ScholarshipFit team.',
     disclaimer: 'Individual result. ScholarshipFit does not guarantee similar outcomes.',
   },
@@ -48,7 +48,7 @@ const STORIES = [
     proof: 'Proof reviewed internally',
     quote: 'Impossible is possible.',
     videoUrl: `${CDN}/s3lgmfm5_shohrux-ziyodullayev-university-of-calgary-scholarship.mov`,
-    poster: '/outcomes/shohrux-ziyodullayev-university-of-calgary-scholarship.png',
+    poster: '/outcomes/shohrux-ziyodullayev-university-of-calgary-scholarship.jpg',
     help: 'Shohrux used ScholarshipFit during his research to compare international scholarship options, understand funding context, and keep source-linked information organized before applying through official channels. His University of Calgary scholarship offer was reviewed internally.',
     disclaimer: 'Individual result. ScholarshipFit does not guarantee similar outcomes.',
   },
@@ -63,7 +63,7 @@ const STORIES = [
     proof: 'Proof reviewed internally',
     quote: 'Faith is only what I have.',
     videoUrl: `${CDN}/z4zfmtj9_arina-pak-universite-de-bordeaux-stipend.mp4`,
-    poster: '/outcomes/arina-pak-universite-de-bordeaux-stipend.png',
+    poster: '/outcomes/arina-pak-universite-de-bordeaux-stipend.jpg',
     help: 'Arina used ScholarshipFit during her scholarship research process to organize European funding options, compare source-linked records, and track scholarship details more clearly. Her Universit\u00E9 de Bordeaux monthly stipend outcome was reviewed internally.',
     disclaimer: 'Individual result. ScholarshipFit does not guarantee similar outcomes.',
   },
@@ -78,7 +78,7 @@ const STORIES = [
     proof: 'Proof reviewed internally',
     quote: 'Person\u2019s superiority is one\u2019s intelligence.',
     videoUrl: `${CDN}/lnfwf9u4_jasur-yaxshilikov-university-of-wisconsin-madison-scholarship.mov`,
-    poster: '/outcomes/jasur-yaxshilikov-university-of-wisconsin-madison-scholarship.png',
+    poster: '/outcomes/jasur-yaxshilikov-university-of-wisconsin-madison-scholarship.jpg',
     help: 'Jasur used ScholarshipFit during his research for competitive U.S. scholarship opportunities. ScholarshipFit helped organize source-linked records, funding information, and fit signals before he continued through official application channels. His University of Wisconsin-Madison scholarship offer was reviewed internally.',
     disclaimer: 'Individual result. ScholarshipFit does not guarantee similar outcomes.',
   },
@@ -140,12 +140,14 @@ function StoryCard({ s, featured = false, onOpen }) {
           className="relative block w-full text-left"
           aria-label={`Play ${s.name}'s story`}
         >
-          <div className={`relative w-full ${featured ? 'aspect-[16/10]' : 'aspect-video'} overflow-hidden bg-neutral-950`}>
+          <div className={`relative w-full ${featured ? 'aspect-[16/10]' : 'aspect-video'} overflow-hidden bg-gradient-to-br from-[#1a1440] via-[#0a0a0a] to-[#2a1010]`}>
+            {/* Poster image — falls back to cosmic gradient if the file is missing */}
             <img
               src={s.poster}
               alt={`${s.name} — ${s.school}`}
               className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
               loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
             {/* Cosmos veil */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/10"/>

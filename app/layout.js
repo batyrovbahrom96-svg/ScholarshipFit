@@ -1,6 +1,7 @@
 import './globals.css'
 import { Providers } from './providers'
 import CookieBanner from '@/components/site/CookieBanner'
+import PremiumEffects from '@/components/site/PremiumEffects'
 
 export const metadata = {
   title: 'ScholarshipFit — AI-powered, source-linked scholarship research',
@@ -26,6 +27,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className="dark">
       <body className="dark-bg text-white antialiased selection:bg-cyan-500/30 selection:text-white">
         <Providers>{children}</Providers>
+        <PremiumEffects />
         <CookieBanner />
       </body>
     </html>

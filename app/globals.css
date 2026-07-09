@@ -54,6 +54,13 @@
   .ring-gold-soft { box-shadow: 0 0 0 1px rgba(212,175,55,0.16); }
   .btn-pill { border-radius: 9999px; }
   .divider-gold { border-top: 1px solid rgba(212,175,55,0.15); }
+  /* Custom cursor — hide the OS pointer on desktop only. Hover devices only. */
+  @media (hover: hover) and (pointer: fine) {
+    body, a, button, input, textarea, select, [role="button"] { cursor: none; }
+    @media (prefers-reduced-motion: reduce) {
+      body, a, button, input, textarea, select, [role="button"] { cursor: auto; }
+    }
+  }
   /* Legal doc typography — used by /privacy, /terms, /refunds, /dpa, /dmca */
   .legal-body h2 { color: #ffffff; font-weight: 600; font-size: 1.25rem; margin-top: 2rem; margin-bottom: 0.65rem; letter-spacing: -0.01em; }
   .legal-body h3 { color: rgba(255,255,255,0.92); font-weight: 600; font-size: 1.05rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }

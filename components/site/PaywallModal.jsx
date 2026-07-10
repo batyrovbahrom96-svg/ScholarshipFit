@@ -43,10 +43,10 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
       setReservePlan(planObj)
       return
     }
+    // Live payment mode — LemonSqueezy hosted checkout
     const planKey = planObj.key
     setActivatingKey(planKey)
     try {
-      // Step 1: check auth
       const meRes = await fetch('/api/auth/me', { credentials: 'include' })
       const me = await meRes.json()
       if (!me?.user) {
@@ -54,22 +54,24 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
         router.push(`/signup?next=${next}`)
         return
       }
-      // Step 2: activate subscription. Backend handles trial vs immediate charge.
-      // When Stripe/LemonSqueezy is wired we will POST payment_method_id here.
-      const res = await fetch('/api/subscription/activate', {
+      const adjustedTotal = priceFor(planKey, 'adjusted_total') ?? planObj.total_charge
+      const res = await fetch('/api/checkout/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ plan: planKey, payment_reference: 'manual-activation' }),
+        body: JSON.stringify({
+          plan: planKey,
+          base_price: planObj.total_charge,
+          custom_price_cents: hasRegionalDiscount ? Math.round(adjustedTotal * 100) : undefined,
+          region_country: region?.detected_country || '',
+          discount_pct:   discountPct || 0,
+        }),
       })
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
-        throw new Error(j.error || `HTTP ${res.status}`)
-      }
-      // Step 3: redirect to dashboard with celebration flag
-      router.push('/dashboard?activated=1')
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j.url) throw new Error(j.error || `HTTP ${res.status}`)
+      window.location.href = j.url // hand off to LemonSqueezy
     } catch (e) {
-      setError(e?.message || 'Activation failed. Please try again.')
+      setError(e?.message || 'Checkout failed. Please try again.')
     } finally {
       setActivatingKey('')
     }

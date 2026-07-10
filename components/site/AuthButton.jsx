@@ -5,7 +5,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogIn, LogOut, Sparkles, LayoutDashboard } from 'lucide-react'
+import { LogIn, LogOut, Sparkles, LayoutDashboard, CreditCard } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function AuthButton({ compact = false }) {
@@ -51,6 +51,7 @@ export default function AuthButton({ compact = false }) {
         <DropdownMenuSeparator className="bg-white/10"/>
         <DropdownMenuItem asChild><Link href="/dashboard" className="cursor-pointer"><LayoutDashboard className="h-4 w-4 mr-2"/>My cabinet</Link></DropdownMenuItem>
         <DropdownMenuItem asChild><Link href="/onboarding" className="cursor-pointer"><Sparkles className="h-4 w-4 mr-2 text-[#D4AF37]"/>Refresh matches</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href="/dashboard/billing" className="cursor-pointer"><CreditCard className="h-4 w-4 mr-2"/>Billing &amp; subscription</Link></DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/10"/>
         <DropdownMenuItem onClick={signOut} className="cursor-pointer text-red-300 focus:text-red-200"><LogOut className="h-4 w-4 mr-2"/>Sign out</DropdownMenuItem>
       </DropdownMenuContent>

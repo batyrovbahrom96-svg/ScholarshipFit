@@ -1226,6 +1226,121 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ subscription: sub, active: !!isActive }))
     }
 
+    // ============================================================================
+    // LemonSqueezy checkout — creates a hosted checkout URL for the given plan.
+    // Only usable when live keys are configured (NEXT_PUBLIC_PAYMENT_MODE=live).
+    // Otherwise front-end should use the FounderReservationModal preorder flow.
+    // ============================================================================
+    if (route === '/checkout/create-session' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+
+      const LS_KEY   = process.env.LEMONSQUEEZY_API_KEY
+      const LS_STORE = process.env.LEMONSQUEEZY_STORE_ID
+      if (!LS_KEY || !LS_STORE) {
+        return withCORS(NextResponse.json({
+          error: 'Payments not yet configured',
+          detail: 'LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID not set. Site is still in preorder mode.',
+        }, { status: 503 }))
+      }
+
+      const body = await request.json().catch(() => ({}))
+      const planKey = String(body.plan || '').toLowerCase()
+      const customPriceCents = Number.isFinite(body.custom_price_cents)
+        ? Math.max(100, Math.round(body.custom_price_cents)) // min $1, integer cents
+        : null
+
+      const VARIANTS = {
+        monthly:     process.env.LS_VARIANT_MONTHLY,
+        quarterly:   process.env.LS_VARIANT_QUARTERLY,
+        half_yearly: process.env.LS_VARIANT_HALF_YEARLY,
+        lifetime:    process.env.LS_VARIANT_LIFETIME,
+      }
+      const variantId = VARIANTS[planKey]
+      if (!variantId) {
+        return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
+      }
+
+      const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+
+      const payload = {
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: {
+              email: user.email,
+              custom: {
+                user_id:   user.id,
+                plan_key:  planKey,
+                base_price: String(body.base_price ?? ''),
+                region_country: String(body.region_country || ''),
+                discount_pct: String(body.discount_pct || ''),
+              },
+            },
+            product_options: {
+              redirect_url:  `${baseUrl}/dashboard?activated=1`,
+              receipt_button_text: 'Go to my Command Center',
+              receipt_thank_you_note: 'Thanks for joining ScholarshipFit — your Command Center is ready.',
+            },
+            checkout_options: {
+              embed: false,
+              media: false,
+              logo: true,
+              dark: true,
+            },
+          },
+          relationships: {
+            store:   { data: { type: 'stores',   id: String(LS_STORE) } },
+            variant: { data: { type: 'variants', id: String(variantId) } },
+          },
+        },
+      }
+      if (customPriceCents) {
+        payload.data.attributes.custom_price = customPriceCents
+      }
+
+      try {
+        const lsRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+          method: 'POST',
+          headers: {
+            'Accept':        'application/vnd.api+json',
+            'Content-Type':  'application/vnd.api+json',
+            'Authorization': `Bearer ${LS_KEY}`,
+          },
+          body: JSON.stringify(payload),
+        })
+        const lsJson = await lsRes.json().catch(() => ({}))
+        if (!lsRes.ok) {
+          return withCORS(NextResponse.json({
+            error:  'LemonSqueezy checkout failed',
+            status: lsRes.status,
+            detail: lsJson?.errors || lsJson,
+          }, { status: 502 }))
+        }
+        const url = lsJson?.data?.attributes?.url
+        if (!url) {
+          return withCORS(NextResponse.json({ error: 'No checkout URL returned' }, { status: 502 }))
+        }
+        // Audit the checkout intent so we can reconcile against webhooks
+        await db.collection('checkout_intents').insertOne({
+          id: uuidv4(),
+          user_id: user.id,
+          user_email: user.email,
+          plan_key: planKey,
+          variant_id: String(variantId),
+          custom_price_cents: customPriceCents,
+          ls_checkout_id: lsJson.data.id,
+          created_at: new Date(),
+        }).catch(() => {})
+        return withCORS(NextResponse.json({ ok: true, url, checkout_id: lsJson.data.id }))
+      } catch (e) {
+        return withCORS(NextResponse.json({
+          error:  'LemonSqueezy request failed',
+          detail: String(e?.message || e),
+        }, { status: 502 }))
+      }
+    }
+
     if (route === '/subscription/cancel' && method === 'POST') {
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))

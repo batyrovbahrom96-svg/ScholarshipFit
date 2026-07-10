@@ -1989,6 +1989,9 @@ metadata:
     - "Phase B: personalized results header (Hi {name}, we found X real scholarships — Y strong-fit)"
     - "Phase B: MatchCard now shows red-styled 'Why this might NOT fit' section + risk badge"
     - "Phase B: sample-report page polished (hero, how-it-was-built timeline, before/after block, CTA)"
+    - "Phase C: Dashboard redesigned as 'Scholarship Command Center' — hero, quick-action bar, Next Best Action tile, KPI strip, upcoming-deadlines widget; pricing copy '$9/mo' → '$10/mo'"
+    - "Phase C: /advisor page rewired as 'AI Scholarship Command' — categorised prompt library (Discover / Compare / Understand / Improve), follow-up suggestion chips after each Nova reply, New chat control, per-message copy button, Nova guardrails card"
+    - "Phase C: /ai-advisor route alias added (re-exports /advisor)"
 
 test_plan:
   current_focus: []

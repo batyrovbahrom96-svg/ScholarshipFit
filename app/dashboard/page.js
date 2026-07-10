@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, Sparkles, Bookmark, ClipboardList, CheckCircle2, XCircle, Trophy, Ban,
   FileText, User, Settings, MessageSquare, RefreshCw, Rocket, Info, Kanban,
+  Command, Compass, Zap, Crown, Calendar, TrendingUp, Target, ArrowRight, ExternalLink,
 } from 'lucide-react'
 import ApplicationTracker from '@/components/site/ApplicationTracker'
 
@@ -69,6 +70,61 @@ function Dashboard() {
     const strong = matches.filter(m=>(m.overall_fit_score||0)>=80).length
     return { total: matches.length, eligible, avg, strong }
   }, [matches])
+
+  // -------------------------------------------------------------------------
+  // Cabinet KPIs — for the Command Center hero
+  // -------------------------------------------------------------------------
+  const kpi = useMemo(() => {
+    const savedCount = Object.values(saved).filter(s => s === 'saved').length
+    const preparingCount = Object.values(saved).filter(s => s === 'preparing').length
+    const appliedCount = Object.values(saved).filter(s => s === 'applied' || s === 'shortlisted' || s === 'won').length
+    // rough funding value from top matches (uses match.funding_summary text)
+    const strong = matches.filter(m => (m.overall_fit_score || 0) >= 75).length
+    return { savedCount, preparingCount, appliedCount, strong }
+  }, [saved, matches])
+
+  // Deadlines this week — pull up to 3 saved matches whose deadline_note is present
+  const upcomingDeadlines = useMemo(() => {
+    const savedIds = new Set(Object.entries(saved).filter(([, v]) => v === 'saved' || v === 'preparing').map(([k]) => k))
+    const relevant = matches.filter(m => savedIds.has(m.scholarship_id) && (m.deadline_note || m.deadline_status))
+    // Fall back to top matches if nothing saved yet
+    const list = relevant.length > 0 ? relevant : matches.slice(0, 3)
+    return list.slice(0, 3)
+  }, [saved, matches])
+
+  // Next best action — dynamic tile driven by state
+  const nextBestAction = useMemo(() => {
+    if (!profile) return {
+      title: 'Take the 8-step quiz',
+      body: 'Get your personalised shortlist ranked from 303 real, source-linked scholarships.',
+      cta: 'Start quiz', href: '/quiz', icon: Rocket, tone: 'gold',
+    }
+    if (matches.length === 0) return {
+      title: 'Run your first AI match',
+      body: 'Your profile is ready. Generate your shortlist to see fit scores and gaps.',
+      cta: 'Run AI match', action: 'rerun', icon: Zap, tone: 'gold',
+    }
+    if (kpi.savedCount === 0) return {
+      title: 'Shortlist your first scholarships',
+      body: 'Save the matches you like — deadlines and readiness will appear in this Command Center.',
+      cta: 'Open matches', tab: 'matches', icon: Bookmark, tone: 'gold',
+    }
+    if (kpi.preparingCount === 0 && kpi.savedCount > 0) return {
+      title: 'Move a saved scholarship into "Preparing"',
+      body: 'Track the ones you\u2019re actively applying to and get deadline visibility here.',
+      cta: 'Open tracker', tab: 'tracker', icon: Kanban, tone: 'gold',
+    }
+    if (requiredDocsCount(matches) > 0) return {
+      title: 'Upload missing documents',
+      body: 'Your top matches expect transcripts, references and language certificates.',
+      cta: 'Open documents', tab: 'documents', icon: FileText, tone: 'gold',
+    }
+    return {
+      title: 'Ask Nova to compare your top matches',
+      body: 'Nova (Claude Sonnet 4.5) will summarise trade-offs — grounded only in your matches.',
+      cta: 'Open AI advisor', href: '/advisor', icon: MessageSquare, tone: 'gold',
+    }
+  }, [profile, matches, kpi])
 
   const setStatus = (m, s) => {
     const key = m.scholarship_id
@@ -124,26 +180,111 @@ function Dashboard() {
           <div className="mb-6 rounded-xl border border-[#D4AF37]/30 bg-gradient-to-r from-[#D4AF37]/10 via-transparent to-transparent p-5 flex items-start gap-3">
             <div className="h-10 w-10 rounded-full bg-[#D4AF37]/20 flex items-center justify-center shrink-0 text-[#D4AF37]">🔒</div>
             <div className="flex-1">
-              <div className="text-lg font-semibold text-white">Unlock the full Cabinet</div>
-              <div className="text-sm text-white/70">Activate your membership to see all scholarships, AI Match reports, deadline reminders, and PDF export. From $9/mo.</div>
+              <div className="text-lg font-semibold text-white">Unlock the full Command Center</div>
+              <div className="text-sm text-white/70">Activate your membership to see all scholarships, AI Match reports, deadline reminders, and PDF export. From $10/mo.</div>
             </div>
             <Link href="/quiz"><Button className="btn-gold btn-pill">Activate now</Button></Link>
           </div>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-[#D4AF37]">Personal cabinet</p>
-            <h1 className="text-3xl font-semibold text-white">Welcome, {profile?.full_name || 'Explorer'}</h1>
-            <p className="mt-1 text-sm text-white/60">Your AI shortlist, powered by Claude Sonnet 4.5 — source-linked, honest, no invented results.</p>
+
+        {/* COMMAND CENTER HERO — greeting, status pill, subscription, command bar */}
+        <div className="rounded-2xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#D4AF37]/10 via-white/[0.02] to-transparent p-6 md:p-8 relative overflow-hidden">
+          <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-[#D4AF37]/10 blur-3xl"/>
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#D4AF37]">
+                <Command className="h-3.5 w-3.5"/> Your Scholarship Command Center
+              </div>
+              <h1 className="mt-2 text-3xl md:text-4xl font-semibold tracking-tight text-white">
+                Welcome, {profile?.full_name || user?.name?.split(' ')?.[0] || 'Explorer'}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {user?.subscription_active ? (
+                  <Badge className="border-emerald-400/40 bg-emerald-500/10 text-emerald-300">
+                    <Crown className="mr-1 h-3 w-3"/>Active member
+                  </Badge>
+                ) : user ? (
+                  <Badge variant="outline" className="border-white/15 text-white/60">
+                    Free preview
+                  </Badge>
+                ) : null}
+                {matches.length > 0 && (
+                  <Badge variant="outline" className="border-white/15 text-white/70">
+                    <Sparkles className="mr-1 h-3 w-3 text-[#D4AF37]"/>{matches.length} live matches
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-white/60 max-w-xl">
+                Every match is a real, source-linked scholarship — Claude Sonnet 4.5 ranks, Nova explains, you decide.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <MatchReportButton profile={profile} matches={matches}/>
+              <Button onClick={rerun} disabled={rematching} className="btn-gold btn-pill font-medium">
+                <RefreshCw className={`mr-2 h-4 w-4 ${rematching ? 'animate-spin' : ''}`}/>{rematching ? 'Rematching…' : 'Rerun AI match'}
+              </Button>
+              <Link href="/onboarding"><Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5">Edit profile</Button></Link>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <MatchReportButton profile={profile} matches={matches}/>
-            <Button onClick={rerun} disabled={rematching} className="btn-gold btn-pill font-medium">
-              <RefreshCw className={`mr-2 h-4 w-4 ${rematching?'animate-spin':''}`}/>{rematching?'Rematching...':'Rerun AI match'}
-            </Button>
-            <Link href="/onboarding"><Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5">Edit profile</Button></Link>
+
+          {/* Command bar — quick-jump actions */}
+          <div className="relative mt-6 grid grid-cols-2 md:grid-cols-4 gap-2">
+            <QuickAction icon={Rocket}         label="Take quiz"       href="/quiz"/>
+            <QuickAction icon={MessageSquare}  label="Ask Nova"        href="/advisor"/>
+            <QuickAction icon={Kanban}         label="Open tracker"    onClick={() => setTab('tracker')}/>
+            <QuickAction icon={FileText}       label="Documents"       onClick={() => setTab('documents')}/>
           </div>
         </div>
+
+        {/* NEXT BEST ACTION + KPI STRIP */}
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <NextBestActionCard
+            item={nextBestAction}
+            onTab={(t) => setTab(t)}
+            onRerun={rerun}
+          />
+          <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniStat icon={Trophy}     value={kpi.strong}            label="Strong-fit matches" tone="gold"/>
+            <MiniStat icon={Bookmark}   value={kpi.savedCount}         label="Saved"              tone="cyan"/>
+            <MiniStat icon={Target}     value={kpi.preparingCount}     label="Preparing"          tone="amber"/>
+            <MiniStat icon={CheckCircle2} value={kpi.appliedCount}     label="Applied / won"      tone="emerald"/>
+          </div>
+        </div>
+
+        {/* UPCOMING DEADLINES — pulled from saved matches (fallback: top matches) */}
+        {upcomingDeadlines.length > 0 && (
+          <Card className="mt-6 border-white/10 bg-white/[0.03]">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/60">
+                  <Calendar className="h-4 w-4 text-[#D4AF37]"/>
+                  {kpi.savedCount > 0 ? 'Deadlines from your saved matches' : 'Upcoming deadlines to watch'}
+                </div>
+                <button onClick={() => setTab('tracker')} className="text-xs text-[#D4AF37] hover:text-[#F5D67B] inline-flex items-center gap-1">
+                  Open tracker <ArrowRight className="h-3 w-3"/>
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-3">
+                {upcomingDeadlines.map(m => (
+                  <div key={m.scholarship_id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                    <div className="text-xs text-white/50 truncate">{m.university_name} · {m.country}</div>
+                    <div className="mt-0.5 text-sm font-medium text-white line-clamp-2">{m.scholarship_name}</div>
+                    <div className="mt-2 text-xs">
+                      <span className="text-[#D4AF37]">Deadline:</span>{' '}
+                      <span className="text-white/70">{m.deadline_status || 'Check source'}{m.deadline_note ? ` — ${m.deadline_note}` : ''}</span>
+                    </div>
+                    {(m.source_url || m.application_link) && (
+                      <a href={m.application_link || m.source_url} target="_blank" rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 hover:text-white">
+                        Open source <ExternalLink className="h-3 w-3"/>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-12">
           {/* Sidebar */}
@@ -181,8 +322,9 @@ function Dashboard() {
               </Card>
             )}
 
-            {/* Stats */}
-            {stats && (
+            {/* Stats — legacy row kept but visually merged. Skip if we already
+                show mini KPIs in the hero (avoid duplication). */}
+            {stats && !kpi && (
               <div className="grid gap-4 sm:grid-cols-4">
                 <StatCard label="Matches" value={stats.total}/>
                 <StatCard label="Eligible / likely" value={stats.eligible}/>
@@ -280,6 +422,81 @@ function StatCard({ label, value }) {
       </CardContent>
     </Card>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Command Center helpers (Phase C)
+// ---------------------------------------------------------------------------
+
+function QuickAction({ icon: Icon, label, href, onClick }) {
+  const cls = 'group flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 hover:text-white hover:border-[#D4AF37]/40 hover:bg-[#D4AF37]/5 transition'
+  const inner = (
+    <>
+      <Icon className="h-4 w-4 text-[#D4AF37]"/>
+      <span className="flex-1 font-medium">{label}</span>
+      <ArrowRight className="h-3.5 w-3.5 text-white/40 group-hover:text-white/70"/>
+    </>
+  )
+  if (href) return <Link href={href} className={cls}>{inner}</Link>
+  return <button onClick={onClick} className={cls}>{inner}</button>
+}
+
+function MiniStat({ icon: Icon, value, label, tone }) {
+  const toneCls = {
+    gold:    'text-[#D4AF37]',
+    cyan:    'text-cyan-300',
+    amber:   'text-amber-300',
+    emerald: 'text-emerald-300',
+  }[tone] || 'text-white'
+  return (
+    <Card className="border-white/10 bg-white/[0.03]">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/50">
+          <Icon className={`h-3.5 w-3.5 ${toneCls}`}/>{label}
+        </div>
+        <div className={`mt-1 text-3xl font-semibold ${toneCls}`}>{value}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function NextBestActionCard({ item, onTab, onRerun }) {
+  const Icon = item.icon || Sparkles
+  const handleClick = () => {
+    if (item.action === 'rerun') return onRerun()
+    if (item.tab) return onTab(item.tab)
+  }
+  return (
+    <Card className="border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/10 via-white/[0.02] to-transparent">
+      <CardContent className="p-5 flex flex-col h-full">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-[#D4AF37]">
+          <Zap className="h-3.5 w-3.5"/>Your next best action
+        </div>
+        <div className="mt-2 flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
+            <Icon className="h-4 w-4"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-base md:text-lg font-semibold text-white">{item.title}</div>
+            <p className="mt-1 text-sm text-white/60">{item.body}</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          {item.href ? (
+            <Link href={item.href}><Button className="btn-gold btn-pill font-medium"><Icon className="mr-2 h-4 w-4"/>{item.cta}</Button></Link>
+          ) : (
+            <Button onClick={handleClick} className="btn-gold btn-pill font-medium"><Icon className="mr-2 h-4 w-4"/>{item.cta}</Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function requiredDocsCount(matches) {
+  const set = new Set()
+  matches.slice(0, 6).forEach(m => (m.requirements_missing || []).forEach(r => set.add(r)))
+  return set.size
 }
 
 function tabLabel(t) {

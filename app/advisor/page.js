@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
 import { Button } from '@/components/ui/button'
@@ -8,28 +9,87 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { store } from '@/lib/client-store'
-import { Send, Sparkles, Info, ShieldCheck } from 'lucide-react'
+import {
+  Send, Sparkles, Info, ShieldCheck, MessagesSquare, Compass, Scale, Lightbulb,
+  Target, Plus, RotateCcw, Copy, Check, ArrowRight,
+} from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
 
 const NOVA_URL = 'https://customer-assets.emergentagent.com/job_dea30a66-dd5d-4b69-9dee-68cfc5172ec3/artifacts/g1gq6k95_image.png'
 
-const STARTERS = [
-  'I want full funding in Germany for engineering with IELTS 7.0 and GPA 3.7.',
-  'What scholarships fit a Master in Computer Science for a Nigerian student, budget $2000/yr?',
-  'Compare Stipendium Hungaricum vs Türkiye Scholarships for a Bachelor in Economics.',
-  'Which of these have the lowest application waste risk for a first-time applicant?',
+// ---------------------------------------------------------------------------
+// Prompt starter categories — a proper "AI command center" for scholarship intent.
+// Everything is grounded in the source-linked DB by the backend system prompt.
+// ---------------------------------------------------------------------------
+const PROMPT_CATEGORIES = [
+  {
+    key: 'discover',
+    icon: Compass,
+    label: 'Discover matches',
+    tint: 'text-cyan-300 border-cyan-400/30 bg-cyan-500/10',
+    prompts: [
+      'I want full funding in Germany for a Master in engineering with IELTS 7.0 and GPA 3.7.',
+      "What scholarships fit a Master in Computer Science for a Nigerian student, budget $2000/yr?",
+      "I'm from India applying for a PhD in Machine Learning — which fully-funded programs fit best?",
+      "Show me MBA scholarships in Europe for a Latin American applicant with 4 years of work experience.",
+    ],
+  },
+  {
+    key: 'compare',
+    icon: Scale,
+    label: 'Compare programs',
+    tint: 'text-[#D4AF37] border-[#D4AF37]/30 bg-[#D4AF37]/10',
+    prompts: [
+      'Compare Stipendium Hungaricum vs Türkiye Scholarships for a Bachelor in Economics.',
+      'Chevening vs Commonwealth Master\u2019s — which fits a Kenyan software engineer better?',
+      'DAAD EPOS vs KAAD — which is easier to win for a public-health Master applicant?',
+      'Fulbright vs Gates Cambridge — which one is realistic for a 3.8 GPA Bangladeshi student?',
+    ],
+  },
+  {
+    key: 'understand',
+    icon: Lightbulb,
+    label: 'Understand a scholarship',
+    tint: 'text-emerald-300 border-emerald-400/30 bg-emerald-500/10',
+    prompts: [
+      'What does "fully funded" actually cover for DAAD EPOS?',
+      'Explain eligibility for the Vanier Canada Graduate Scholarships in simple terms.',
+      'Is IELTS mandatory for Stipendium Hungaricum? What alternatives are accepted?',
+      'What are common reasons applicants get rejected from KAUST Fellowships?',
+    ],
+  },
+  {
+    key: 'improve',
+    icon: Target,
+    label: 'Improve your odds',
+    tint: 'text-amber-300 border-amber-400/30 bg-amber-500/10',
+    prompts: [
+      'Which of my likely matches have the LOWEST application-waste risk?',
+      'What one skill should I build in the next 6 months to unlock more scholarships?',
+      "I have GPA 3.4 — which strong scholarships still consider me?",
+      'How do I write a motivation letter that stands out for a Commonwealth Master\u2019s?',
+    ],
+  },
+]
+
+// Follow-up chip prompts shown under each Nova reply
+const FOLLOWUPS = [
+  'Which of these has the earliest deadline?',
+  'Compare the top 2 for a first-time applicant.',
+  'What documents do I need for the strongest match?',
+  'Give me one honest reason NOT to apply to each.',
 ]
 
 function Md({ text }) {
   // Very light Markdown: **bold**, [link](url), lists, newlines
   const html = (text || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a target="_blank" rel="noopener noreferrer" class="text-[#D4AF37] underline underline-offset-2 hover:text-[#F5D67B]" href="$2">$1</a>')
-    .replace(/(^|\n)-\s(.+)/g,'$1<li>$2</li>')
-    .replace(/\n\n/g,'<br/><br/>')
-    .replace(/\n/g,'<br/>')
-  return <div className="prose prose-invert max-w-none text-white [&_li]:list-disc [&_li]:ml-5 leading-relaxed" dangerouslySetInnerHTML={{__html: html}} />
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a target="_blank" rel="noopener noreferrer" class="text-[#D4AF37] underline underline-offset-2 hover:text-[#F5D67B]" href="$2">$1</a>')
+    .replace(/(^|\n)-\s(.+)/g, '$1<li>$2</li>')
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>')
+  return <div className="prose prose-invert max-w-none text-white [&_li]:list-disc [&_li]:ml-5 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 function Advisor() {
@@ -37,13 +97,15 @@ function Advisor() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [activeCat, setActiveCat] = useState('discover')
+  const [copiedId, setCopiedId] = useState('')
   const scrollRef = useRef(null)
 
   useEffect(() => {
     let s = store.getAdvisorSession()
     if (!s) { s = uuidv4(); store.setAdvisorSession(s) }
     setSessionId(s)
-    fetch(`/api/advisor/history?session_id=${s}`).then(r=>r.json()).then(d => {
+    fetch(`/api/advisor/history?session_id=${s}`).then(r => r.json()).then(d => {
       if (d.messages?.length) setMessages(d.messages)
     })
   }, [])
@@ -56,30 +118,65 @@ function Advisor() {
     const msg = (text ?? input).trim()
     if (!msg || busy) return
     setInput('')
-    setMessages(m => [...m, { role:'user', content: msg, id: 'tmp-'+Date.now() }])
+    setMessages(m => [...m, { role: 'user', content: msg, id: 'tmp-' + Date.now() }])
     setBusy(true)
     try {
       const res = await fetch('/api/advisor', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId, message: msg })
-      }).then(r=>r.json())
-      if (res.reply) setMessages(m => [...m, { role:'assistant', content: res.reply, id:'a-'+Date.now() }])
-      else setMessages(m => [...m, { role:'assistant', content: '_Sorry, I could not respond right now. Please try again._', id:'e-'+Date.now() }])
+      }).then(r => r.json())
+      if (res.reply) setMessages(m => [...m, { role: 'assistant', content: res.reply, id: 'a-' + Date.now() }])
+      else setMessages(m => [...m, { role: 'assistant', content: '_Sorry, I could not respond right now. Please try again._', id: 'e-' + Date.now() }])
     } catch (e) {
-      setMessages(m => [...m, { role:'assistant', content: '_Network error._ '+String(e.message), id:'e-'+Date.now() }])
+      setMessages(m => [...m, { role: 'assistant', content: '_Network error._ ' + String(e.message), id: 'e-' + Date.now() }])
     } finally { setBusy(false) }
   }
+
+  const newChat = () => {
+    const s = uuidv4()
+    store.setAdvisorSession(s)
+    setSessionId(s)
+    setMessages([])
+    setInput('')
+  }
+
+  const copyMessage = (id, content) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(content || '').then(() => {
+        setCopiedId(id)
+        setTimeout(() => setCopiedId(''), 1500)
+      }).catch(() => {})
+    }
+  }
+
+  const activeCategory = useMemo(
+    () => PROMPT_CATEGORIES.find(c => c.key === activeCat) || PROMPT_CATEGORIES[0],
+    [activeCat],
+  )
+  const lastAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === 'assistant') return messages[i].id
+    return null
+  }, [messages])
 
   return (
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="relative">
-        <div className="container mx-auto max-w-4xl px-4 py-10 relative">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]"><Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5</Badge>
-              <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white">AI Scholarship Advisor</h1>
-              <p className="mt-1 text-white/60">Ask in plain language. Nova only references scholarships from our source-linked database.</p>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[500px] bg-[radial-gradient(closest-side,rgba(212,175,55,0.12),transparent_70%)]"/>
+
+        <div className="container mx-auto max-w-6xl px-4 py-10 relative">
+          {/* Command header */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">
+                <Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5 · Grounded in 303 records
+              </Badge>
+              <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white tracking-tight">
+                AI Scholarship Command
+              </h1>
+              <p className="mt-2 text-white/60 max-w-2xl">
+                Ask Nova anything about scholarships in plain language. She references ONLY our source-linked database — no invented programs, no random deadlines.
+              </p>
             </div>
             <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-[#D4AF37]/30 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
               <Image src={NOVA_URL} alt="Nova" fill sizes="80px" className="object-cover object-top scale-125"/>
@@ -87,48 +184,189 @@ function Advisor() {
             </div>
           </div>
 
-          <Card className="mt-6 border-white/10 bg-white/[0.03]">
-            <CardContent className="p-0">
-              <div ref={scrollRef} className="max-h-[60vh] min-h-[380px] overflow-y-auto p-5 space-y-4">
-                {messages.length === 0 && (
-                  <div>
-                    <p className="text-sm text-white/60">Start with an example:</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {STARTERS.map((s,i)=>(
-                        <button key={i} onClick={()=>send(s)} className="text-left rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/10">{s}</button>
-                      ))}
-                    </div>
+          <div className="mt-8 grid gap-6 lg:grid-cols-12">
+            {/* Sidebar — prompt categories + controls */}
+            <aside className="lg:col-span-4">
+              <Card className="border-white/10 bg-white/[0.03]">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] uppercase tracking-widest text-white/50">Prompt library</div>
+                    <button
+                      onClick={newChat}
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-white/70 hover:text-white hover:border-white/25"
+                    >
+                      <Plus className="h-3 w-3"/>New chat
+                    </button>
                   </div>
-                )}
-                {messages.map((m) => (
-                  <div key={m.id} className={`flex ${m.role==='user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user' ? 'bg-[#D4AF37]/100 text-black' : 'bg-white border border-white/10 text-white'}`}>
-                      {m.role==='assistant' && <p className="mb-1 text-[11px] uppercase tracking-widest text-[#D4AF37]">Nova</p>}
-                      {m.role==='user' ? <p>{m.content}</p> : <Md text={m.content}/>}
-                    </div>
-                  </div>
-                ))}
-                {busy && (
-                  <div className="flex justify-start">
-                    <div className="rounded-2xl px-4 py-3 text-sm bg-white/[0.03] border border-white/10 text-white">
-                      <p className="mb-1 text-[11px] uppercase tracking-widest text-[#D4AF37]">Nova</p>
-                      <span className="inline-flex gap-1">
-                        <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce"/>
-                        <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce" style={{animationDelay:'0.1s'}}/>
-                        <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce" style={{animationDelay:'0.2s'}}/>
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <form onSubmit={e=>{e.preventDefault(); send()}} className="border-t border-white/10 p-3 flex gap-2">
-                <Input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Nova anything about scholarships..." className="bg-white/[0.04] border-white/10 text-white placeholder:text-white/40"/>
-                <Button type="submit" disabled={busy || !input.trim()} className="btn-gold btn-pill font-medium"><Send className="h-4 w-4"/></Button>
-              </form>
-            </CardContent>
-          </Card>
 
-          <p className="mt-3 flex items-start gap-1.5 text-xs text-white/40"><Info className="mt-0.5 h-3 w-3"/>ScholarshipFit provides informational scholarship research only. It does not guarantee admission, scholarships, visas, or funding. Users apply directly through official provider websites.</p>
+                  <div className="mt-3 flex flex-col gap-1">
+                    {PROMPT_CATEGORIES.map(c => {
+                      const Icon = c.icon
+                      const active = activeCat === c.key
+                      return (
+                        <button
+                          key={c.key}
+                          onClick={() => setActiveCat(c.key)}
+                          className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-left transition
+                            ${active
+                              ? 'border-[#D4AF37]/40 bg-[#D4AF37]/10 text-white'
+                              : 'border-transparent text-white/70 hover:bg-white/[0.04] hover:text-white'}`}
+                        >
+                          <Icon className={`h-4 w-4 ${active ? 'text-[#D4AF37]' : 'text-white/50'}`}/>
+                          {c.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="mt-4 border-white/10 bg-white/[0.03]">
+                <CardContent className="p-4">
+                  <div className="text-[11px] uppercase tracking-widest text-white/50 mb-3 flex items-center gap-2">
+                    <activeCategory.icon className="h-3.5 w-3.5 text-[#D4AF37]"/>
+                    {activeCategory.label}
+                  </div>
+                  <div className="space-y-2">
+                    {activeCategory.prompts.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => send(p)}
+                        disabled={busy}
+                        className={`group w-full text-left rounded-lg border px-3 py-2.5 text-sm transition-all
+                          ${activeCategory.tint} hover:brightness-125 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        <span className="line-clamp-3">{p}</span>
+                        <div className="mt-1.5 flex items-center gap-1 text-[11px] opacity-70">
+                          Ask Nova <ArrowRight className="h-3 w-3"/>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="mt-4 border-white/10 bg-white/[0.02]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/50">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]"/>Nova&apos;s guardrails
+                  </div>
+                  <ul className="mt-3 space-y-2 text-xs text-white/60">
+                    <li>Only cites scholarships in our source-linked library</li>
+                    <li>Never invents deadlines, GPA thresholds, or funding numbers</li>
+                    <li>Links every recommendation to its official source URL</li>
+                    <li>Refuses to guarantee admission, visas, or funding</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </aside>
+
+            {/* Main chat panel */}
+            <div className="lg:col-span-8">
+              <Card className="border-white/10 bg-white/[0.03]">
+                <CardContent className="p-0">
+                  <div ref={scrollRef} className="max-h-[62vh] min-h-[420px] overflow-y-auto p-5 space-y-4">
+                    {messages.length === 0 && (
+                      <div className="text-center py-10">
+                        <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10">
+                          <MessagesSquare className="h-6 w-6 text-[#D4AF37]"/>
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-white">Start a conversation with Nova</h3>
+                        <p className="mt-1 text-sm text-white/60 max-w-md mx-auto">
+                          Pick a starter from the left, or type your own question below. Nova will only cite real, source-linked scholarships.
+                        </p>
+                      </div>
+                    )}
+
+                    {messages.map((m) => (
+                      <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm relative group
+                          ${m.role === 'user'
+                            ? 'bg-[#D4AF37] text-black'
+                            : 'bg-white/[0.05] border border-white/10 text-white'}`}>
+                          {m.role === 'assistant' && (
+                            <div className="mb-1 flex items-center justify-between gap-3">
+                              <p className="text-[11px] uppercase tracking-widest text-[#D4AF37]">Nova</p>
+                              <button
+                                onClick={() => copyMessage(m.id, m.content)}
+                                className="opacity-0 group-hover:opacity-100 transition text-[11px] text-white/50 hover:text-white inline-flex items-center gap-1"
+                              >
+                                {copiedId === m.id ? <><Check className="h-3 w-3"/>Copied</> : <><Copy className="h-3 w-3"/>Copy</>}
+                              </button>
+                            </div>
+                          )}
+                          {m.role === 'user' ? <p>{m.content}</p> : <Md text={m.content}/>}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Follow-up chips shown after the last assistant reply */}
+                    {!busy && messages.length > 0 && lastAssistantId && messages[messages.length - 1]?.role === 'assistant' && (
+                      <div className="pt-1">
+                        <div className="mb-2 text-[11px] uppercase tracking-widest text-white/40">Suggested follow-ups</div>
+                        <div className="flex flex-wrap gap-2">
+                          {FOLLOWUPS.map((f, i) => (
+                            <button
+                              key={i}
+                              onClick={() => send(f)}
+                              className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70 hover:text-white hover:border-white/30"
+                            >
+                              {f}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {busy && (
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl px-4 py-3 text-sm bg-white/[0.05] border border-white/10 text-white">
+                          <p className="mb-1 text-[11px] uppercase tracking-widest text-[#D4AF37]">Nova is thinking…</p>
+                          <span className="inline-flex gap-1">
+                            <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce"/>
+                            <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce" style={{ animationDelay: '0.1s' }}/>
+                            <span className="h-2 w-2 rounded-full bg-cyan-300 animate-bounce" style={{ animationDelay: '0.2s' }}/>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <form onSubmit={e => { e.preventDefault(); send() }} className="border-t border-white/10 p-3 flex items-center gap-2">
+                    {messages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={newChat}
+                        title="New chat"
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25"
+                      >
+                        <RotateCcw className="h-4 w-4"/>
+                      </button>
+                    )}
+                    <Input
+                      value={input}
+                      onChange={e => setInput(e.target.value)}
+                      placeholder="Ask Nova anything about scholarships…"
+                      className="bg-white/[0.04] border-white/10 text-white placeholder:text-white/40"
+                    />
+                    <Button type="submit" disabled={busy || !input.trim()} className="btn-gold btn-pill font-medium">
+                      <Send className="h-4 w-4"/>
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <div className="mt-4 flex items-start justify-between gap-4 flex-wrap">
+                <p className="flex items-start gap-1.5 text-xs text-white/40 max-w-xl">
+                  <Info className="mt-0.5 h-3 w-3"/>
+                  ScholarshipFit provides informational scholarship research only. It does not guarantee admission, scholarships, visas, or funding. Users apply directly through official provider websites.
+                </p>
+                <Link href="/quiz" className="text-xs text-[#D4AF37] hover:text-[#F5D67B] inline-flex items-center gap-1">
+                  Prefer a structured shortlist? Take the 8-step quiz <ArrowRight className="h-3 w-3"/>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <Footer />

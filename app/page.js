@@ -17,6 +17,7 @@ import HeroSearch from '@/components/site/HeroSearch'
 import WinnerTicker from '@/components/site/WinnerTicker'
 import BottomCTA from '@/components/site/BottomCTA'
 import PricingPreview from '@/components/site/PricingPreview'
+import TestimonialWall from '@/components/site/TestimonialWall'
 import StudentStories from '@/components/site/StudentStories'
 import ProofStats from '@/components/site/ProofStats'
 
@@ -369,6 +370,9 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* ================ TESTIMONIAL WALL — 3-col masonry ================ */}
+      <TestimonialWall />
 
       {/* ================ Honest strip ================ */}
       <section className="container mx-auto max-w-5xl px-4 py-16 md:py-20">

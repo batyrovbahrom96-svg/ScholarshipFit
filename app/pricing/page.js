@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useAuth } from '@/hooks/use-auth'
+import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
 
 /* ==========================================================================
    /pricing — Length-based 4-tier pricing (2026-07 reset)
@@ -37,8 +38,11 @@ function accentClasses(accent) {
 function Pricing() {
   const router = useRouter()
   const { user } = useAuth()
+  const { region, setOverride, priceFor } = useRegionalPricing()
   const [activatingKey, setActivatingKey] = useState('')
   const [error, setError] = useState('')
+  const discountPct = region?.discount_pct || 0
+  const hasRegionalDiscount = discountPct > 0
 
   const activate = async (planKey) => {
     setActivatingKey(planKey); setError('')
@@ -100,6 +104,39 @@ function Pricing() {
             <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-[#D4AF37]"/> Cancel anytime</span>
             <span className="inline-flex items-center gap-1.5"><Trophy className="h-4 w-4 text-[#D4AF37]"/> 303 real scholarships</span>
           </div>
+
+          {/* Regional pricing banner + selector */}
+          {region && (
+            <div className={`mt-8 mx-auto max-w-3xl rounded-2xl border px-5 py-3 flex flex-wrap items-center justify-between gap-3
+              ${hasRegionalDiscount
+                ? 'border-emerald-400/30 bg-emerald-500/[0.06]'
+                : 'border-white/10 bg-white/[0.02]'}`}>
+              <div className="flex items-center gap-2 text-sm">
+                {hasRegionalDiscount ? (
+                  <span className="text-emerald-300 font-medium">
+                    Regional pricing applied — <span className="text-emerald-200">{discountPct}% off</span>
+                    {region.detected_country ? <span className="text-white/60"> · detected: {region.detected_country}</span> : null}
+                  </span>
+                ) : (
+                  <span className="text-white/70">
+                    Standard pricing{region.detected_country ? ` · ${region.detected_country}` : ''}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-white/50">Change region:</span>
+                <select
+                  value={region.detected_from === 'query' ? (region.detected_country || '') : ''}
+                  onChange={(e) => setOverride(e.target.value)}
+                  className="rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white focus:border-[#D4AF37] focus:outline-none"
+                >
+                  {REGION_SELECTOR.map(o => (
+                    <option key={o.code || 'auto'} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* PLAN CARDS — 4-column length-based grid */}
@@ -109,6 +146,19 @@ function Pricing() {
               const accent = accentClasses(p.accent)
               const isActivating = activatingKey === p.key
               const isLifetime = p.tier_type === 'lifetime'
+              const adjustedMonthly = priceFor(p.key, 'adjusted_monthly') ?? p.display_price
+              const adjustedTotal   = priceFor(p.key, 'adjusted_total')   ?? p.total_charge
+              const showStrike = hasRegionalDiscount && Math.abs(adjustedMonthly - p.display_price) > 0.01
+              const billingText = isLifetime
+                ? (hasRegionalDiscount ? `Pay once — $${adjustedTotal}. Keep forever.` : p.billing)
+                : (hasRegionalDiscount
+                    ? `billed $${adjustedTotal} every ${p.days} days`
+                    : p.billing)
+              const trialNote = isLifetime
+                ? p.trial_note
+                : (hasRegionalDiscount
+                    ? `7 days free · then $${adjustedTotal} every ${p.days} days · cancel anytime`
+                    : p.trial_note)
               return (
                 <div
                   key={p.key}
@@ -127,14 +177,22 @@ function Pricing() {
                   <div className="text-center">
                     <div className="text-xl font-semibold text-white">{p.name}</div>
                     <p className="mt-1 text-xs text-white/55">{p.tagline}</p>
-                    <div className="mt-5 flex items-baseline justify-center gap-1.5">
-                      <span className="text-5xl font-bold text-white">${p.display_price}</span>
+                    {showStrike && (
+                      <div className="mt-3 text-xs text-white/40 line-through">${p.display_price}{p.unit}</div>
+                    )}
+                    <div className={`${showStrike ? 'mt-0' : 'mt-5'} flex items-baseline justify-center gap-1.5`}>
+                      <span className="text-5xl font-bold text-white">${adjustedMonthly}</span>
                       <span className="text-white/50 text-sm">{p.unit}</span>
                     </div>
-                    <div className="mt-1 text-xs text-white/50">{p.billing}</div>
+                    <div className="mt-1 text-xs text-white/50">{billingText}</div>
                     {p.savings_label && (
                       <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300">
                         {p.savings_label}
+                      </div>
+                    )}
+                    {showStrike && (
+                      <div className="mt-1.5 text-[10px] uppercase tracking-widest text-emerald-300/80">
+                        + {discountPct}% regional pricing
                       </div>
                     )}
                   </div>
@@ -151,7 +209,7 @@ function Pricing() {
                     )}
                   </Button>
                   <div className="mt-2 text-center text-[11px] text-white/40 leading-relaxed">
-                    {p.trial_note}
+                    {trialNote}
                   </div>
 
                   <ul className="mt-5 space-y-2 border-t border-white/5 pt-4 flex-1">

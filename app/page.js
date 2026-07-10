@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { store } from '@/lib/client-store'
 import {
   ArrowRight, ArrowUpRight, GraduationCap, Globe2, Award, ShieldCheck,
-  BadgeCheck, Zap, User2, ExternalLink, MousePointer2, ChevronDown, Sparkles
+  BadgeCheck, Zap, User2, ExternalLink, MousePointer2, ChevronDown, Sparkles,
+  Clock, X as XIcon, Check as CheckIcon,
 } from 'lucide-react'
 import UniversityMarquee from '@/components/site/UniversityMarquee'
 import Hero3DObjects from '@/components/site/Hero3DObjects'
@@ -108,6 +109,7 @@ function Home() {
       {/* ================ HERO ================ */}
       <section className="relative overflow-hidden">
         <div className="ambient-glow pointer-events-none absolute inset-0 -z-0" />
+        <div className="cosmos-dots cosmos-drift pointer-events-none absolute inset-0 -z-0" aria-hidden/>
 
         {/* Faint orbital lines behind hero (SVG) */}
         <svg className="pointer-events-none absolute left-1/2 top-1/2 -z-0 h-[900px] w-[1400px] -translate-x-1/2 -translate-y-1/2 opacity-[0.18]" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -216,7 +218,7 @@ function Home() {
       <FeatureBlock
         kicker="Match"
         title="Ranked shortlist with fit reasoning."
-        body="Answer 7 quick questions — education level, field, nationality, destinations, GPA, English scores and funding preference. We instantly rank all 300+ source-linked scholarships against your profile and show fit score, matched requirements, gaps, and the official source URL."
+        body="Answer 8 quick questions — education level, field, nationality, destinations, GPA, English scores, work experience, timeline, and funding preference. We instantly rank all 303 source-linked scholarships against your profile and show fit score, matched requirements, gaps, warnings, and the official source URL."
         ctaLabel="Start matching"
         ctaHref="/quiz"
       >
@@ -258,6 +260,116 @@ function Home() {
         <MockCabinet/>
       </FeatureBlock>
 
+      {/* ================ SAVE 15-30 HOURS — value stat block ================ */}
+      <section className="relative border-t border-white/5">
+        <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
+          <div className="grid gap-10 md:grid-cols-12 items-center">
+            <div className="md:col-span-5">
+              <div className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">The math</div>
+              <h2 className="mt-3 text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1] text-white">
+                Save <span className="text-gold-hi">15–30 hours</span> per application cycle.
+              </h2>
+              <p className="mt-5 text-lg text-white/60 leading-relaxed">
+                We&apos;ve timed it. That&apos;s how long students typically spend Googling scholarships, checking eligibility, chasing dead links, and rewriting the same essay for programs they didn&apos;t qualify for.
+              </p>
+              <p className="mt-3 text-lg text-white/60 leading-relaxed">
+                ScholarshipFit collapses that into <span className="text-white font-medium">3 minutes</span> — one 8-step quiz, one ranked shortlist, one AI advisor.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Link href="/quiz">
+                  <Button size="lg" className="btn-gold btn-pill h-12 px-8 font-semibold">
+                    Get my shortlist in 3 minutes <ArrowRight className="ml-2 h-4 w-4"/>
+                  </Button>
+                </Link>
+                <Link href="/sample-report">
+                  <Button size="lg" variant="outline" className="border-white/20 text-white/80 hover:bg-white/5 h-12 px-6">
+                    See a sample first
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="md:col-span-7">
+              <div className="grid grid-cols-2 gap-4">
+                <StatTile big="20h" small="Avg time saved per cycle" tone="gold"/>
+                <StatTile big="303" small="Real, source-linked scholarships" tone="cyan"/>
+                <StatTile big="3 min" small="From profile to shortlist" tone="emerald"/>
+                <StatTile big="60 countries" small="Where our scholarships come from" tone="gold"/>
+              </div>
+              <div className="mt-4 rounded-2xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#D4AF37]/8 to-transparent p-5">
+                <div className="text-xs uppercase tracking-widest text-[#D4AF37] mb-2">Compounded value</div>
+                <p className="text-white/80 leading-relaxed">
+                  If you apply to 3 scholarships that fit you well, instead of 30 that don&apos;t,
+                  you win the odds game. Time on wrong applications is worse than time not applying at all.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================ BEFORE / AFTER ScholarshipFit ================ */}
+      <section className="relative border-t border-white/5">
+        <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <div className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">Before / After ScholarshipFit</div>
+            <h2 className="mt-3 text-3xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.05] text-white">
+              Stop searching. Start <span className="text-gold-hi">applying to the right ones.</span>
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Before */}
+            <div className="rounded-3xl border border-red-500/25 bg-red-500/[0.04] p-6 md:p-8">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-red-300 mb-4">
+                <Clock className="h-4 w-4"/> Without ScholarshipFit
+              </div>
+              <div className="text-2xl font-semibold text-white mb-4">15–30 hours lost, zero clarity.</div>
+              <ul className="space-y-3">
+                {[
+                  '30+ browser tabs, half of them dead links',
+                  'No idea if you actually qualify — until after you spend a weekend on the essay',
+                  'Deadlines discovered too late. Cycle already closed.',
+                  'Same motivation letter recycled — badly — across 12 programs',
+                  'Zero visibility on fit score, gaps, or realistic odds',
+                  'Endless Reddit threads. Contradictory advice. Anxiety.',
+                ].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-white/80">
+                    <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-400"/>{t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* After */}
+            <div className="rounded-3xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/10 via-emerald-500/[0.03] to-transparent p-6 md:p-8">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-emerald-300 mb-4">
+                <Sparkles className="h-4 w-4"/> With ScholarshipFit
+              </div>
+              <div className="text-2xl font-semibold text-white mb-4">3 minutes → shortlist → action plan.</div>
+              <ul className="space-y-3">
+                {[
+                  'Ranked shortlist of programs that ACTUALLY fit your profile',
+                  'Fit score, requirements met, gaps to close — before you write a single essay',
+                  'Deadlines and eligibility validated against official source URLs',
+                  'Application tracker + document checklist auto-generated from your matches',
+                  'Nova AI advisor — Claude Sonnet 4.5, grounded in our source-linked library',
+                  '"Why NOT fit" warnings on every match — stop wasting time on reaches',
+                ].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-white/85">
+                    <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"/>{t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-10 flex justify-center">
+            <Link href="/quiz">
+              <Button size="lg" className="btn-gold btn-pill h-12 px-8 font-semibold">
+                Start my 8-step quiz — free <ArrowRight className="ml-2 h-4 w-4"/>
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ================ Honest strip ================ */}
       <section className="container mx-auto max-w-5xl px-4 py-16 md:py-20">
         <div className="rounded-3xl border border-[#D4AF37]/15 bg-white/[0.02] px-6 py-10 text-center">
@@ -297,6 +409,20 @@ function Home() {
 }
 
 /* ==================== helpers ==================== */
+
+function StatTile({ big, small, tone = 'gold' }) {
+  const toneCls = {
+    gold:    'text-[#D4AF37]',
+    cyan:    'text-cyan-300',
+    emerald: 'text-emerald-300',
+  }[tone] || 'text-white'
+  return (
+    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent p-5 md:p-6 hover:border-white/25 transition">
+      <div className={`text-4xl md:text-5xl font-semibold tracking-tight ${toneCls} leading-none`}>{big}</div>
+      <div className="mt-2 text-xs md:text-sm text-white/60">{small}</div>
+    </div>
+  )
+}
 
 function FeatureBlock({ kicker, title, body, ctaLabel, ctaHref, children, reversed }) {
   return (

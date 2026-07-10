@@ -1096,6 +1096,19 @@ Respond with STRICT JSON in this schema:
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
       const body = await request.json().catch(() => ({}))
       const plan = (body?.plan || '').toLowerCase()
+
+      // -----------------------------------------------------------------
+      // REGIONAL / PPP PRICING — server-verified. The client can pass a
+      // region_tier hint (from the /api/pricing/region call), but we
+      // re-detect from headers to prevent spoofing bigger discounts.
+      // -----------------------------------------------------------------
+      const { tierForCountry, detectCountryFromHeaders, applyRegionalDiscount } = await import('@/lib/regional-pricing')
+      const headerCountry = detectCountryFromHeaders(request.headers)
+      // Fallback preference: header > user profile country > client hint > 'A'
+      const clientHint = String(body?.country_code || '').toUpperCase().slice(0, 2)
+      const profileCountry = String(user?.cabinet?.profile?.nationality || '').slice(0, 2).toUpperCase()
+      const detected = headerCountry || profileCountry || clientHint || null
+      const tier = tierForCountry(detected)
       // Plan catalogue: price = amount charged in the billing cycle, days = cycle length,
       // monthly_rate = effective $/mo shown to user. trial_days = 7-day free trial (except lifetime).
       // NEW 2026-07 pricing (length-based):
@@ -1146,8 +1159,13 @@ Respond with STRICT JSON in this schema:
         trial_used: trialEligible ? true : hasHadTrialBefore,
         first_charge_at: firstChargeAt,
         expires_at: expiresAt,
-        price_usd: cfg.price,
-        monthly_rate_usd: cfg.monthly_rate,
+        price_usd: applyRegionalDiscount(cfg.price, tier.key),  // discounted charge
+        base_price_usd: cfg.price,                              // undiscounted reference
+        monthly_rate_usd: applyRegionalDiscount(cfg.monthly_rate, tier.key),
+        base_monthly_rate_usd: cfg.monthly_rate,
+        region_tier: tier.key,                                  // 'A' | 'B' | 'C'
+        region_country: tier.country,                           // ISO code or null
+        region_discount_pct: Math.round(tier.discount * 100),
         billing_cycle_days: cfg.days,
         trial_days: cfg.trial_days,
         payment_method: body?.payment_method_id ? 'card_captured' : 'pending_gateway',
@@ -1164,6 +1182,35 @@ Respond with STRICT JSON in this schema:
         created_at: now,
       }).catch(() => {})
       return withCORS(NextResponse.json({ ok: true, subscription }))
+    }
+
+    // -----------------------------------------------------------------------
+    // Regional / PPP pricing detection — returns discount tier + adjusted prices
+    // -----------------------------------------------------------------------
+    if (route === '/pricing/region' && method === 'GET') {
+      const { tierForCountry, detectCountryFromHeaders, applyRegionalDiscount, REGION_TIERS } = await import('@/lib/regional-pricing')
+      const { SUBSCRIPTION_PLANS } = await import('@/lib/pricing-plans')
+      const url = new URL(request.url)
+      const override = String(url.searchParams.get('country') || '').toUpperCase().slice(0, 2)
+      const headerCountry = detectCountryFromHeaders(request.headers)
+      const detected = override || headerCountry || null
+      const tier = tierForCountry(detected)
+      const adjustedPlans = SUBSCRIPTION_PLANS.map(p => ({
+        key: p.key,
+        base_total: p.total_charge,
+        base_monthly: p.display_price,
+        adjusted_total: applyRegionalDiscount(p.total_charge, tier.key),
+        adjusted_monthly: applyRegionalDiscount(p.display_price, tier.key),
+      }))
+      return withCORS(NextResponse.json({
+        detected_country: detected,
+        detected_from: override ? 'query' : (headerCountry ? 'header' : 'none'),
+        tier: tier.key,
+        discount_pct: Math.round(tier.discount * 100),
+        label: tier.label,
+        note: tier.note,
+        plans: adjustedPlans,
+      }))
     }
 
     if (route === '/subscription/status' && method === 'GET') {

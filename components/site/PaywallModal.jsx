@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
+import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
 import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
   CreditCard, Loader2, AlertCircle, Star, Crown,
@@ -24,6 +25,9 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
   const [selectedPlan, setSelectedPlan] = useState(initialPlan)
   const [activatingKey, setActivatingKey] = useState('')
   const [error, setError] = useState('')
+  const { region, setOverride, priceFor } = useRegionalPricing()
+  const discountPct = region?.discount_pct || 0
+  const hasRegionalDiscount = discountPct > 0
 
   const activate = async (planKey) => {
     setActivatingKey(planKey); setError('')
@@ -93,6 +97,39 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
               </div>
             ))}
           </div>
+
+          {/* Regional pricing banner + selector */}
+          {region && (
+            <div className={`mt-4 rounded-xl border px-4 py-2.5 flex flex-wrap items-center justify-between gap-3
+              ${hasRegionalDiscount
+                ? 'border-emerald-400/30 bg-emerald-500/[0.08]'
+                : 'border-white/10 bg-white/[0.02]'}`}>
+              <div className="text-xs">
+                {hasRegionalDiscount ? (
+                  <span className="text-emerald-300 font-medium">
+                    Regional pricing — {discountPct}% off applied automatically
+                    {region.detected_country ? <span className="text-white/60"> · {region.detected_country}</span> : null}
+                  </span>
+                ) : (
+                  <span className="text-white/60">
+                    Standard pricing{region.detected_country ? ` · ${region.detected_country}` : ''}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="text-white/50">Change region:</span>
+                <select
+                  value={region.detected_from === 'query' ? (region.detected_country || '') : ''}
+                  onChange={(e) => setOverride(e.target.value)}
+                  className="rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white focus:border-[#D4AF37] focus:outline-none"
+                >
+                  {REGION_SELECTOR.map(o => (
+                    <option key={o.code || 'auto'} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Plan cards */}
@@ -103,6 +140,14 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
               const isActivating = activatingKey === p.key
               const accent = accentClasses(p.accent)
               const isLifetime = p.tier_type === 'lifetime'
+              const adjustedMonthly = priceFor(p.key, 'adjusted_monthly') ?? p.display_price
+              const adjustedTotal   = priceFor(p.key, 'adjusted_total')   ?? p.total_charge
+              const showStrike = hasRegionalDiscount && Math.abs(adjustedMonthly - p.display_price) > 0.01
+              const trialNote = isLifetime
+                ? p.trial_note
+                : (hasRegionalDiscount
+                    ? `7 days free · then $${adjustedTotal} every ${p.days} days · cancel anytime`
+                    : p.trial_note)
               return (
                 <div
                   key={p.key}
@@ -120,14 +165,26 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
                   )}
                   <div className="text-center">
                     <div className="text-lg font-semibold text-white">{p.name}</div>
-                    <div className="mt-3 flex items-baseline justify-center gap-1">
-                      <span className="text-4xl font-bold text-white">${p.display_price}</span>
+                    {showStrike && (
+                      <div className="mt-2 text-xs text-white/40 line-through">${p.display_price}{p.unit}</div>
+                    )}
+                    <div className={`${showStrike ? 'mt-0' : 'mt-3'} flex items-baseline justify-center gap-1`}>
+                      <span className="text-4xl font-bold text-white">${adjustedMonthly}</span>
                       <span className="text-white/50 text-sm">{p.unit}</span>
                     </div>
-                    <div className="mt-1 text-xs text-white/50">{p.billing}</div>
+                    <div className="mt-1 text-xs text-white/50">
+                      {isLifetime
+                        ? (hasRegionalDiscount ? `Pay once — $${adjustedTotal}. Forever.` : p.billing)
+                        : (hasRegionalDiscount ? `billed $${adjustedTotal}/${p.days}d` : p.billing)}
+                    </div>
                     {p.savings_label && (
                       <div className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
                         {p.savings_label}
+                      </div>
+                    )}
+                    {showStrike && (
+                      <div className="mt-1 text-[10px] uppercase tracking-widest text-emerald-300/80">
+                        + {discountPct}% region
                       </div>
                     )}
                   </div>
@@ -144,7 +201,7 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
                     )}
                   </Button>
                   <div className="mt-2 text-center text-[11px] text-white/40 leading-relaxed">
-                    {p.trial_note}
+                    {trialNote}
                   </div>
 
                   <ul className="mt-4 space-y-1.5 border-t border-white/5 pt-4">

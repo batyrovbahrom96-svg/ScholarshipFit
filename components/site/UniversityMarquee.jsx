@@ -17,17 +17,21 @@ const UNIS = [
   { name: 'Cornell',    caption: 'Cornell',   line1: 'CORNELL',       line2: 'UNIVERSITY',    variant: 'cornell', domain: 'cornell.edu',   logo: 'cornell' },
   { name: 'Stanford',   caption: 'Stanford',  line1: 'STANFORD',      line2: 'UNIVERSITY',    variant: 'cardinal',domain: 'stanford.edu',  logo: 'stanford' },
   { name: 'MIT',        caption: 'MIT',       line1: 'MASSACHUSETTS INSTITUTE', line2: 'OF TECHNOLOGY', variant: 'mit', domain: 'mit.edu', logo: 'mit' },
-  { name: 'Oxford',     caption: 'Oxford',    line1: 'UNIVERSITY OF', line2: 'OXFORD',        variant: 'navy',    domain: 'ox.ac.uk',      logo: 'oxford' },
+  // Oxford's ox.ac.uk runs Drupal — its favicon is Drupal's teardrop, which the
+  // proxy chain would happily return. So we disable the proxy for Oxford
+  // (skipProxy: true) — if local png fails we go straight to the SVG crest.
+  { name: 'Oxford',     caption: 'Oxford',    line1: 'UNIVERSITY OF', line2: 'OXFORD',        variant: 'navy',    domain: 'ox.ac.uk',      logo: 'oxford',   skipProxy: true },
   { name: 'Cambridge',  caption: 'Cambridge', line1: 'UNIVERSITY OF', line2: 'CAMBRIDGE',     variant: 'red',     domain: 'cam.ac.uk',     logo: 'cambridge' },
   { name: 'Imperial',   caption: 'Imperial',  line1: 'IMPERIAL COLLEGE', line2: 'LONDON',     variant: 'imperial',domain: 'imperial.ac.uk',logo: 'imperial' },
   { name: 'ETH Zürich', caption: 'ETH Zürich', line1: 'EIDGENÖSSISCHE',  line2: 'TECHNISCHE HOCHSCHULE', variant: 'eth', domain: 'ethz.ch', logo: 'ethz' },
   { name: 'NUS',        caption: 'NUS Singapore', line1: 'NATIONAL UNIVERSITY OF', line2: 'SINGAPORE', variant: 'nus', domain: 'nus.edu.sg', logo: 'nus' },
 ]
 
-// Local static high-quality logos live under /public/logos/{key}.png
-// If a local asset ever fails, we fall back to the multi-provider server proxy
-// (/api/logo) which chains Clearbit -> icon.horse -> DuckDuckGo -> Google Favicon.
-const staticLogoUrl = (key) => `/logos/${key}.png`
+// Local university logos are served through a server-side API route rather than
+// as static /public/logos/*.png. Some deploy targets do not serve static assets
+// from that folder, so this proxy reads the PNG directly from the Node process's
+// filesystem and returns it with long-lived caching headers — bulletproof.
+const staticLogoUrl = (key) => `/api/uni-logo/${key}`
 const proxyUrl = (domain) => `/api/logo?domain=${encodeURIComponent(domain)}&sz=256`
 
 const PALETTE = {
@@ -55,18 +59,26 @@ function FallbackCrest({ variant }) {
 }
 
 function CrestTile({ uni }) {
+  // 3-tier fallback chain:
   // 0 = local /logos/{key}.png (fast, no external calls, always same quality)
-  // 1 = heraldic SVG crest (guaranteed on-brand, never fetches third-party favicons)
+  // 1 = /api/logo proxy (server chain: Clearbit -> icon.horse -> DDG -> Google Favicon)
+  //     — skipped for universities marked skipProxy (e.g. Oxford, whose ox.ac.uk
+  //     favicon is Drupal's teardrop and would render the wrong brand)
+  // 2 = branded heraldic SVG crest (guaranteed on-brand tile, no external calls)
   //
-  // NOTE: We deliberately skip third-party favicon proxies (Clearbit / icon.horse /
-  // DDG / Google) because some university sites run Drupal (e.g. ox.ac.uk) and
-  // return the Drupal CMS teardrop as their favicon — that would render the wrong
-  // logo on our site. Better to show a clean branded crest than a wrong logo.
+  // This gives us defense in depth: if the static /public/logos/ folder is not
+  // served by the deploy target (as happened when scholarshipfit.com production
+  // returned 404 for /logos/*.png), the proxy still fetches a real logo. Only
+  // if BOTH fail do we render the branded crest.
   const [tier, setTier] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const imgRef = useRef(null)
-  const src = staticLogoUrl(uni.logo)
-  const showCrest = tier >= 1
+
+  // Tier 1 gets skipped for universities we know the proxy would return the
+  // wrong logo for (e.g. Oxford's ox.ac.uk → Drupal CMS favicon).
+  const effectiveTier = (tier === 1 && uni.skipProxy) ? 2 : tier
+  const src = effectiveTier === 0 ? staticLogoUrl(uni.logo) : proxyUrl(uni.domain)
+  const showCrest = effectiveTier >= 2
   const bumpTier = () => { setLoaded(false); setTier(t => t + 1) }
 
   // If image was already cached and completed loading before React attached

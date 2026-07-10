@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Play, ShieldCheck, Sparkles, ArrowRight, Mail } from 'lucide-react'
 
-// Welcome video from the founder — uploaded 2026-07-10.
-const FOUNDER_VIDEO_URL   = 'https://customer-assets.emergentagent.com/job_stellar-fit/artifacts/owab1k68_2026-07-10%2022.50.13.mp4'
+// Welcome video from the founder — updated 2026-07-11 (vertical portrait).
+const FOUNDER_VIDEO_URL   = 'https://customer-assets.emergentagent.com/job_stellar-fit/artifacts/b06dr7rq_2026-07-11%2000.29.56.mp4'
 const FOUNDER_POSTER_URL  = ''
 const FOUNDER_EMAIL       = 'batyrov.bakhrom@inbox.ru'
 const FOUNDER_NAME        = 'Bakhrom Batyrov'

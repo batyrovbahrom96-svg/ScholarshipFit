@@ -129,24 +129,33 @@ function Home() {
             <Hero3DObjects />
 
             <div className="relative mx-auto max-w-3xl text-center py-8 md:py-14">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-3 py-1 text-[11px] uppercase tracking-widest text-[#D4AF37]">
+                <Sparkles className="h-3 w-3"/> AI Scholarship Command Center
+              </div>
               <h1 className="text-5xl md:text-7xl font-semibold tracking-[-0.035em] leading-[0.95] text-white">
-                Find real <span className="text-gold-hi">scholarships</span>
-                <br className="hidden md:block"/> that fit your profile.
+                Find <span className="text-gold-hi">scholarships</span> that
+                <br className="hidden md:block"/> fit your profile.
               </h1>
-              <p className="mx-auto mt-6 max-w-xl text-base md:text-lg text-white/60 leading-relaxed">
-                AI-powered, source-linked scholarship shortlist. Real records only. No spam. No fake promises.
+              <p className="mx-auto mt-6 max-w-2xl text-base md:text-lg text-white/70 leading-relaxed">
+                ScholarshipFit uses AI-assisted research to organize source-linked scholarships by <b className="text-white">fit</b>, <b className="text-white">funding</b>, <b className="text-white">deadlines</b>, <b className="text-white">missing requirements</b>, and <b className="text-white">next steps</b> — so you stop wasting hours on the wrong ones.
               </p>
 
-              {/* Inline search engine (ScholarshipOwl-style) */}
-              <div className="mt-8 relative z-10">
-                <HeroSearch />
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <Link href="/quiz">
+                  <Button size="lg" className="btn-gold btn-pill h-12 px-8 text-base font-semibold">
+                    Find My Scholarship Matches <ArrowRight className="ml-2 h-4 w-4"/>
+                  </Button>
+                </Link>
+                <Link href="/sample-report">
+                  <Button size="lg" variant="outline" className="border-white/25 text-white/85 hover:bg-white/10 hover:text-white h-12 px-6">
+                    View Sample Report
+                  </Button>
+                </Link>
               </div>
 
-              <div className="mt-6 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-white/70">
-                <span className="inline-flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-[#D4AF37]"/> 100% Free</span>
-                <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Takes 2 Minutes</span>
-                <span className="inline-flex items-center gap-1.5"><User2 className="h-4 w-4 text-[#D4AF37]"/> Your personal cabinet</span>
-              </div>
+              <p className="mx-auto mt-6 max-w-xl text-[11px] text-white/40 leading-relaxed">
+                Official source links included · No guaranteed outcomes · Users apply through official provider websites · AI-assisted research, not automated applications
+              </p>
             </div>
           </div>
 
@@ -163,6 +172,42 @@ function Home() {
           {/* Scroll cue */}
           <div className="mt-14 flex items-center justify-center gap-2 text-xs text-white/40">
             <MousePointer2 className="h-3.5 w-3.5"/> Scroll to explore <ChevronDown className="h-3.5 w-3.5 animate-bounce"/>
+          </div>
+        </div>
+      </section>
+
+      {/* ================ HOW IT WORKS — 4 steps ================ */}
+      <section className="relative border-t border-white/5">
+        <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <div className="text-xs uppercase tracking-widest text-[#D4AF37]">How ScholarshipFit works</div>
+            <h2 className="mt-3 text-3xl md:text-4xl font-semibold tracking-tight text-white">
+              From profile to source-linked shortlist in minutes.
+            </h2>
+            <p className="mt-3 text-white/60">
+              You don&apos;t need to search from zero. ScholarshipFit is the AI research layer sitting on top of a curated, source-linked scholarship library.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              { n: '01', title: 'Tell us your profile', body: 'Country, degree level, field, budget, test scores, achievements, target intake.' },
+              { n: '02', title: 'AI analyzes fit', body: 'We compare your profile against source-linked scholarship opportunities.' },
+              { n: '03', title: 'Get ranked matches', body: 'Strong fit · Possible fit · Weak fit — with missing requirements flagged.' },
+              { n: '04', title: 'Apply through official sources', body: 'Official links · document checklists · deadline notes · clear next steps.' },
+            ].map(s => (
+              <div key={s.n} className="relative rounded-2xl border border-white/10 bg-white/[0.02] p-6 hover:border-[#D4AF37]/30 transition-colors">
+                <div className="text-4xl font-semibold text-[#D4AF37]/80 leading-none mb-4">{s.n}</div>
+                <div className="text-white font-medium">{s.title}</div>
+                <div className="mt-2 text-sm text-white/60 leading-relaxed">{s.body}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-10 flex justify-center">
+            <Link href="/quiz">
+              <Button size="lg" className="btn-gold btn-pill h-12 px-8 font-semibold">
+                Find My Scholarship Matches <ArrowRight className="ml-2 h-4 w-4"/>
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -190,12 +235,12 @@ function Home() {
         <MockAdvisor/>
       </FeatureBlock>
 
-      {/* ================ FEATURE 3 — Database ================ */}
+      {/* ================ FEATURE 3 — Library (the engine) ================ */}
       <FeatureBlock
-        kicker="Database"
-        title="Every record links to an official source."
-        body="No invented scholarships, deadlines, or funding amounts. If a detail is missing, we say 'Check official source.' You apply directly through the university or government portal."
-        ctaLabel="Browse database"
+        kicker="Source-linked library"
+        title="The engine behind your matches."
+        body="ScholarshipFit doesn't ask you to search from zero. Our curated source-linked scholarship library is the engine your matches are built from — every record traces back to the official provider website, so you can verify anything in one click."
+        ctaLabel="Explore the library"
         ctaHref="/database"
       >
         <MockDatabase scholars={scholars}/>
@@ -325,7 +370,7 @@ function MockAdvisor() {
       </div>
       <div className="rounded-2xl bg-white/[0.05] border border-[#D4AF37]/15 px-4 py-3">
         <p className="text-[10px] uppercase tracking-widest text-[#D4AF37]">Nova</p>
-        <p className="mt-1 text-sm text-white leading-relaxed">Note that DAAD EPOS courses each have their own deadline. I'd start with the WASCAL and SEPT programs — both accept IELTS 6.5+.</p>
+        <p className="mt-1 text-sm text-white leading-relaxed">Note that DAAD EPOS courses each have their own deadline. I&apos;d start with the WASCAL and SEPT programs — both accept IELTS 6.5+.</p>
       </div>
     </div>
   )

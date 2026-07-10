@@ -141,16 +141,26 @@ function DatabaseInner() {
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-widest text-[#D4AF37]">Scholarship database</p>
-            <h1 className="mt-1 text-3xl md:text-4xl font-semibold text-white">Source-linked records</h1>
-            <p className="mt-1 text-white/60">Every record links to an official university or government source. No invented scholarships.</p>
+            <p className="text-xs uppercase tracking-widest text-[#D4AF37]">Source-linked scholarship library</p>
+            <h1 className="mt-1 text-3xl md:text-4xl font-semibold text-white">The engine behind your matches</h1>
+            <p className="mt-1 text-white/60 max-w-2xl">
+              ScholarshipFit builds personalized reports on top of this library. You don&apos;t need to search from zero &mdash; every record links to an official provider website, so you can verify anything in one click.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">{items.length} verified records</Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">{items.length} source-linked records</Badge>
+            <Badge variant="outline" className="border-white/15 bg-white/[0.03] text-white/70">60 countries</Badge>
             {favCount > 0 && (
               <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]"><Heart className="mr-1 h-3 w-3 fill-[#D4AF37]"/>{favCount} saved</Badge>
             )}
           </div>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-white/50 max-w-3xl">
+          <span className="text-[#D4AF37] font-medium">Trust levels:</span>{' '}
+          <span className="text-white/80">Source-linked</span> = real name + provider + official URL exists ·{' '}
+          <span className="text-white/80">Reviewed</span> = funding, eligibility, context reviewed internally ·{' '}
+          <span className="text-white/80">Verified</span> = deadline, eligibility, funding, documents and application page manually re-checked recently.
         </div>
 
         {/* ------- Category chips ------- */}

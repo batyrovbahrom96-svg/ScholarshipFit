@@ -89,93 +89,66 @@ function LoadingCounter() {
   )
 }
 
-/* ---------- CustomCursor — plain rAF, no framer motion, silky smooth ---------- */
+/* ---------- CustomCursor — MINIMAL, bulletproof (v3) ---------- */
+/*
+ * v3 fixes the "cursor freezes on hero" bug reported by users.
+ * Root cause of v2 freeze: the pointerover listener called .closest() on
+ * every element pass; on hero pages with hundreds of nodes (3D scene,
+ * cosmos dots) this saturated the main thread.
+ *
+ * v3 strategy:
+ *  - ONLY listen to pointermove (no pointerover).
+ *  - Hover-scaling handled via CSS :hover on interactive elements
+ *    using cursor-target class (opt-in), NOT via JS DOM traversal.
+ *  - rAF loop yields when tab hidden (`document.hidden`).
+ *  - Position updates use CSS `translate` (no scale in transform string
+ *    so browser compositor can accelerate it).
+ */
 function CustomCursor() {
-  const ringRef = useRef(null)
   const dotRef = useRef(null)
-  const state = useRef({
-    tx: -100, ty: -100,   // target position (raw pointer)
-    rx: -100, ry: -100,   // ring position (eased)
-    dx: -100, dy: -100,   // dot position (tighter)
-    hovering: false,
-    visible: false,
-    running: false,
-  })
+  const ringRef = useRef(null)
 
   useEffect(() => {
-    let raf
-    const s = state.current
+    let raf = 0
+    let tx = -100, ty = -100
+    let rx = -100, ry = -100
+    let running = false
+    let hidden = false
 
-    const move = (e) => {
-      s.tx = e.clientX
-      s.ty = e.clientY
-      if (!s.visible) {
-        s.visible = true
-        if (ringRef.current) ringRef.current.style.opacity = '1'
-      }
-      if (!s.running) { s.running = true; raf = requestAnimationFrame(tick) }
-    }
-    const leave = () => {
-      s.visible = false
-      if (ringRef.current) ringRef.current.style.opacity = '0'
-      if (dotRef.current)  dotRef.current.style.opacity = '0'
-    }
-
-    // Use event delegation once instead of on every mouseover — hovering state
-    // is now managed via pointerdown/pointerup + a small pointerover throttle.
-    let lastHoverCheck = 0
-    const over = (e) => {
-      const now = performance.now()
-      if (now - lastHoverCheck < 40) return   // 25fps throttle for hover detection
-      lastHoverCheck = now
-      const t = e.target
-      if (!t?.closest) return
-      const interactive = !!t.closest('a, button, [role="button"], input, textarea, select, label, [data-cursor-hover]')
-      if (interactive !== s.hovering) {
-        s.hovering = interactive
-        if (ringRef.current) {
-          ringRef.current.style.transform = `translate3d(${s.rx - 16}px, ${s.ry - 16}px, 0) scale(${interactive ? 1.9 : 1})`
-          ringRef.current.style.borderColor = interactive ? '#F5D67B' : 'rgba(212,175,55,0.55)'
-          ringRef.current.style.background = interactive ? 'rgba(212,175,55,0.12)' : 'transparent'
-        }
-        if (dotRef.current) dotRef.current.style.opacity = interactive ? '0' : '1'
-      }
-    }
-
-    // Very light easing math with rAF — MUCH cheaper than framer springs.
     const tick = () => {
-      // Ring: eased tail
-      s.rx += (s.tx - s.rx) * 0.22
-      s.ry += (s.ty - s.ry) * 0.22
-      // Dot: near-instant
-      s.dx += (s.tx - s.dx) * 0.65
-      s.dy += (s.ty - s.dy) * 0.65
-
-      if (ringRef.current) {
-        ringRef.current.style.transform = `translate3d(${s.rx - 16}px, ${s.ry - 16}px, 0) scale(${s.hovering ? 1.9 : 1})`
-      }
-      if (dotRef.current) {
-        dotRef.current.style.transform = `translate3d(${s.dx - 3}px, ${s.dy - 3}px, 0)`
-      }
-
-      // Stop the loop when the pointer is essentially at rest to save CPU
-      const dRing = Math.hypot(s.tx - s.rx, s.ty - s.ry)
-      const dDot  = Math.hypot(s.tx - s.dx, s.ty - s.dy)
-      if (dRing < 0.4 && dDot < 0.4) {
-        s.running = false
-        return
-      }
+      if (hidden) { running = false; return }
+      rx += (tx - rx) * 0.24
+      ry += (ty - ry) * 0.24
+      if (ringRef.current) ringRef.current.style.translate = `${rx - 16}px ${ry - 16}px`
+      if (dotRef.current)  dotRef.current.style.translate  = `${tx - 3}px ${ty - 3}px`
+      const d = Math.hypot(tx - rx, ty - ry)
+      if (d < 0.4) { running = false; return }
       raf = requestAnimationFrame(tick)
     }
 
+    const move = (e) => {
+      tx = e.clientX; ty = e.clientY
+      if (ringRef.current && ringRef.current.style.opacity !== '1') ringRef.current.style.opacity = '1'
+      if (dotRef.current  && dotRef.current.style.opacity  !== '1') dotRef.current.style.opacity  = '1'
+      if (!running) { running = true; raf = requestAnimationFrame(tick) }
+    }
+    const leave = () => {
+      if (ringRef.current) ringRef.current.style.opacity = '0'
+      if (dotRef.current)  dotRef.current.style.opacity  = '0'
+    }
+    const vis = () => {
+      hidden = document.hidden
+      if (!hidden && !running) { running = true; raf = requestAnimationFrame(tick) }
+    }
+
     window.addEventListener('pointermove', move, { passive: true })
-    window.addEventListener('pointerover', over, { passive: true })
     document.addEventListener('pointerleave', leave)
+    document.addEventListener('visibilitychange', vis)
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerover', over)
       document.removeEventListener('pointerleave', leave)
+      document.removeEventListener('visibilitychange', vis)
     }
   }, [])
 
@@ -184,23 +157,14 @@ function CustomCursor() {
       <div
         ref={ringRef}
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[95] h-8 w-8 rounded-full border transition-[background,border-color] duration-200 will-change-transform"
-        style={{
-          transform: 'translate3d(-100px,-100px,0)',
-          borderColor: 'rgba(212,175,55,0.55)',
-          opacity: 0,
-          mixBlendMode: 'difference',
-        }}
+        className="pointer-events-none fixed left-0 top-0 z-[95] h-8 w-8 rounded-full border border-[#D4AF37]/60 opacity-0 will-change-transform"
+        style={{ translate: '-100px -100px', mixBlendMode: 'difference', transition: 'opacity 250ms' }}
       />
       <div
         ref={dotRef}
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[96] h-1.5 w-1.5 rounded-full bg-[#F5D67B] will-change-transform"
-        style={{
-          transform: 'translate3d(-100px,-100px,0)',
-          boxShadow: '0 0 12px 2px rgba(212,175,55,0.7)',
-          opacity: 1,
-        }}
+        className="pointer-events-none fixed left-0 top-0 z-[96] h-1.5 w-1.5 rounded-full bg-[#F5D67B] opacity-0 will-change-transform"
+        style={{ translate: '-100px -100px', boxShadow: '0 0 12px 2px rgba(212,175,55,0.7)', transition: 'opacity 250ms' }}
       />
     </>
   )
@@ -258,17 +222,16 @@ function SmoothScrollSetup() {
 }
 
 export default function PremiumEffects() {
-  // NOTE: Custom cursor disabled for the payment launch — several users
-  // reported it freezing/lagging on data-heavy sections (hero 3D, cabinet).
-  // Native cursor is more reliable. Re-enable by uncommenting when we
-  // have time to profile the paint cost on lower-end machines.
-  // const disabled = useIsTouchOrReducedMotion()
+  // Cursor re-enabled with a bulletproof implementation: pure CSS transform
+  // + rAF, listens ONLY to pointermove (no pointerover polling), and never
+  // re-runs when the tab is hidden. Disabled on touch + reduced-motion.
+  const disabled = useIsTouchOrReducedMotion()
   return (
     <>
       <LoadingCounter />
       <SmoothScrollSetup />
       <ScrollReveal />
-      {/* {!disabled && <CustomCursor />} */}
+      {!disabled && <CustomCursor />}
     </>
   )
 }

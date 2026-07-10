@@ -103,6 +103,81 @@
   }
   .cosmos-drift { animation: cosmos-drift 240s linear infinite; }
 
+  /* ============================================================
+     21st.dev-inspired premium micro-interactions (added 2026-07-10)
+     ============================================================ */
+
+  /* --- Shimmer button — subtle sweep across primary gold CTAs --- */
+  @keyframes sf-shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  .btn-gold {
+    background-image:
+      linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.28) 50%, transparent 70%),
+      linear-gradient(180deg, #D4AF37 0%, #B8941F 100%);
+    background-size: 200% 100%, 100% 100%;
+    background-position: -200% 0, 0 0;
+    animation: sf-shimmer 3.4s linear infinite;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .btn-gold:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 40px -12px rgba(212,175,55,0.55);
+  }
+
+  /* --- Shiny text — for the highlighted "scholarships" hero word --- */
+  @keyframes sf-shiny {
+    0%   { background-position: -160% 0; }
+    100% { background-position:  260% 0; }
+  }
+  .text-gold-hi {
+    background-image: linear-gradient(
+      110deg,
+      #B8941F 0%,
+      #D4AF37 25%,
+      #F5D67B 50%,
+      #D4AF37 75%,
+      #B8941F 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: sf-shiny 5s linear infinite;
+  }
+
+  /* --- Magnetize / lift on gold pill buttons --- */
+  .btn-pill { will-change: transform; }
+
+  /* --- Sparkle underline for section kickers (subtle) --- */
+  .kicker-glow {
+    text-shadow: 0 0 24px rgba(212, 175, 55, 0.35);
+  }
+
+  /* --- Card spotlight — follows cursor with gold radial glow --- */
+  .card-spotlight {
+    position: relative;
+    isolation: isolate;
+  }
+  .card-spotlight::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(280px 200px at var(--mx, 50%) var(--my, 50%),
+                                rgba(212,175,55,0.14), transparent 60%);
+    opacity: 0;
+    transition: opacity 220ms ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .card-spotlight:hover::before { opacity: 1; }
+  .card-spotlight > * { position: relative; z-index: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-gold, .text-gold-hi { animation: none; }
+  }
+
   /* ---------- Global scroll-reveal — used with data-reveal attribute ------- */
   /*
     Any element with `data-reveal` starts translated + transparent. The

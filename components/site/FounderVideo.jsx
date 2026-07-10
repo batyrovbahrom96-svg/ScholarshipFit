@@ -4,29 +4,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Play, ShieldCheck, Sparkles, ArrowRight, Mail } from 'lucide-react'
 
-// -----------------------------------------------------------------------------
-// FounderVideo — welcome-message video slot for the founder.
-//
-// USAGE:
-//   1. Upload your welcome video (mp4 preferred, ~30-90 sec, under 40MB).
-//   2. Paste the direct URL into `FOUNDER_VIDEO_URL` below.
-//   3. Set `FOUNDER_POSTER_URL` (optional) if you have a still-frame image.
-//      If omitted, the card shows a gold gradient poster with your name.
-//   4. Adjust the copy in `<FounderIntro>` if needed.
-//
-// Notes:
-//   - preload="none" so the video only loads once the user clicks play.
-//   - If FOUNDER_VIDEO_URL is empty, the component renders a "coming soon"
-//     placeholder — safe to ship without a video.
-// -----------------------------------------------------------------------------
-
-const FOUNDER_VIDEO_URL   = ''   // TODO: paste your video URL here
-const FOUNDER_POSTER_URL  = ''   // optional — poster still frame
-const FOUNDER_VIDEO_TYPE  = 'video/mp4'
-
-const FOUNDER_NAME    = 'Umidjon Isakov'
-const FOUNDER_ROLE    = 'Founder · ScholarshipFit.com'
-const FOUNDER_QUOTE   = 'Built for the students I wish I had this for.'
+// Welcome video from the founder — uploaded 2026-07-10.
+const FOUNDER_VIDEO_URL   = 'https://customer-assets.emergentagent.com/job_stellar-fit/artifacts/owab1k68_2026-07-10%2022.50.13.mp4'
+const FOUNDER_POSTER_URL  = ''
+const FOUNDER_EMAIL       = 'batyrov.bakhrom@inbox.ru'
+const FOUNDER_NAME        = 'Bakhrom Batyrov'
+const FOUNDER_ROLE        = 'Founder · ScholarshipFit.com'
+const FOUNDER_QUOTE       = 'Built for the students I wish I had this for.'
 
 function VideoSlot() {
   const [primed, setPrimed] = useState(false)
@@ -49,7 +33,6 @@ function VideoSlot() {
           className={`absolute inset-0 flex flex-col items-center justify-center gap-4 focus:outline-none ${hasVideo ? 'cursor-pointer group' : 'cursor-default'}`}
           aria-label="Play founder welcome message"
         >
-          {/* Poster background */}
           {FOUNDER_POSTER_URL ? (
             <img src={FOUNDER_POSTER_URL} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70"/>
           ) : (
@@ -59,7 +42,6 @@ function VideoSlot() {
             </>
           )}
 
-          {/* Content overlay */}
           {hasVideo ? (
             <>
               <div className="relative z-10 h-20 w-20 rounded-full bg-[#D4AF37]/95 text-black flex items-center justify-center shadow-[0_10px_50px_-10px_rgba(212,175,55,0.7)] group-hover:scale-110 transition">
@@ -76,9 +58,6 @@ function VideoSlot() {
                 <Sparkles className="h-6 w-6 text-[#D4AF37]"/>
               </div>
               <div className="text-lg md:text-xl font-semibold text-white">A welcome message is on the way</div>
-              <div className="mt-2 text-sm text-white/60">
-                {FOUNDER_NAME} is recording a personal intro. Check back in a few days — or subscribe to be notified.
-              </div>
             </div>
           )}
         </button>
@@ -94,7 +73,6 @@ function VideoSlot() {
         />
       )}
 
-      {/* Consent badge */}
       <div className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/40 bg-black/70 px-2 py-0.5 text-[10px] font-medium text-[#F5D67B] backdrop-blur">
         <ShieldCheck className="h-3 w-3"/> Founder note
       </div>
@@ -103,6 +81,7 @@ function VideoSlot() {
 }
 
 export default function FounderVideo() {
+  const firstName = FOUNDER_NAME.split(' ')[0]
   return (
     <section className="relative border-t border-white/5">
       <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
@@ -116,7 +95,7 @@ export default function FounderVideo() {
               &ldquo;{FOUNDER_QUOTE}&rdquo;
             </blockquote>
             <p className="mt-4 text-white/60 leading-relaxed">
-              I&apos;m {FOUNDER_NAME.split(' ')[0]} — I built ScholarshipFit after wasting too many hours applying to programs that were never going to say yes.
+              I&apos;m {firstName} — I built ScholarshipFit after wasting too many hours applying to programs that were never going to say yes.
               This platform is what I wish existed when I was an international student researching scholarships.
               Watch the video for the full story — or hit the quiz and see what we mean.
             </p>
@@ -126,7 +105,7 @@ export default function FounderVideo() {
                   Take the 8-step quiz <ArrowRight className="ml-2 h-4 w-4"/>
                 </Button>
               </Link>
-              <a href="mailto:support@scholarshipfit.com">
+              <a href={`mailto:${FOUNDER_EMAIL}`}>
                 <Button size="lg" variant="outline" className="border-white/20 text-white/80 hover:bg-white/5 h-12 px-6">
                   <Mail className="mr-2 h-4 w-4"/>Email the founder
                 </Button>
@@ -136,7 +115,7 @@ export default function FounderVideo() {
           <div className="md:col-span-7" data-reveal data-reveal-delay="200">
             <VideoSlot />
             <p className="mt-3 text-xs text-white/40 text-center">
-              Personal welcome message from ScholarshipFit&apos;s founder.
+              Personal welcome message from {FOUNDER_NAME}, founder of ScholarshipFit.
             </p>
           </div>
         </div>

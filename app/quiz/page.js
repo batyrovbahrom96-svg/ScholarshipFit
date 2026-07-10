@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -8,9 +8,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import PaywallModal from '@/components/site/PaywallModal'
 import {
   ArrowRight, ArrowLeft, GraduationCap, Sparkles, ExternalLink, ShieldCheck,
   CheckCircle2, AlertCircle, MapPin, Globe, Award, Loader2, RotateCcw,
+  Lock, Crown, Zap, TrendingUp,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -394,28 +396,101 @@ export default function QuizPage() {
 // ---------------------------------------------------------------------------
 // Results
 // ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Estimate USD funding value from a scholarship's funding_amount free-text.
+// Handles: "$50,000", "€25,000", "£10,000", "SGD $3,300/mo", "CAD $40,000/yr",
+// "USD 8,000-25,000". Returns the highest number found, normalised to USD-ish.
+// -----------------------------------------------------------------------------
+function estimateFundingUSD(m) {
+  const s = String(m?.funding_amount || m?.funding_summary || '')
+  if (!s) return 0
+  const currencyMult = { '€': 1.07, '£': 1.27, 'CAD': 0.73, 'AUD': 0.66, 'SGD': 0.74, 'CHF': 1.12, 'HKD': 0.13, 'JPY': 0.0065, 'INR': 0.012, 'ZAR': 0.055 }
+  const numbers = []
+  const re = /(€|£|CAD|AUD|SGD|CHF|HKD|USD|JPY|INR|ZAR|\$)\s*(\d{1,3}(?:[,\s]\d{3})+|\d+(?:\.\d+)?)/gi
+  let match
+  while ((match = re.exec(s)) !== null) {
+    const sym = match[1].toUpperCase()
+    const raw = parseFloat(match[2].replace(/[,\s]/g, ''))
+    if (Number.isNaN(raw)) continue
+    let usd = raw * (currencyMult[sym] || 1)
+    // Convert small monthly to annual (rough)
+    if (/\bper (mo|month)\b|\/mo\b/i.test(s) && raw < 10000) usd = usd * 12
+    numbers.push(usd)
+  }
+  if (numbers.length === 0) {
+    // Fallback: "Full tuition + living" → assume $30k
+    if (/fully funded|full tuition/i.test(s)) return 30000
+    if (/tuition (waiver|discount)/i.test(s)) return 15000
+    return 5000
+  }
+  return Math.round(Math.max(...numbers))
+}
+
 function QuizResults({ results, answers, onReset }) {
   const matches = results?.top_matches || []
   const total = results?.total_matches || 0
   const evaluated = results?.total_evaluated || 0
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const [meActive, setMeActive] = useState(false)
+
+  // Check whether user already has an active subscription (skip paywall)
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setMeActive(!!d?.user?.subscription_active))
+      .catch(() => {})
+  }, [])
+
+  const totalWorth = useMemo(() => {
+    return matches.reduce((sum, m) => sum + estimateFundingUSD(m), 0)
+  }, [matches])
+
+  const teaser = matches.slice(0, 3)
+  const locked  = matches.slice(3)
 
   return (
     <div className="relative min-h-screen bg-[#0A0A0A] text-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[600px] bg-[radial-gradient(closest-side,rgba(212,175,55,0.15),transparent_70%)]"/>
       <div className="container mx-auto max-w-5xl px-4 pt-24 pb-24 relative">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-[#D4AF37]">Results</div>
-            <h1 className="mt-2 text-3xl md:text-4xl font-semibold tracking-tight">
-              {total} scholarships matched your profile
-            </h1>
-            <p className="mt-2 text-white/60 max-w-2xl">
-              Ranked from {evaluated} source-linked scholarships in our database. Every match below is a REAL program — click the source URL to verify directly.
-            </p>
+
+        {/* HERO — huge match-value stat, ScholarshipOwl-style hook */}
+        <div className="rounded-2xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#D4AF37]/10 via-[#D4AF37]/5 to-transparent p-8 md:p-10">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#D4AF37]">
+                <Sparkles className="h-4 w-4"/> Your matches are ready
+              </div>
+              <h1 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight leading-tight">
+                You matched{' '}
+                <span className="text-[#D4AF37]">{total} real scholarships</span>
+                {totalWorth > 0 && (
+                  <> worth up to <span className="text-emerald-400">${totalWorth.toLocaleString()}</span></>
+                )}
+              </h1>
+              <p className="mt-3 text-white/70 max-w-2xl">
+                Every match is a REAL program with an official source URL — no random suggestions, no hallucinations. Ranked from {evaluated} source-linked scholarships in our database.
+              </p>
+            </div>
+            <Button variant="outline" className="border-white/20 text-white/70 hover:text-white shrink-0" onClick={onReset}>
+              <RotateCcw className="mr-2 h-4 w-4"/>Adjust
+            </Button>
           </div>
-          <Button variant="outline" className="border-white/20 text-white/70 hover:text-white" onClick={onReset}>
-            <RotateCcw className="mr-2 h-4 w-4"/>Start over
-          </Button>
+
+          {/* Value strip */}
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+              <div className="text-2xl font-bold text-white">{total}</div>
+              <div className="text-xs text-white/50">Matched scholarships</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+              <div className="text-2xl font-bold text-emerald-400">${(totalWorth / 1000).toFixed(0)}K+</div>
+              <div className="text-xs text-white/50">Total funding available</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+              <div className="text-2xl font-bold text-[#D4AF37]">100%</div>
+              <div className="text-xs text-white/50">Source-linked verified</div>
+            </div>
+          </div>
         </div>
 
         {matches.length === 0 && (
@@ -433,10 +508,122 @@ function QuizResults({ results, answers, onReset }) {
           </Card>
         )}
 
-        <div className="mt-8 grid gap-4">
-          {matches.map(m => <MatchCard key={m.slug} m={m}/>)}
+        {/* TEASER — first 3 matches fully visible */}
+        {teaser.length > 0 && (
+          <div className="mt-10">
+            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
+              <TrendingUp className="h-4 w-4"/> Top 3 best-fit matches — preview
+            </div>
+            <div className="grid gap-4">
+              {teaser.map(m => <MatchCard key={m.slug} m={m}/>)}
+            </div>
+          </div>
+        )}
+
+        {/* PAYWALL BANNER — sits between teaser and locked rows */}
+        {locked.length > 0 && !meActive && (
+          <div className="mt-10 rounded-2xl border-2 border-[#D4AF37]/40 bg-gradient-to-br from-[#D4AF37]/15 via-[#0A0A0A] to-[#0A0A0A] p-8 md:p-10 relative overflow-hidden">
+            <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-[#D4AF37]/20 blur-3xl pointer-events-none"/>
+            <div className="relative">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#D4AF37]">
+                <Crown className="h-4 w-4"/> {locked.length} more matches locked
+              </div>
+              <h2 className="mt-3 text-3xl md:text-4xl font-semibold tracking-tight text-white">
+                Unlock all {total} matches + apply-ready features
+              </h2>
+              <p className="mt-3 text-white/70 max-w-2xl">
+                See every match, deadline calendar, application links, AI Match reports, Cabinet document storage, Application Tracker and PDF export. <span className="text-[#D4AF37] font-medium">Instant access — no free trial, no credit-card gotchas.</span>
+              </p>
+
+              <div className="mt-6 grid gap-2 sm:grid-cols-2 max-w-3xl">
+                {[
+                  ['Unlock all 303 real scholarships', 'Deadlines + application links'],
+                  ['Unlimited AI Match reports', 'Claude Sonnet 4.5 personalised'],
+                  ['Application Readiness Score', 'PDF/DOCX upload + gap analysis'],
+                  ['Cabinet + Application Tracker', 'Kanban board · deadline reminders'],
+                ].map(([t, s]) => (
+                  <div key={t} className="flex items-start gap-2 text-sm">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"/>
+                    <div>
+                      <div className="text-white font-medium">{t}</div>
+                      <div className="text-white/50 text-xs">{s}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={() => setPaywallOpen(true)}
+                  size="lg"
+                  className="btn-gold btn-pill h-12 px-8 text-base font-semibold text-black"
+                >
+                  <Zap className="mr-2 h-4 w-4"/>Activate now — from $9/mo
+                </Button>
+                <div className="text-xs text-white/50">
+                  ✓ Instant access · ✓ Cancel anytime · ✓ 7-day money-back guarantee
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LOCKED MATCHES — blurred, non-clickable */}
+        {locked.length > 0 && (
+          <div className="mt-10 relative">
+            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
+              <Lock className="h-4 w-4"/> {locked.length} more matches — {meActive ? 'unlocked' : 'unlock to view'}
+            </div>
+            <div className={`grid gap-4 ${meActive ? '' : 'pointer-events-none select-none'}`}>
+              {locked.slice(0, meActive ? locked.length : 8).map(m => (
+                <div key={m.slug} className="relative">
+                  <div className={meActive ? '' : 'blur-[6px] opacity-70'}>
+                    <MatchCard m={m}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {!meActive && locked.length > 8 && (
+              <div className="mt-6 text-center text-sm text-white/50">
+                + {locked.length - 8} additional matches hidden
+              </div>
+            )}
+            {!meActive && (
+              <div className="mt-8 text-center">
+                <Button
+                  onClick={() => setPaywallOpen(true)}
+                  size="lg"
+                  className="btn-gold btn-pill h-12 px-8 font-semibold text-black"
+                >
+                  <Crown className="mr-2 h-4 w-4"/>Unlock all {total} matches — from $9/mo
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Trust footer */}
+        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 text-center border-t border-white/5 pt-8">
+          {[
+            ['303', 'Real scholarships'],
+            ['60', 'Countries covered'],
+            ['100%', 'Source-linked'],
+            ['0', 'Fake data'],
+          ].map(([n, l]) => (
+            <div key={l}>
+              <div className="text-2xl font-bold text-white">{n}</div>
+              <div className="text-xs text-white/50">{l}</div>
+            </div>
+          ))}
         </div>
       </div>
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        matchCount={total}
+        totalWorth={totalWorth}
+      />
     </div>
   )
 }

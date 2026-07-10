@@ -40,10 +40,22 @@ function Dashboard() {
   const [tab, setTab] = useState('recommended')
   const [saved, setSaved] = useState({})
   const [rematching, setRematching] = useState(false)
+  const [activatedCelebration, setActivatedCelebration] = useState(false)
 
   useEffect(() => {
     const p = store.getProfile(); const r = store.getRun()
     setProfile(p); setRun(r); setSaved(store.getSaved())
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('activated') === '1') {
+        setActivatedCelebration(true)
+        toast.success('Membership activated', {
+          description: 'You now have full access to all scholarships & features.',
+        })
+        // clean the URL
+        window.history.replaceState({}, '', '/dashboard')
+      }
+    }
   }, [])
 
   const matches = run?.result?.matches || []
@@ -96,6 +108,28 @@ function Dashboard() {
     <div className="dark-bg min-h-screen">
       <Navbar />
       <div className="container mx-auto max-w-7xl px-4 py-8">
+        {activatedCelebration && (
+          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-5 flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+              <span className="text-2xl">🎉</span>
+            </div>
+            <div className="flex-1">
+              <div className="text-lg font-semibold text-white">Membership activated!</div>
+              <div className="text-sm text-white/70">You now have full access to all 303 real scholarships, AI Match reports, Cabinet documents, and the Application Tracker. Welcome to ScholarshipFit.</div>
+            </div>
+            <button onClick={() => setActivatedCelebration(false)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
+          </div>
+        )}
+        {user?.subscription_active === false && (
+          <div className="mb-6 rounded-xl border border-[#D4AF37]/30 bg-gradient-to-r from-[#D4AF37]/10 via-transparent to-transparent p-5 flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#D4AF37]/20 flex items-center justify-center shrink-0 text-[#D4AF37]">🔒</div>
+            <div className="flex-1">
+              <div className="text-lg font-semibold text-white">Unlock the full Cabinet</div>
+              <div className="text-sm text-white/70">Activate your membership to see all scholarships, AI Match reports, deadline reminders, and PDF export. From $9/mo.</div>
+            </div>
+            <Link href="/quiz"><Button className="btn-gold btn-pill">Activate now</Button></Link>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-widest text-[#D4AF37]">Personal cabinet</p>

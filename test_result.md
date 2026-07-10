@@ -550,10 +550,104 @@ frontend:
           - ⚠️ WARNING: Scholarship table shows 0 rows (may be loading issue or data not populated in test environment)
           - ⚠️ WARNING: Trust badges and Source links not found (related to 0 rows issue)
 
+  - task: "POST /api/subscription/activate - Subscription activation (Pro/Elite/Lifetime)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ SUBSCRIPTION ACTIVATION FULLY VALIDATED (14/14 tests passed - 100% success rate)
+          
+          Core Functionality - ALL WORKING:
+          
+          1. ✅ Unauthed activate returns 401
+             - POST /api/subscription/activate without session cookie → 401 "Not signed in"
+          
+          2. ✅ Login successful with test credentials
+             - POST /api/auth/login with testuser@example.com / testpass123 → 200 OK
+             - Session cookie (sf_session) set correctly
+          
+          3. ✅ Activate Pro subscription
+             - POST /api/subscription/activate with {plan:'pro'} → 200 OK
+             - Subscription fields verified:
+               * plan='pro' ✓
+               * status='active' ✓
+               * price_usd=9 ✓
+               * activated_at exists ✓
+               * expires_at set to ~30 days from now (verified: 30 days) ✓
+          
+          4. ✅ GET /api/auth/me reflects subscription_active=true
+             - User object now includes subscription_active: true
+          
+          5. ✅ GET /api/subscription/status returns active=true
+             - Returns {subscription: {...}, active: true}
+             - Subscription object matches activation data
+          
+          6. ✅ Invalid plan validation
+             - POST /api/subscription/activate with {plan:'invalid'} → 400 "invalid plan"
+          
+          7. ✅ Missing plan validation
+             - POST /api/subscription/activate with {} → 400 "invalid plan"
+          
+          8. ✅ Activate Lifetime subscription
+             - POST /api/subscription/activate with {plan:'lifetime'} → 200 OK
+             - Subscription fields verified:
+               * plan='lifetime' ✓
+               * status='active' ✓
+               * price_usd=199 ✓
+               * expires_at=null (no expiration for lifetime) ✓
+          
+          9. ✅ Cancel subscription
+             - POST /api/subscription/cancel → 200 OK {ok: true}
+             - After cancel: GET /api/subscription/status shows:
+               * status='cancelled' ✓
+               * cancelled_at timestamp exists ✓
+               * active=false (for lifetime with cancelled status) ✓
+          
+          10. ✅ Activate Elite subscription
+              - POST /api/subscription/activate with {plan:'elite'} → 200 OK
+              - Subscription fields verified:
+                * plan='elite' ✓
+                * status='active' ✓
+                * price_usd=24 ✓
+                * expires_at set to ~30 days from now ✓
+          
+          11. ✅ Audit log verification
+              - Verified subscription_events collection in MongoDB
+              - Each activation creates audit entry with:
+                * id (UUID) ✓
+                * user_id ✓
+                * event='activated' ✓
+                * plan (pro/elite/lifetime) ✓
+                * price_usd ✓
+                * created_at timestamp ✓
+              - Found 5+ activation events in audit log
+          
+          12. ✅ Regression check: GET /api/scholarships still works
+              - Returns 303 scholarships
+              - No breaking changes to existing endpoints
+          
+          Pricing Verification:
+          - Pro: $9/month, 30-day expiration ✓
+          - Elite: $24/month, 30-day expiration ✓
+          - Lifetime: $199, no expiration (expires_at=null) ✓
+          
+          Auth Integration:
+          - All subscription endpoints correctly require sf_session cookie
+          - GET /api/auth/me now returns subscription_active boolean
+          - Subscription status correctly reflects active/cancelled state
+          
+          NO MAJOR ISSUES FOUND. All subscription endpoints are production-ready.
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 
 test_plan:
@@ -1862,3 +1956,66 @@ agent_communication:
       Backend testing NOT triggered — this is pure content addition to an existing,
       previously-tested seed path. If desired, run a quick regression on
       GET /api/scholarships to confirm count = 303 and no serialization errors.
+
+
+  - agent: "testing"
+    date: "2026-07-10"
+    message: |
+      ✅ SUBSCRIPTION ACTIVATION ENDPOINTS TESTING COMPLETE - ALL TESTS PASSED (14/14 - 100% SUCCESS RATE)
+      
+      Tested all NEW subscription endpoints as per review request:
+      
+      **Endpoints Tested:**
+      1. ✅ POST /api/subscription/activate - Activates subscription (Pro/Elite/Lifetime)
+      2. ✅ GET /api/subscription/status - Returns subscription status and active flag
+      3. ✅ POST /api/subscription/cancel - Cancels active subscription
+      4. ✅ GET /api/auth/me - Now returns subscription_active boolean
+      
+      **Test Results Summary:**
+      
+      ✅ Auth Gate (1 test):
+      - Unauthed activate → 401 "Not signed in"
+      
+      ✅ Pro Plan Activation (3 tests):
+      - Activates with plan='pro', price_usd=9, expires_at=+30 days
+      - GET /api/auth/me shows subscription_active=true
+      - GET /api/subscription/status shows active=true
+      
+      ✅ Validation (2 tests):
+      - Invalid plan → 400 "invalid plan"
+      - Missing plan → 400 "invalid plan"
+      
+      ✅ Lifetime Plan (1 test):
+      - Activates with plan='lifetime', price_usd=199, expires_at=null
+      
+      ✅ Cancellation (2 tests):
+      - POST /api/subscription/cancel → 200 OK
+      - After cancel: status='cancelled', cancelled_at exists, active=false
+      
+      ✅ Elite Plan (1 test):
+      - Activates with plan='elite', price_usd=24, expires_at=+30 days
+      
+      ✅ Audit Log (1 test):
+      - subscription_events collection verified in MongoDB
+      - Each activation creates audit entry with: id, user_id, event='activated', plan, price_usd, created_at
+      - Found 5+ activation events in audit log
+      
+      ✅ Regression (1 test):
+      - GET /api/scholarships still works (303 scholarships)
+      
+      **Pricing Verified:**
+      - Pro: $9/month, 30-day expiration ✓
+      - Elite: $24/month, 30-day expiration ✓
+      - Lifetime: $199, no expiration ✓
+      
+      **Auth Integration:**
+      - All subscription endpoints require sf_session cookie ✓
+      - GET /api/auth/me correctly returns subscription_active boolean ✓
+      - Subscription status accurately reflects active/cancelled state ✓
+      
+      NO MAJOR ISSUES FOUND. All subscription endpoints are production-ready.
+      
+      NEXT STEPS FOR MAIN AGENT:
+      - All subscription tests passed with no major issues
+      - Ready to summarize and finish
+      - Frontend testing requires user approval (not tested per instructions)

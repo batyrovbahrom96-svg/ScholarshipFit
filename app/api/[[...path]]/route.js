@@ -1076,7 +1076,73 @@ Respond with STRICT JSON in this schema:
     if (route === '/auth/me' && method === 'GET') {
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ user: null }, { status: 200 }))
-      return withCORS(NextResponse.json({ user }))
+      const sub = user.subscription || null
+      const isActive = sub && sub.status === 'active' && (
+        sub.plan === 'lifetime' || !sub.expires_at || new Date(sub.expires_at) > new Date()
+      )
+      return withCORS(NextResponse.json({
+        user: { ...user, subscription_active: !!isActive }
+      }))
+    }
+
+    // ---- Subscription APIs ----
+    // Activation is currently in "manual-activation" mode: the frontend
+    // simulates payment success and calls this to mark the user's subscription
+    // active. When Stripe/LemonSqueezy is wired, this remains the internal
+    // handler and the webhook simply calls it with a verified signature.
+    if (route === '/subscription/activate' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const plan = (body?.plan || '').toLowerCase()
+      if (!['pro', 'elite', 'lifetime'].includes(plan)) {
+        return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
+      }
+      const now = new Date()
+      const expiresAt = plan === 'lifetime'
+        ? null
+        : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // +30 days
+      const price = plan === 'pro' ? 9 : plan === 'elite' ? 24 : 199
+      const subscription = {
+        plan,
+        status: 'active',
+        activated_at: now,
+        expires_at: expiresAt,
+        price_usd: price,
+        payment_method: 'pending_gateway', // set by webhook when live
+        payment_reference: body?.payment_reference || null,
+      }
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $set: { subscription, updated_at: now } }
+      )
+      // Also log an audit trail entry
+      await db.collection('subscription_events').insertOne({
+        id: uuidv4(), user_id: user.id, event: 'activated',
+        plan, price_usd: price, created_at: now,
+      }).catch(() => {})
+      return withCORS(NextResponse.json({ ok: true, subscription }))
+    }
+
+    if (route === '/subscription/status' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ subscription: null, active: false }))
+      const sub = user.subscription || null
+      const isActive = sub && sub.status === 'active' && (
+        sub.plan === 'lifetime' || !sub.expires_at || new Date(sub.expires_at) > new Date()
+      )
+      return withCORS(NextResponse.json({ subscription: sub, active: !!isActive }))
+    }
+
+    if (route === '/subscription/cancel' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      if (!user.subscription) return withCORS(NextResponse.json({ ok: true }))
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $set: { 'subscription.status': 'cancelled', 'subscription.cancelled_at': new Date() } }
+      )
+      return withCORS(NextResponse.json({ ok: true }))
     }
 
     if (route === '/auth/logout' && method === 'POST') {

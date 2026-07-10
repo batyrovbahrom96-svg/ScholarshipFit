@@ -873,6 +873,87 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ ok: false, error: 'Invalid password' }, { status: 401 }))
     }
 
+    // ============================================================================
+    // Admin — Seed the owner account.
+    // Idempotent: creates or resets the owner user with lifetime VIP access.
+    // Required in any fresh environment (e.g. a new production deploy has an
+    // empty users collection, so the owner needs bootstrapping).
+    //
+    // Auth: pass the ADMIN_PASSWORD either as `x-admin-key` header OR in the
+    // POST JSON body as `admin_password`. Returns the email/password to use.
+    // ============================================================================
+    if (route === '/admin/seed-owner' && method === 'POST') {
+      const hdr = request.headers.get('x-admin-key') || ''
+      const body = await request.json().catch(() => ({}))
+      const pass = body.admin_password || hdr
+      if (!ADMIN_PASSWORD || pass !== ADMIN_PASSWORD) {
+        return withCORS(NextResponse.json({ ok: false, error: 'Invalid admin password' }, { status: 401 }))
+      }
+      const bcrypt = nodeRequire('bcryptjs')
+
+      // Allow the caller to override credentials, else fall back to defaults.
+      const email    = String(body.email    || 'admin@scholarshipfit.com').toLowerCase().trim()
+      const password = String(body.password || 'ScholarshipFitOwner2026!')
+      if (password.length < 8) {
+        return withCORS(NextResponse.json({ ok: false, error: 'Password must be 8+ chars' }, { status: 400 }))
+      }
+      const password_hash = await bcrypt.hash(password, 10)
+      const now = new Date()
+      const lifetimeSub = {
+        plan: 'lifetime',
+        status: 'active',
+        provider: 'admin-seed',
+        price_usd: 79,
+        billing_cycle_days: null,
+        activated_at: now,
+        trial_end: null,
+        trial_used: true,
+        expires_at: null,
+        monthly_rate_usd: 0,
+        updated_at: now,
+      }
+
+      const existing = await db.collection('users').findOne({ email })
+      let userId
+      if (existing) {
+        userId = existing.id
+        await db.collection('users').updateOne(
+          { email },
+          {
+            $set: {
+              password_hash,
+              name: existing.name || 'Bakhrom Batyrov (Owner)',
+              role: 'owner',
+              entitlement: 'founder',
+              subscription: lifetimeSub,
+              updated_at: now,
+            },
+          },
+        )
+      } else {
+        userId = uuidv4()
+        await db.collection('users').insertOne({
+          id: userId,
+          email,
+          name: 'Bakhrom Batyrov (Owner)',
+          password_hash,
+          role: 'owner',
+          entitlement: 'founder',
+          subscription: lifetimeSub,
+          cabinet: { favorites: [], recent_searches: [], profile: {} },
+          created_at: now,
+          updated_at: now,
+        })
+      }
+
+      return withCORS(NextResponse.json({
+        ok: true,
+        action: existing ? 'updated' : 'created',
+        user: { id: userId, email, role: 'owner', subscription: { plan: 'lifetime', status: 'active' } },
+        message: `Owner account ${existing ? 'reset' : 'created'}. Sign in at /login with email "${email}".`,
+      }))
+    }
+
     // ============ Email + Password Auth ============
     // Alternative to Google — users can register/login with a password.
     // The session cookie is the same `sf_session`, sessions collection

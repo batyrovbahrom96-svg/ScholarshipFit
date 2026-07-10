@@ -117,8 +117,10 @@ function CustomCursor() {
 
     const tick = () => {
       if (hidden) { running = false; return }
-      rx += (tx - rx) * 0.24
-      ry += (ty - ry) * 0.24
+      // Snappier follow: 0.55 lerp (was 0.24) makes the ring feel promptly
+      // responsive without becoming jittery. Dot stays 1:1 with pointer.
+      rx += (tx - rx) * 0.55
+      ry += (ty - ry) * 0.55
       if (ringRef.current) ringRef.current.style.translate = `${rx - 16}px ${ry - 16}px`
       if (dotRef.current)  dotRef.current.style.translate  = `${tx - 3}px ${ty - 3}px`
       const d = Math.hypot(tx - rx, ty - ry)

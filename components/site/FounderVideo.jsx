@@ -26,7 +26,9 @@ function VideoSlot() {
   const hasVideo = !!FOUNDER_VIDEO_URL
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[#D4AF37]/25 bg-black">
+    // Vertical (9:16) portrait frame — matches phone-recorded founder clip.
+    // Constrained max-width so it doesn't dominate on wide screens.
+    <div className="relative aspect-[9/16] w-full max-w-[380px] mx-auto overflow-hidden rounded-2xl border border-[#D4AF37]/25 bg-black">
       {!primed ? (
         <button
           onClick={hasVideo ? play : undefined}
@@ -66,7 +68,7 @@ function VideoSlot() {
           ref={videoRef}
           src={FOUNDER_VIDEO_URL}
           poster={FOUNDER_POSTER_URL || undefined}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain bg-black"
           preload="metadata"
           playsInline
           controls

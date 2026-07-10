@@ -22,7 +22,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 pt-4">
       <div className="container mx-auto max-w-6xl px-4">
-        <div className="flex h-16 md:h-[68px] items-center justify-between rounded-full border border-white/10 bg-black/70 backdrop-blur-xl px-5 md:px-6 gap-4"
+        <div className="flex h-[64px] md:h-[72px] lg:h-[78px] items-center justify-between rounded-full border border-white/10 bg-black/70 backdrop-blur-xl px-5 md:px-6 gap-4"
              style={{ boxShadow: '0 0 0 1px rgba(212,175,55,0.08), 0 10px 40px -10px rgba(0,0,0,0.6)' }}>
           <Logo />
           <nav className="hidden md:flex items-center gap-5 lg:gap-6">

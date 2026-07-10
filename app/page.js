@@ -18,6 +18,7 @@ import WinnerTicker from '@/components/site/WinnerTicker'
 import BottomCTA from '@/components/site/BottomCTA'
 import PricingPreview from '@/components/site/PricingPreview'
 import TestimonialWall from '@/components/site/TestimonialWall'
+import OutcomesPreview from '@/components/site/OutcomesPreview'
 import StudentStories from '@/components/site/StudentStories'
 import ProofStats from '@/components/site/ProofStats'
 
@@ -370,6 +371,9 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* ================ REAL VIDEO OUTCOMES — verified proof ================ */}
+      <OutcomesPreview />
 
       {/* ================ TESTIMONIAL WALL — 3-col masonry ================ */}
       <TestimonialWall />

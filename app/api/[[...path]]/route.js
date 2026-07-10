@@ -1095,31 +1095,44 @@ Respond with STRICT JSON in this schema:
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
       const body = await request.json().catch(() => ({}))
       const plan = (body?.plan || '').toLowerCase()
-      if (!['pro', 'elite', 'lifetime'].includes(plan)) {
+      // Plan catalogue: price = amount charged in the billing cycle, days = cycle length,
+      // monthly_rate = effective $/mo shown to user.
+      const PLAN_CATALOGUE = {
+        vip:         { price: 69, days: 30,  monthly_rate: 69 },
+        monthly:     { price: 20, days: 30,  monthly_rate: 20 },
+        quarterly:   { price: 45, days: 90,  monthly_rate: 15 },
+        half_yearly: { price: 60, days: 180, monthly_rate: 10 },
+        // Legacy plan keys (kept for backward compatibility with old tests / URLs)
+        pro:         { price: 9,   days: 30, monthly_rate: 9 },
+        elite:       { price: 24,  days: 30, monthly_rate: 24 },
+        lifetime:    { price: 199, days: null, monthly_rate: 0 },
+      }
+      const cfg = PLAN_CATALOGUE[plan]
+      if (!cfg) {
         return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
       }
       const now = new Date()
-      const expiresAt = plan === 'lifetime'
+      const expiresAt = cfg.days == null
         ? null
-        : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // +30 days
-      const price = plan === 'pro' ? 9 : plan === 'elite' ? 24 : 199
+        : new Date(now.getTime() + cfg.days * 24 * 60 * 60 * 1000)
       const subscription = {
         plan,
         status: 'active',
         activated_at: now,
         expires_at: expiresAt,
-        price_usd: price,
-        payment_method: 'pending_gateway', // set by webhook when live
+        price_usd: cfg.price,
+        monthly_rate_usd: cfg.monthly_rate,
+        billing_cycle_days: cfg.days,
+        payment_method: 'pending_gateway',
         payment_reference: body?.payment_reference || null,
       }
       await db.collection('users').updateOne(
         { id: user.id },
         { $set: { subscription, updated_at: now } }
       )
-      // Also log an audit trail entry
       await db.collection('subscription_events').insertOne({
         id: uuidv4(), user_id: user.id, event: 'activated',
-        plan, price_usd: price, created_at: now,
+        plan, price_usd: cfg.price, created_at: now,
       }).catch(() => {})
       return withCORS(NextResponse.json({ ok: true, subscription }))
     }

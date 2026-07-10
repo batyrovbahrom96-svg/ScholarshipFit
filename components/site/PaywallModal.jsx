@@ -14,80 +14,88 @@ import {
 // -----------------------------------------------------------------------------
 const PLANS = [
   {
-    key: 'pro',
-    name: 'Pro',
-    price: 9,
-    unit: 'per month',
-    billing: 'Billed monthly · cancel anytime',
+    key: 'vip',
+    name: 'VIP',
+    price: 69,
+    unit: '/mo',
+    billing: 'billed monthly',
     ribbon: null,
-    accent: 'gold',
-    tagline: 'Everything you need to win real scholarships',
+    accent: 'red',
+    tagline: 'Concierge tier — human experts + full access',
     features: [
+      'Access hundreds of thousands of award money',
+      'Enjoy new scholarship opportunities added every week',
+      'Get re-applied automatically to renewable scholarships',
+      'One 500-word essay professionally reviewed every month',
+      '1 × 30-min 1:1 strategy call every month',
+      'Watch 6+ hours of financial aid & admissions content',
+      'Deadline concierge — we hand-verify every deadline',
+      'WhatsApp / Telegram direct line to VIP team',
+      'Priority same-day support (< 2h reply)',
+      'Cancel anytime',
+    ],
+  },
+  {
+    key: 'monthly',
+    name: 'Monthly',
+    price: 20,
+    unit: '/mo',
+    billing: 'billed monthly',
+    ribbon: null,
+    accent: 'orange',
+    tagline: 'Full access, billed monthly',
+    features: [
+      'Hundreds of thousands of award money currently available',
+      'New scholarship opportunities added every month',
+      'Automatically re-apply to repeat scholarships',
       'Unlock all 303 source-linked scholarships (60 countries)',
       'Unlimited AI Match reports · Claude Sonnet 4.5',
-      'Unlimited Application Readiness Scores + gap analysis',
-      'AI transcript + essay parser (PDF, DOCX, TXT)',
-      'Cabinet: unlimited document storage',
-      'Application Tracker · Kanban (Applied / Won / Rejected)',
-      'Deadline calendar + auto email reminders (7/3/1 day)',
-      'One-click PDF Match Report export (branded)',
-      'Save unlimited favorites & custom shortlists',
-      'Advanced filters: country, funding, GPA, deadline, degree',
-      'Nova AI advisor — unlimited 24/7 chat',
-      'Weekly personalised scholarship email digest',
-      'New scholarships added every week',
-      'Priority email support · < 24h reply',
-      '7-day money-back guarantee',
+      'Unlimited Application Readiness Scores',
+      'Cabinet · Tracker · deadline reminders · PDF export',
+      'Only $20 per month, until you cancel',
+      'Cancel anytime from your account page',
     ],
   },
   {
-    key: 'elite',
-    name: 'Elite',
-    price: 24,
-    unit: 'per month',
-    billing: 'Billed monthly · cancel anytime',
+    key: 'quarterly',
+    name: 'Quarterly',
+    price: 15,
+    unit: '/mo',
+    billing: 'billed every 3 months',
     ribbon: 'Most Popular',
-    accent: 'gold-plus',
-    tagline: 'Human experts + AI on your side',
+    accent: 'green',
+    tagline: 'Save 25% — pay $45 every 3 months',
     features: [
-      'Everything in Pro — unlimited',
-      'Claude Opus 4.5 advisor (deeper reasoning, longer context)',
-      '2 essay reviews / month by professional editor',
-      '1 × 30-min 1:1 strategy call / month with an advisor',
-      'Deadline concierge — we hand-verify every deadline',
-      'Same-day priority support · live chat < 2h',
-      '48h early access to newly-added scholarships',
-      'Personalised outreach templates for committees',
-      'Recommender-letter template library + coaching',
-      'CV / résumé review by career expert',
-      'Mock interview + feedback session (once/quarter)',
-      'Application fee-waiver assistance (US universities)',
-      'WhatsApp / Telegram direct line to Elite team',
-      'Locked-in founding-cohort price forever',
+      'Hundreds of thousands of award money currently available',
+      'New scholarship opportunities added every month',
+      'Automatically re-apply to repeat scholarships',
+      'Unlock all 303 source-linked scholarships (60 countries)',
+      'Unlimited AI Match reports · Claude Sonnet 4.5',
+      'Unlimited Application Readiness Scores',
+      'Cabinet · Tracker · deadline reminders · PDF export',
+      'Only $15 per month, billed quarterly, until you cancel',
+      'Cancel anytime from your account page',
     ],
   },
   {
-    key: 'lifetime',
-    name: 'Lifetime',
-    price: 199,
-    unit: 'one-time',
-    billing: 'Pay once · Pro tier forever',
+    key: 'half_yearly',
+    name: 'Half Yearly',
+    price: 10,
+    unit: '/mo',
+    billing: 'billed every 6 months',
     ribbon: 'Best Value',
-    accent: 'emerald',
-    tagline: 'Pay once. Never pay again. Ever.',
+    accent: 'orange',
+    tagline: 'Save 50% — pay $60 every 6 months',
     features: [
-      'All Pro features — forever · no renewals · no monthly bills',
-      'Locked in before the $19/mo regular price goes live',
-      'First access to every new feature (before Pro & Elite)',
-      'Direct Slack / DM line to the founding team',
-      '🏆 Founding Member badge on your profile',
-      'Lifetime access to every scholarship added in the future',
-      '2 free essay reviews per year (bonus, worth $99)',
-      'Annual 30-min strategy call with a founder',
-      'Refer-a-friend: 30% commission for life',
-      'Exclusive Founder alumni network + private community',
-      'Guaranteed price lock — you\u2019ll never pay more',
-      'Priority support · forever',
+      'Hundreds of thousands of award money currently available',
+      'New scholarship opportunities added every month',
+      'Automatically re-apply to repeat scholarships',
+      'Unlock all 303 source-linked scholarships (60 countries)',
+      'Unlimited AI Match reports · Claude Sonnet 4.5',
+      'Unlimited Application Readiness Scores',
+      'Cabinet · Tracker · deadline reminders · PDF export',
+      'Only $10 per month, billed half-yearly, until you cancel',
+      'Cancel anytime from your account page',
     ],
   },
 ]
@@ -101,7 +109,7 @@ const TRUST_BADGES = [
 // -----------------------------------------------------------------------------
 // Main component
 // -----------------------------------------------------------------------------
-export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth = 0, initialPlan = 'pro' }) {
+export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth = 0, initialPlan = 'quarterly' }) {
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState(initialPlan)
   const [loading, setLoading] = useState(false)
@@ -180,52 +188,60 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
 
         {/* Plan cards */}
         <div className="p-6 md:p-8">
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLANS.map((p) => {
               const isSelected = selectedPlan === p.key
-              const accent = p.accent === 'emerald'
-                ? { ring: 'ring-emerald-400/70', ribbon: 'bg-emerald-500 text-black', btn: 'bg-emerald-500 hover:bg-emerald-400 text-black' }
-                : p.accent === 'gold-plus'
-                  ? { ring: 'ring-[#D4AF37]', ribbon: 'bg-[#D4AF37] text-black', btn: 'bg-[#D4AF37] hover:bg-[#B8941F] text-black' }
-                  : { ring: 'ring-white/20', ribbon: 'bg-white/10 text-white', btn: 'bg-white hover:bg-white/90 text-black' }
+              const accent = p.accent === 'green'
+                ? { ring: 'ring-emerald-400/70', ribbon: 'bg-emerald-500 text-white', btn: 'bg-emerald-500 hover:bg-emerald-400 text-white' }
+                : p.accent === 'red'
+                  ? { ring: 'ring-red-400/60', ribbon: 'bg-red-500 text-white', btn: 'bg-red-500 hover:bg-red-400 text-white' }
+                  : p.accent === 'orange'
+                    ? { ring: 'ring-orange-400/60', ribbon: 'bg-orange-500 text-white', btn: 'bg-orange-500 hover:bg-orange-400 text-white' }
+                    : { ring: 'ring-[#D4AF37]', ribbon: 'bg-[#D4AF37] text-black', btn: 'bg-[#D4AF37] hover:bg-[#B8941F] text-black' }
+              const totalDue = p.key === 'quarterly' ? 45 : p.key === 'half_yearly' ? 60 : p.price
               return (
                 <div
                   key={p.key}
                   onClick={() => setSelectedPlan(p.key)}
-                  className={`relative cursor-pointer rounded-2xl border p-6 transition-all
+                  className={`relative cursor-pointer rounded-2xl border p-5 transition-all
                     ${isSelected
                       ? `bg-white/[0.04] border-white/20 ring-2 ${accent.ring}`
                       : 'bg-white/[0.02] border-white/10 hover:border-white/20'}`}
                 >
                   {p.ribbon && (
-                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold ${accent.ribbon}`}>
+                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap ${accent.ribbon}`}>
                       <Star className="inline h-3 w-3 mr-1 -mt-0.5"/>{p.ribbon}
                     </div>
                   )}
-                  <div className="text-lg font-semibold text-white">{p.name}</div>
-                  <div className="mt-1 text-sm text-white/50">{p.tagline}</div>
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white">${p.price}</span>
-                    <span className="text-white/50 text-sm">{p.unit}</span>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-white">{p.name}</div>
+                    <div className="mt-3 flex items-baseline justify-center gap-1">
+                      <span className="text-4xl font-bold text-white">${p.price}</span>
+                      <span className="text-white/50 text-sm">{p.unit}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-white/50">{p.billing}</div>
+                    {(p.key === 'quarterly' || p.key === 'half_yearly') && (
+                      <div className="mt-1 text-[11px] text-emerald-300/80">${totalDue} billed today</div>
+                    )}
                   </div>
-                  <div className="text-xs text-white/40">{p.billing}</div>
 
                   <Button
                     onClick={(e) => { e.stopPropagation(); activate(p.key) }}
                     disabled={loading}
-                    className={`mt-5 w-full ${accent.btn} disabled:opacity-40`}
+                    className={`mt-4 w-full ${accent.btn} disabled:opacity-40`}
                   >
                     {loading && selectedPlan === p.key ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Activating…</>
                     ) : (
-                      <><CreditCard className="mr-2 h-4 w-4"/>Activate {p.name} — ${p.price}</>
+                      <>Activate {p.name === 'VIP' ? 'VIP' : p.name}</>
                     )}
                   </Button>
+                  <div className="mt-2 text-center text-[11px] text-white/40">Cancel anytime</div>
 
-                  <ul className="mt-5 space-y-2">
+                  <ul className="mt-4 space-y-1.5 border-t border-white/5 pt-4">
                     {p.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-white/80">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"/>
+                      <li key={i} className="flex items-start gap-2 text-xs text-white/75">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400"/>
                         <span>{f}</span>
                       </li>
                     ))}

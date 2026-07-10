@@ -353,6 +353,24 @@ async function handleRoute(request, { params }) {
     }
 
     // ------- AI Match -------
+    if (route === '/scholarships/quiz-match' && method === 'POST') {
+      // Deterministic rule-based matcher — takes quiz answers and returns
+      // ranked REAL scholarships from the DB. No AI, no hallucination.
+      const body = await request.json().catch(() => ({}))
+      const answers = body?.answers || {}
+      const scholarships = await db.collection('scholarships')
+        .find({ public_status: { $ne: 'hidden' } })
+        .limit(500).toArray()
+      const { matchScholarships } = await import('@/lib/quiz-match')
+      const matches = matchScholarships(answers, scholarships)
+      return withCORS(NextResponse.json({
+        total_evaluated: scholarships.length,
+        total_matches: matches.length,
+        top_matches: matches.slice(0, 40),
+        answers_echo: answers,
+      }))
+    }
+
     if (route === '/match' && method === 'POST') {
       const body = await request.json()
       const profile = body.profile

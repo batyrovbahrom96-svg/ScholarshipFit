@@ -171,9 +171,9 @@ function Home() {
       <FeatureBlock
         kicker="Match"
         title="Ranked shortlist with fit reasoning."
-        body="Your profile is compared to every record in our source-linked database. Each result carries a fit score, requirements you already meet, gaps to prepare, and the official source URL."
+        body="Answer 7 quick questions — education level, field, nationality, destinations, GPA, English scores and funding preference. We instantly rank all 300+ source-linked scholarships against your profile and show fit score, matched requirements, gaps, and the official source URL."
         ctaLabel="Start matching"
-        ctaHref="/onboarding"
+        ctaHref="/quiz"
       >
         <MockMatchCard/>
       </FeatureBlock>
@@ -232,7 +232,7 @@ function Home() {
             Ready to see <span className="text-gold-hi">your shortlist?</span>
           </h2>
           <div className="relative mt-6 flex justify-center">
-            <Link href="/onboarding">
+            <Link href="/quiz">
               <Button size="lg" className="btn-gold btn-pill px-8 h-12 text-base font-semibold">
                 Check My Scholarships <ArrowRight className="ml-2 h-4 w-4"/>
               </Button>

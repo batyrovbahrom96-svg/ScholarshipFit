@@ -8,6 +8,7 @@ import AuthButton from './AuthButton'
 import { Button } from '@/components/ui/button'
 
 const LINKS = [
+  { href: '/quiz', label: 'Match Quiz' },
   { href: '/database', label: 'Scholarships' },
   { href: '/#pricing', label: 'Pricing' },
   { href: '/methodology', label: 'Resources' },
@@ -34,8 +35,8 @@ export default function Navbar() {
           </nav>
           <div className="hidden md:flex items-center gap-3">
             <AuthButton />
-            <Link href="/onboarding">
-              <Button className="btn-gold btn-pill px-5 h-10 font-medium">Get Started</Button>
+            <Link href="/quiz">
+              <Button className="btn-gold btn-pill px-5 h-10 font-medium">Find my scholarships</Button>
             </Link>
           </div>
           <button className="md:hidden text-white" onClick={()=>setOpen(!open)} aria-label="menu">
@@ -55,8 +56,8 @@ export default function Navbar() {
                 <Link href="/dashboard" onClick={()=>setOpen(false)}>
                   <Button variant="outline" className="w-full bg-transparent border-white/15 text-white hover:bg-white/5">Sign in</Button>
                 </Link>
-                <Link href="/onboarding" onClick={()=>setOpen(false)}>
-                  <Button className="w-full btn-gold btn-pill font-medium">Get Started</Button>
+                <Link href="/quiz" onClick={()=>setOpen(false)}>
+                  <Button className="w-full btn-gold btn-pill font-medium">Find my scholarships</Button>
                 </Link>
               </div>
             </div>

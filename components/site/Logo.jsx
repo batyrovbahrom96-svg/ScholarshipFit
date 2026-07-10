@@ -3,28 +3,30 @@ import Image from 'next/image'
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_stellar-fit/artifacts/qwce98g3_image.png'
 
+/**
+ * Logo — clean, self-contained wordmark that does NOT overflow its container.
+ * Previously used aggressive CSS scale which caused the "Scholarshipfit.com"
+ * wordmark to collide with the next nav link on the right. Fixed by using
+ * an explicit width/height and letting object-contain do the work.
+ */
 export default function Logo({ href = '/', size = 'default' }) {
-  // The source image has significant transparent padding around the actual
-  // wordmark, so we render at a larger height AND apply a CSS scale to make
-  // the visible mark prominent within the navbar/footer.
-  const heightClass =
-    size === 'large'
-      ? 'h-24 md:h-28 lg:h-32'
-      : 'h-20 md:h-24 lg:h-28'
-  const scaleClass = size === 'large' ? 'scale-[1.65]' : 'scale-[1.55]'
+  const sizing = size === 'large'
+    ? { className: 'h-10 md:h-11 lg:h-12', w: 260, h: 60 }
+    : { className: 'h-9  md:h-10 lg:h-11', w: 220, h: 52 }
   return (
     <Link
       href={href}
-      className="inline-flex items-center whitespace-nowrap overflow-visible"
+      className="inline-flex items-center shrink-0"
       aria-label="Scholarshipfit.com home"
     >
       <Image
         src={LOGO_URL}
         alt="Scholarshipfit.com"
-        width={720}
-        height={200}
+        width={sizing.w}
+        height={sizing.h}
         priority
-        className={`${heightClass} w-auto object-contain ${scaleClass} origin-left`}
+        sizes="(max-width: 768px) 200px, 260px"
+        className={`${sizing.className} w-auto object-contain object-left`}
       />
     </Link>
   )

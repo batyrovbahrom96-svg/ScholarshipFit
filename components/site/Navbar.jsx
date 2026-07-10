@@ -22,21 +22,21 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 pt-4">
       <div className="container mx-auto max-w-6xl px-4">
-        <div className="flex h-20 md:h-24 items-center justify-between rounded-full border border-white/10 bg-black/70 backdrop-blur-xl px-5 md:px-8"
+        <div className="flex h-16 md:h-[68px] items-center justify-between rounded-full border border-white/10 bg-black/70 backdrop-blur-xl px-5 md:px-6 gap-4"
              style={{ boxShadow: '0 0 0 1px rgba(212,175,55,0.08), 0 10px 40px -10px rgba(0,0,0,0.6)' }}>
           <Logo />
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-5 lg:gap-6">
             {LINKS.map(l => (
               <Link key={l.href} href={l.href}
-                className={`text-sm transition ${pathname===l.href ? 'text-white' : 'text-white/70 hover:text-white'}`}>
+                className={`text-sm whitespace-nowrap transition ${pathname===l.href ? 'text-white' : 'text-white/70 hover:text-white'}`}>
                 {l.label}
               </Link>
             ))}
           </nav>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 shrink-0">
             <AuthButton />
             <Link href="/quiz">
-              <Button className="btn-gold btn-pill px-5 h-10 font-medium">Find my scholarships</Button>
+              <Button className="btn-gold btn-pill px-4 lg:px-5 h-9 text-sm font-medium">Find my scholarships</Button>
             </Link>
           </div>
           <button className="md:hidden text-white" onClick={()=>setOpen(!open)} aria-label="menu">

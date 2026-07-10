@@ -1,20 +1,20 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { motion, useSpring, useMotionValue } from 'framer-motion'
 
 /* ================================================================
-   PremiumEffects — signature "botiroff-grade" polish layer
+   PremiumEffects — signature polish layer (rebuilt for performance).
    ---------------------------------------------------------------
-   Combines: LoadingCounter (initial page reveal), CustomCursor (spring-
-   physics gold ring that expands over interactive elements), and
-   SmoothScroll wiring. Mounts globally from RootLayout.
-   ---------------------------------------------------------------
-   Disabled automatically on touch devices — cursor effects hurt UX
-   on mobile / trackpad-heavy setups. Respects prefers-reduced-motion.
+   - LoadingCounter: 0 → 100 with premium slow ease (~2.4s)
+   - CustomCursor:   plain rAF + CSS transform (no framer springs).
+                      Avoids the "stuck / laggy" issue on card-heavy pages.
+   - ScrollReveal:   single IntersectionObserver that reveals any element
+                      marked [data-reveal] with a gentle fade-up.
+   - SmoothScroll:   CSS scroll-behavior.
+   Disabled on touch devices + respects prefers-reduced-motion.
    ================================================================ */
 
 function useIsTouchOrReducedMotion() {
-  const [disabled, setDisabled] = useState(true) // default to disabled (SSR-safe)
+  const [disabled, setDisabled] = useState(true)
   useEffect(() => {
     if (typeof window === 'undefined') return
     const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
@@ -24,125 +24,235 @@ function useIsTouchOrReducedMotion() {
   return disabled
 }
 
-/* ---------- LoadingCounter (0 → 100% overlay on first load) ---------- */
+/* ---------- LoadingCounter — slow, deliberate, premium ---------- */
 function LoadingCounter() {
   const [pct, setPct] = useState(0)
   const [gone, setGone] = useState(false)
+
   useEffect(() => {
-    let raf, done = false
+    // Skip on subsequent navigations (only show once per browser session)
+    if (typeof window !== 'undefined' && window.sessionStorage?.getItem('sf_boot_seen')) {
+      setGone(true)
+      return
+    }
+
+    let raf
     const start = performance.now()
+    const DURATION = 2400   // ~2.4s — long enough to feel premium, short enough to not annoy
+
     const step = (t) => {
       const elapsed = t - start
-      // Ease-out: fast start, slow finish
-      let v = Math.min(100, Math.round(100 * (1 - Math.pow(1 - Math.min(elapsed / 900, 1), 3))))
-      // Once window has loaded, jump to 100 immediately
-      if (document.readyState === 'complete' && !done) {
-        v = 100; done = true
-      }
+      const p = Math.min(1, elapsed / DURATION)
+      // easeInOutQuart — slow start, quick middle, slow finish (deliberate)
+      const eased = p < 0.5
+        ? 8 * p * p * p * p
+        : 1 - Math.pow(-2 * p + 2, 4) / 2
+      const v = Math.round(100 * eased)
       setPct(v)
-      if (v < 100) raf = requestAnimationFrame(step)
-      else setTimeout(() => setGone(true), 260)
+      if (p < 1) {
+        raf = requestAnimationFrame(step)
+      } else {
+        setPct(100)
+        try { window.sessionStorage?.setItem('sf_boot_seen', '1') } catch { /* storage may be blocked */ }
+        setTimeout(() => setGone(true), 480)   // graceful fade-out delay
+      }
     }
     raf = requestAnimationFrame(step)
-    const onLoad = () => { done = true; setPct(100); setTimeout(() => setGone(true), 260) }
-    if (document.readyState === 'complete') onLoad()
-    else window.addEventListener('load', onLoad, { once: true })
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('load', onLoad) }
+    return () => cancelAnimationFrame(raf)
   }, [])
 
   if (gone) return null
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-black transition-opacity duration-500 ${pct >= 100 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-black transition-opacity duration-700 ${pct >= 100 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-hidden
     >
-      <div className="flex flex-col items-center gap-6">
-        <div className="text-[10px] uppercase tracking-[0.32em] text-[#D4AF37]/70">ScholarshipFit</div>
+      <div className="flex flex-col items-center gap-8">
+        <div className="text-[10px] uppercase tracking-[0.42em] text-[#D4AF37]/70">Scholarshipfit</div>
         <div className="relative">
-          <span className="block text-7xl md:text-9xl font-semibold text-white tabular-nums tracking-tight">{pct}</span>
-          <span className="absolute top-1 -right-6 text-lg text-[#D4AF37]">%</span>
+          <span className="block text-8xl md:text-[10rem] font-semibold text-white tabular-nums tracking-tight leading-none">
+            {String(pct).padStart(2, '0')}
+          </span>
+          <span className="absolute top-2 -right-8 text-lg text-[#D4AF37]/80">%</span>
         </div>
-        <div className="h-[1px] w-56 overflow-hidden bg-white/10">
+        <div className="h-[1px] w-64 md:w-80 overflow-hidden bg-white/10">
           <div
-            className="h-full bg-gradient-to-r from-[#D4AF37] via-[#F5D67B] to-[#D4AF37] transition-[width] duration-100"
-            style={{ width: `${pct}%` }}
+            className="h-full bg-gradient-to-r from-[#D4AF37] via-[#F5D67B] to-[#D4AF37]"
+            style={{ width: `${pct}%`, transition: 'width 120ms linear' }}
           />
+        </div>
+        <div className="text-[10px] uppercase tracking-[0.32em] text-white/40 mt-2">
+          Preparing your Command Center
         </div>
       </div>
     </div>
   )
 }
 
-/* ---------- CustomCursor (large gold ring with spring physics) ---------- */
+/* ---------- CustomCursor — plain rAF, no framer motion, silky smooth ---------- */
 function CustomCursor() {
-  const [hovering, setHovering] = useState(false)
-  const [visible, setVisible] = useState(false)
-  const x = useMotionValue(-100)
-  const y = useMotionValue(-100)
-  // Spring config: ring lags behind pointer softly, dot follows tight
-  const springRing = { damping: 22, stiffness: 260, mass: 0.6 }
-  const springDot = { damping: 30, stiffness: 800, mass: 0.15 }
-  const ringX = useSpring(x, springRing)
-  const ringY = useSpring(y, springRing)
-  const dotX = useSpring(x, springDot)
-  const dotY = useSpring(y, springDot)
-  const scale = useSpring(1, { damping: 20, stiffness: 260 })
+  const ringRef = useRef(null)
+  const dotRef = useRef(null)
+  const state = useRef({
+    tx: -100, ty: -100,   // target position (raw pointer)
+    rx: -100, ry: -100,   // ring position (eased)
+    dx: -100, dy: -100,   // dot position (tighter)
+    hovering: false,
+    visible: false,
+    running: false,
+  })
 
   useEffect(() => {
-    const move = (e) => {
-      x.set(e.clientX); y.set(e.clientY)
-      setVisible(true)
-    }
-    const leave = () => setVisible(false)
-    const over = (e) => {
-      const t = e.target
-      const interactive = t.closest?.('a, button, [role="button"], input, textarea, select, label[for], [data-cursor-hover]')
-      setHovering(!!interactive)
-    }
-    window.addEventListener('mousemove', move)
-    window.addEventListener('mouseover', over)
-    document.addEventListener('mouseleave', leave)
-    return () => {
-      window.removeEventListener('mousemove', move)
-      window.removeEventListener('mouseover', over)
-      document.removeEventListener('mouseleave', leave)
-    }
-  }, [x, y])
+    let raf
+    const s = state.current
 
-  useEffect(() => { scale.set(hovering ? 2.2 : 1) }, [hovering, scale])
+    const move = (e) => {
+      s.tx = e.clientX
+      s.ty = e.clientY
+      if (!s.visible) {
+        s.visible = true
+        if (ringRef.current) ringRef.current.style.opacity = '1'
+      }
+      if (!s.running) { s.running = true; raf = requestAnimationFrame(tick) }
+    }
+    const leave = () => {
+      s.visible = false
+      if (ringRef.current) ringRef.current.style.opacity = '0'
+      if (dotRef.current)  dotRef.current.style.opacity = '0'
+    }
+
+    // Use event delegation once instead of on every mouseover — hovering state
+    // is now managed via pointerdown/pointerup + a small pointerover throttle.
+    let lastHoverCheck = 0
+    const over = (e) => {
+      const now = performance.now()
+      if (now - lastHoverCheck < 40) return   // 25fps throttle for hover detection
+      lastHoverCheck = now
+      const t = e.target
+      if (!t?.closest) return
+      const interactive = !!t.closest('a, button, [role="button"], input, textarea, select, label, [data-cursor-hover]')
+      if (interactive !== s.hovering) {
+        s.hovering = interactive
+        if (ringRef.current) {
+          ringRef.current.style.transform = `translate3d(${s.rx - 16}px, ${s.ry - 16}px, 0) scale(${interactive ? 1.9 : 1})`
+          ringRef.current.style.borderColor = interactive ? '#F5D67B' : 'rgba(212,175,55,0.55)'
+          ringRef.current.style.background = interactive ? 'rgba(212,175,55,0.12)' : 'transparent'
+        }
+        if (dotRef.current) dotRef.current.style.opacity = interactive ? '0' : '1'
+      }
+    }
+
+    // Very light easing math with rAF — MUCH cheaper than framer springs.
+    const tick = () => {
+      // Ring: eased tail
+      s.rx += (s.tx - s.rx) * 0.22
+      s.ry += (s.ty - s.ry) * 0.22
+      // Dot: near-instant
+      s.dx += (s.tx - s.dx) * 0.65
+      s.dy += (s.ty - s.dy) * 0.65
+
+      if (ringRef.current) {
+        ringRef.current.style.transform = `translate3d(${s.rx - 16}px, ${s.ry - 16}px, 0) scale(${s.hovering ? 1.9 : 1})`
+      }
+      if (dotRef.current) {
+        dotRef.current.style.transform = `translate3d(${s.dx - 3}px, ${s.dy - 3}px, 0)`
+      }
+
+      // Stop the loop when the pointer is essentially at rest to save CPU
+      const dRing = Math.hypot(s.tx - s.rx, s.ty - s.ry)
+      const dDot  = Math.hypot(s.tx - s.dx, s.ty - s.dy)
+      if (dRing < 0.4 && dDot < 0.4) {
+        s.running = false
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    window.addEventListener('pointermove', move, { passive: true })
+    window.addEventListener('pointerover', over, { passive: true })
+    document.addEventListener('pointerleave', leave)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerover', over)
+      document.removeEventListener('pointerleave', leave)
+    }
+  }, [])
 
   return (
     <>
-      {/* Ring */}
-      <motion.div
+      <div
+        ref={ringRef}
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[95] mix-blend-difference"
-        style={{ x: ringX, y: ringY, opacity: visible ? 1 : 0 }}
-      >
-        <motion.div
-          className={`-ml-4 -mt-4 h-8 w-8 rounded-full border transition-colors duration-200
-            ${hovering ? 'border-[#F5D67B] bg-[#D4AF37]/12' : 'border-[#D4AF37]/60 bg-transparent'}`}
-          style={{ scale }}
-        />
-      </motion.div>
-      {/* Dot */}
-      <motion.div
+        className="pointer-events-none fixed left-0 top-0 z-[95] h-8 w-8 rounded-full border transition-[background,border-color] duration-200 will-change-transform"
+        style={{
+          transform: 'translate3d(-100px,-100px,0)',
+          borderColor: 'rgba(212,175,55,0.55)',
+          opacity: 0,
+          mixBlendMode: 'difference',
+        }}
+      />
+      <div
+        ref={dotRef}
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[96]"
-        style={{ x: dotX, y: dotY, opacity: visible && !hovering ? 1 : 0 }}
-      >
-        <div className="-ml-[3px] -mt-[3px] h-1.5 w-1.5 rounded-full bg-[#F5D67B] shadow-[0_0_12px_2px_rgba(212,175,55,0.7)]"/>
-      </motion.div>
+        className="pointer-events-none fixed left-0 top-0 z-[96] h-1.5 w-1.5 rounded-full bg-[#F5D67B] will-change-transform"
+        style={{
+          transform: 'translate3d(-100px,-100px,0)',
+          boxShadow: '0 0 12px 2px rgba(212,175,55,0.7)',
+          opacity: 1,
+        }}
+      />
     </>
   )
 }
 
-/* ---------- SmoothScroll (CSS + anchor smoothing) ---------- */
+/* ---------- Global ScrollReveal ---------- */
+function ScrollReveal() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+
+    const seen = new WeakSet()
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !seen.has(entry.target)) {
+          seen.add(entry.target)
+          entry.target.classList.add('is-revealed')
+          io.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' })
+
+    // Observe existing elements
+    const observeAll = () => {
+      const els = document.querySelectorAll('[data-reveal]:not(.is-revealed)')
+      els.forEach((el) => io.observe(el))
+    }
+    observeAll()
+
+    // Re-observe when navigating between routes (SPA). Throttled to next
+    // rAF so we don't call querySelectorAll on every micro DOM mutation
+    // (which can happen dozens of times per second on data-heavy pages).
+    let pending = false
+    const mo = new MutationObserver(() => {
+      if (pending) return
+      pending = true
+      requestAnimationFrame(() => { pending = false; observeAll() })
+    })
+    mo.observe(document.body, { childList: true, subtree: true })
+
+    return () => { io.disconnect(); mo.disconnect() }
+  }, [])
+  return null
+}
+
+/* ---------- SmoothScroll ---------- */
 function SmoothScrollSetup() {
   useEffect(() => {
-    const previous = document.documentElement.style.scrollBehavior
+    const prev = document.documentElement.style.scrollBehavior
     document.documentElement.style.scrollBehavior = 'smooth'
-    return () => { document.documentElement.style.scrollBehavior = previous }
+    return () => { document.documentElement.style.scrollBehavior = prev }
   }, [])
   return null
 }
@@ -153,6 +263,7 @@ export default function PremiumEffects() {
     <>
       <LoadingCounter />
       <SmoothScrollSetup />
+      <ScrollReveal />
       {!disabled && <CustomCursor />}
     </>
   )
@@ -203,7 +314,7 @@ export function StatCounter({ value, suffix = '', prefix = '', label, duration =
 }
 
 /* ================================================================
-   Reveal — subtle fade-up as element enters viewport
+   Reveal — legacy wrapper (still works for existing usage)
    ================================================================ */
 export function Reveal({ children, delay = 0, className = '' }) {
   const ref = useRef(null)

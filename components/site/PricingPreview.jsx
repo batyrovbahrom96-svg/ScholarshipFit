@@ -18,7 +18,7 @@ export default function PricingPreview() {
     <section id="pricing" className="relative">
       <div className="container mx-auto max-w-6xl px-4 py-20 md:py-28">
         {/* Section heading */}
-        <div className="text-center">
+        <div className="text-center" data-reveal>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-black/60 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.22em] text-[#D4AF37] backdrop-blur">
             <Clock className="h-3.5 w-3.5"/> 7-day free trial · Cancel anytime
           </div>
@@ -36,7 +36,7 @@ export default function PricingPreview() {
         </div>
 
         {/* 4-card grid */}
-        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-reveal data-reveal-delay="200">
           {SUBSCRIPTION_PLANS.map(p => {
             const accent = accentClasses(p.accent)
             const isLifetime = p.tier_type === 'lifetime'

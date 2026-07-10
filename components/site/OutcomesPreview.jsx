@@ -13,7 +13,7 @@ export default function OutcomesPreview() {
   return (
     <section id="outcomes" className="relative border-t border-white/5">
       <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
-        <div className="flex items-end justify-between flex-wrap gap-6">
+        <div className="flex items-end justify-between flex-wrap gap-6" data-reveal>
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#D4AF37]">
               <ShieldCheck className="h-3.5 w-3.5"/> Verified · Consent-based publishing
@@ -31,7 +31,7 @@ export default function OutcomesPreview() {
           </Link>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-reveal data-reveal-delay="200">
           {OUTCOMES.slice(0, 4).map(o => (
             <OutcomeVideoCard key={o.slug} o={o} compact/>
           ))}

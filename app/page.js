@@ -266,7 +266,7 @@ function Home() {
       <section className="relative border-t border-white/5">
         <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
           <div className="grid gap-10 md:grid-cols-12 items-center">
-            <div className="md:col-span-5">
+            <div className="md:col-span-5" data-reveal>
               <div className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">The math</div>
               <h2 className="mt-3 text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1] text-white">
                 Save <span className="text-gold-hi">15–30 hours</span> per application cycle.
@@ -290,7 +290,7 @@ function Home() {
                 </Link>
               </div>
             </div>
-            <div className="md:col-span-7">
+            <div className="md:col-span-7" data-reveal data-reveal-delay="200">
               <div className="grid grid-cols-2 gap-4">
                 <StatTile big="20h" small="Avg time saved per cycle" tone="gold"/>
                 <StatTile big="303" small="Real, source-linked scholarships" tone="cyan"/>
@@ -312,7 +312,7 @@ function Home() {
       {/* ================ BEFORE / AFTER ScholarshipFit ================ */}
       <section className="relative border-t border-white/5">
         <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
-          <div className="text-center max-w-3xl mx-auto mb-12">
+          <div className="text-center max-w-3xl mx-auto mb-12" data-reveal>
             <div className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">Before / After ScholarshipFit</div>
             <h2 className="mt-3 text-3xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.05] text-white">
               Stop searching. Start <span className="text-gold-hi">applying to the right ones.</span>
@@ -320,7 +320,7 @@ function Home() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {/* Before */}
-            <div className="rounded-3xl border border-red-500/25 bg-red-500/[0.04] p-6 md:p-8">
+            <div className="rounded-3xl border border-red-500/25 bg-red-500/[0.04] p-6 md:p-8" data-reveal data-reveal-delay="100">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-red-300 mb-4">
                 <Clock className="h-4 w-4"/> Without ScholarshipFit
               </div>
@@ -341,7 +341,7 @@ function Home() {
               </ul>
             </div>
             {/* After */}
-            <div className="rounded-3xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/10 via-emerald-500/[0.03] to-transparent p-6 md:p-8">
+            <div className="rounded-3xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/10 via-emerald-500/[0.03] to-transparent p-6 md:p-8" data-reveal data-reveal-delay="300">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-emerald-300 mb-4">
                 <Sparkles className="h-4 w-4"/> With ScholarshipFit
               </div>
@@ -362,7 +362,7 @@ function Home() {
               </ul>
             </div>
           </div>
-          <div className="mt-10 flex justify-center">
+          <div className="mt-10 flex justify-center" data-reveal>
             <Link href="/quiz">
               <Button size="lg" className="btn-gold btn-pill h-12 px-8 font-semibold">
                 Start my 8-step quiz — free <ArrowRight className="ml-2 h-4 w-4"/>

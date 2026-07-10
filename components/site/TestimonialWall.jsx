@@ -196,7 +196,7 @@ export default function TestimonialWall() {
   return (
     <section className="relative border-t border-white/5">
       <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
-        <div className="max-w-3xl">
+        <div className="max-w-3xl" data-reveal>
           <div className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">Loved by students in 40+ countries</div>
           <h2 className="mt-3 text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1] text-white">
             Try the <span className="text-gold-hi">most loved</span>
@@ -207,7 +207,7 @@ export default function TestimonialWall() {
         {/* Masonry grid via CSS columns — creates the organic, varied-height
             layout you see on the reference site. Cards use break-inside-avoid
             so each testimonial stays on one card. */}
-        <div className="mt-10 columns-1 md:columns-2 lg:columns-3 gap-4">
+        <div className="mt-10 columns-1 md:columns-2 lg:columns-3 gap-4" data-reveal data-reveal-delay="200">
           {TESTIMONIALS.map((t, i) => <Card key={i} t={t}/>)}
         </div>
 

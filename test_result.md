@@ -2672,3 +2672,48 @@ agent_communication:
       - All regional pricing tests passed with no major issues
       - Ready to summarize and finish
       - DO NOT re-test /api/scholarships/quiz-match (already tested in previous session)
+
+
+  - agent: "main"
+    date: "2026-07-10"
+    message: |
+      **PAYMENT GATEWAY READINESS PASS — batch fixes (frontend + backend)**
+
+      Context: User is submitting the platform to a payment gateway (Stripe / LemonSqueezy)
+      for approval. Made the flow honest and gateway-safe so reviewers walking the checkout
+      journey don't see any deceptive "fake activation" behaviour.
+
+      Backend:
+      1. /api/preorder now accepts the new length-based plan keys
+         (monthly | quarterly | half_yearly | lifetime) in addition to legacy pro/elite.
+         Verified live:
+           POST /api/preorder {tier: "quarterly"} → 200 {ok:true}
+           POST /api/preorder {tier: "lifetime"}  → 200 {ok:true}
+           POST /api/preorder {tier: "invalid"}   → 400 {error:"Invalid tier"}
+
+      Frontend:
+      2. New env flag NEXT_PUBLIC_PAYMENT_MODE (default: preorder).
+         When 'preorder': /pricing and PaywallModal CTAs now open FounderReservationModal
+         instead of hitting /api/subscription/activate (no fake trials, no deceptive activations).
+         When 'live': keep existing subscription/activate flow (post-gateway approval).
+      3. NEW /components/site/FounderReservationModal.jsx — plan-aware reservation modal
+         that captures email into /api/preorder with clear "no charges today · locked-in
+         founder pricing" copy.
+      4. /pricing hero rewritten for preorder mode: gold pre-launch banner, honest CTA
+         labels ("Reserve founder pricing" / "Reserve founder spot"), truthful micro-copy
+         ("No card today · we email you when payments open").
+      5. Unified refund policy language: 14-day money-back (matches /refunds + /terms).
+         Fixed pricing FAQ (regional pricing is live, not roadmap; refund is 14-day).
+      6. Footer: removed public /admin link (payment gateway red flag). Renamed
+         "Match Flow" → "Match Quiz", added public /testimonials link.
+
+      Legal center (already existed, verified consistent):
+         /terms, /privacy, /refunds (14-day), /dpa, /dmca all professional & consistent.
+
+      Visual verification: /pricing renders correctly with new preorder-mode banner,
+      all four plan cards show "Reserve founder pricing" CTAs, no compile errors,
+      all top routes return 200 (home, pricing, database, dashboard, testimonials).
+
+      No test_result.md tasks changed status — this batch is UI + copy + env-flag hardening
+      only; no behavioural change to existing tested endpoints. subscription/activate remains
+      unchanged and available for the live-payment flow post-approval.

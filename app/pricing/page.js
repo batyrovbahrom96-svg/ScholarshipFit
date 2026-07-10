@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
 import BottomCTA from '@/components/site/BottomCTA'
+import FounderReservationModal from '@/components/site/FounderReservationModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -15,6 +16,9 @@ import { toast } from 'sonner'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useAuth } from '@/hooks/use-auth'
 import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
+
+const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'preorder'
+const IS_PREORDER = PAYMENT_MODE !== 'live'
 
 /* ==========================================================================
    /pricing — Length-based 4-tier pricing (2026-07 reset)
@@ -40,12 +44,23 @@ function Pricing() {
   const { user } = useAuth()
   const { region, setOverride, priceFor } = useRegionalPricing()
   const [activatingKey, setActivatingKey] = useState('')
+  const [reservePlan, setReservePlan] = useState(null)
   const [error, setError] = useState('')
   const discountPct = region?.discount_pct || 0
   const hasRegionalDiscount = discountPct > 0
 
-  const activate = async (planKey) => {
-    setActivatingKey(planKey); setError('')
+  const activate = async (planObj) => {
+    setError('')
+    // In preorder mode (payment gateway pending approval) — open founder reservation
+    // modal instead of activating a fake subscription. This is the pattern payment
+    // gateway reviewers see when they walk through the flow.
+    if (IS_PREORDER) {
+      setReservePlan(planObj)
+      return
+    }
+    // Live payment mode (post-gateway approval)
+    const planKey = planObj.key
+    setActivatingKey(planKey)
     try {
       const meRes = await fetch('/api/auth/me', { credentials: 'include' })
       const me = await meRes.json()
@@ -86,8 +101,13 @@ function Pricing() {
 
         {/* HERO */}
         <div className="container mx-auto max-w-6xl px-4 pt-16 pb-4 md:pt-24 text-center relative">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-black/60 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.22em] text-[#D4AF37] backdrop-blur">
-            <Clock className="h-3.5 w-3.5"/> 7-day free trial · Card required · Cancel anytime
+          <div className={`mx-auto inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[11px] uppercase tracking-[0.22em] backdrop-blur
+            ${IS_PREORDER
+              ? 'border-[#D4AF37]/40 bg-black/60 text-[#D4AF37]'
+              : 'border-[#D4AF37]/30 bg-black/60 text-[#D4AF37]'}`}>
+            {IS_PREORDER
+              ? <><Clock className="h-3.5 w-3.5"/> Payments launching soon · Reserve founder pricing today</>
+              : <><Clock className="h-3.5 w-3.5"/> 7-day free trial · Card required · Cancel anytime</>}
           </div>
 
           <h1 className="mt-5 text-5xl md:text-6xl font-semibold tracking-tight text-white">
@@ -96,6 +116,15 @@ function Pricing() {
           <p className="mt-4 mx-auto max-w-2xl text-base md:text-lg text-white/60">
             Every plan unlocks the same full feature set. The only difference: <span className="text-white">longer commitment = lower monthly rate</span>. Lifetime VIP is a one-time payment — never renews.
           </p>
+
+          {IS_PREORDER && (
+            <div className="mt-6 mx-auto max-w-2xl rounded-2xl border border-[#D4AF37]/30 bg-[#D4AF37]/[0.06] px-5 py-4 text-sm text-white/80 leading-relaxed">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#D4AF37] mb-1">
+                <Lock className="h-3.5 w-3.5"/> Pre-launch — no charges today
+              </div>
+              We&apos;re finalising our payment provider. Reserve any plan now and we&apos;ll email your locked-in founder checkout link the moment payments open. Free features (quiz, sample report, database) remain fully accessible while you wait.
+            </div>
+          )}
 
           {/* Feature strip */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
@@ -198,18 +227,24 @@ function Pricing() {
                   </div>
 
                   <Button
-                    onClick={() => activate(p.key)}
+                    onClick={() => activate(p)}
                     disabled={isActivating}
                     className={`mt-6 w-full h-11 rounded-full font-semibold ${accent.btn} disabled:opacity-40`}
                   >
                     {isActivating ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Activating…</>
+                    ) : IS_PREORDER ? (
+                      isLifetime ? <>Reserve founder spot</> : <>Reserve founder pricing</>
                     ) : (
                       <>{p.cta}</>
                     )}
                   </Button>
                   <div className="mt-2 text-center text-[11px] text-white/40 leading-relaxed">
-                    {trialNote}
+                    {IS_PREORDER
+                      ? (isLifetime
+                          ? 'No card today · locked-in launch price'
+                          : 'No card today · we email you when payments open')
+                      : trialNote}
                   </div>
 
                   <ul className="mt-5 space-y-2 border-t border-white/5 pt-4 flex-1">
@@ -235,7 +270,7 @@ function Pricing() {
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70">
               <span className="inline-flex items-center gap-1.5"><Lock className="h-4 w-4 text-[#D4AF37]"/> Card required to start trial — never charged before day 7</span>
-              <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 7-day money-back guarantee after first paid charge</span>
+              <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 14-day money-back guarantee after first paid charge</span>
               <span className="inline-flex items-center gap-1.5"><CreditCard className="h-4 w-4 text-[#D4AF37]"/> All major cards · secure processor</span>
             </div>
           </div>
@@ -317,9 +352,9 @@ function Pricing() {
               ['Which countries can pay?',
                'All 195+ countries supported by our payment processor. VAT/GST handled automatically. No hidden fees.'],
               ['What\u2019s the refund policy?',
-               'Full refund within 7 days of your first paid charge. Just email support@scholarshipfit.com — no interrogation.'],
+               'Full refund within 14 days of your first paid charge — no interrogation. Just email support@scholarshipfit.com. See our full Refund Policy page for details.'],
               ['Do you offer regional pricing?',
-               'Regional/PPP pricing is on our roadmap. If you\u2019re from a lower-income country and the base price is a hard blocker, email support@scholarshipfit.com and we\u2019ll help.'],
+               'Yes. We automatically detect your country and apply a Purchasing Power Parity (PPP) discount — up to 60% off in eligible regions. You can also override the region from the selector at the top of this page.'],
             ].map(([q, a], i) => (
               <details key={i} className="group rounded-xl border border-white/10 bg-white/[0.02] px-5 py-4 open:bg-white/[0.04] transition">
                 <summary className="flex cursor-pointer items-center justify-between text-white font-medium">
@@ -335,6 +370,12 @@ function Pricing() {
 
       <BottomCTA />
       <Footer />
+      {/* Founder-reservation modal — active while NEXT_PUBLIC_PAYMENT_MODE=preorder */}
+      <FounderReservationModal
+        plan={reservePlan}
+        source="pricing-page"
+        onClose={() => setReservePlan(null)}
+      />
     </div>
   )
 }

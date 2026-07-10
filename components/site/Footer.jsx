@@ -37,7 +37,7 @@ export default function Footer() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Product</p>
             <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li><Link className="hover:text-[#D4AF37]" href="/onboarding">Match Flow</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/quiz">Match Quiz</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/advisor">AI Advisor</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/database">Database</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/sample-report">Sample Report</Link></li>
@@ -50,8 +50,8 @@ export default function Footer() {
               <li><Link className="hover:text-[#D4AF37]" href="/about">About</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/methodology">Methodology</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/outcomes">Outcomes</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/testimonials">Testimonials</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/contact">Contact</Link></li>
-              <li><Link className="hover:text-[#D4AF37]" href="/admin">Admin</Link></li>
             </ul>
           </div>
           <div>

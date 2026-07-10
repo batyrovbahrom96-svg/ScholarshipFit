@@ -5,10 +5,14 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
+import FounderReservationModal from './FounderReservationModal'
 import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
   CreditCard, Loader2, AlertCircle, Star, Crown,
 } from 'lucide-react'
+
+const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'preorder'
+const IS_PREORDER = PAYMENT_MODE !== 'live'
 
 const TRUST_BADGES = [
   { icon: Shield,  text: '7-day free trial', sub: 'Cancel before day 7 — no charge' },
@@ -24,13 +28,23 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState(initialPlan)
   const [activatingKey, setActivatingKey] = useState('')
+  const [reservePlan, setReservePlan] = useState(null)
   const [error, setError] = useState('')
   const { region, setOverride, priceFor } = useRegionalPricing()
   const discountPct = region?.discount_pct || 0
   const hasRegionalDiscount = discountPct > 0
 
-  const activate = async (planKey) => {
-    setActivatingKey(planKey); setError('')
+  const activate = async (planObj) => {
+    setError('')
+    // In preorder mode (payment gateway pending approval) — open founder reservation
+    // modal instead of activating a fake subscription. Ensures payment-gateway
+    // reviewers walking through the flow see honest, non-deceptive intent.
+    if (IS_PREORDER) {
+      setReservePlan(planObj)
+      return
+    }
+    const planKey = planObj.key
+    setActivatingKey(planKey)
     try {
       // Step 1: check auth
       const meRes = await fetch('/api/auth/me', { credentials: 'include' })
@@ -81,7 +95,11 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
               )}
             </h2>
             <p className="mt-3 text-white/60 max-w-2xl">
-              Try any plan free for <span className="text-white font-medium">7 days</span> — card required, cancel anytime before day 7 and you&apos;re not charged. Longer commitment = bigger discount. Lifetime VIP is a one-time payment.
+              {IS_PREORDER ? (
+                <>Payments launch soon. Reserve any plan today to lock in your <span className="text-white font-medium">founder price for life</span> — no card required, no charges. We&apos;ll email your checkout link the day we open.</>
+              ) : (
+                <>Try any plan free for <span className="text-white font-medium">7 days</span> — card required, cancel anytime before day 7 and you&apos;re not charged. Longer commitment = bigger discount. Lifetime VIP is a one-time payment.</>
+              )}
             </p>
           </div>
 
@@ -190,18 +208,24 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
                   </div>
 
                   <Button
-                    onClick={(e) => { e.stopPropagation(); activate(p.key) }}
+                    onClick={(e) => { e.stopPropagation(); activate(p) }}
                     disabled={isActivating}
                     className={`mt-4 w-full ${accent.btn} disabled:opacity-40 font-semibold`}
                   >
                     {isActivating ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Activating…</>
+                    ) : IS_PREORDER ? (
+                      isLifetime ? <>Reserve founder spot</> : <>Reserve founder pricing</>
                     ) : (
                       <>{p.cta}</>
                     )}
                   </Button>
                   <div className="mt-2 text-center text-[11px] text-white/40 leading-relaxed">
-                    {trialNote}
+                    {IS_PREORDER
+                      ? (isLifetime
+                          ? 'No card today · locked-in launch price'
+                          : 'No card today · we email you when payments open')
+                      : trialNote}
                   </div>
 
                   <ul className="mt-4 space-y-1.5 border-t border-white/5 pt-4">
@@ -226,17 +250,25 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
           <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-white/5 pt-6 text-center">
             <div className="flex items-center gap-2 text-xs text-white/40">
               <Lock className="h-3 w-3"/>
-              Card required to start your 7-day trial. We never charge before day 7. Cancel anytime from your account.
+              {IS_PREORDER
+                ? 'No card required today. Payments launch soon — we\u2019ll email your locked-in checkout link.'
+                : 'Card required to start your 7-day trial. We never charge before day 7. Cancel anytime from your account.'}
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/40">
               <span>✓ Cancel anytime</span>
-              <span>✓ 7-day free trial (except Lifetime)</span>
-              <span>✓ Instant access</span>
+              <span>{IS_PREORDER ? '✓ Founder price locked in' : '✓ 7-day free trial (except Lifetime)'}</span>
+              <span>{IS_PREORDER ? '✓ No charges today' : '✓ Instant access'}</span>
               <span>✓ 303 real scholarships</span>
             </div>
           </div>
         </div>
       </DialogContent>
+      {/* Founder reservation modal — mounted alongside so it renders above the paywall */}
+      <FounderReservationModal
+        plan={reservePlan}
+        source="paywall"
+        onClose={() => setReservePlan(null)}
+      />
     </Dialog>
   )
 }

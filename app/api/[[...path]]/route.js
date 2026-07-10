@@ -817,7 +817,9 @@ Respond with STRICT JSON in this schema:
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return withCORS(NextResponse.json({ error: 'Valid email required' }, { status: 400 }))
       }
-      if (!['pro', 'elite'].includes(tier)) {
+      // Accept legacy tiers (pro/elite) and new length-based plans (monthly/quarterly/half_yearly/lifetime)
+      const VALID_TIERS = ['pro', 'elite', 'monthly', 'quarterly', 'half_yearly', 'lifetime']
+      if (!VALID_TIERS.includes(tier)) {
         return withCORS(NextResponse.json({ error: 'Invalid tier' }, { status: 400 }))
       }
       const now = new Date()

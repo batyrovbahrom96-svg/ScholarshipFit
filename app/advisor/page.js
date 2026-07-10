@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
@@ -9,13 +8,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { store } from '@/lib/client-store'
+import { LOGO_DATA_URI } from '@/components/site/logo-data'
 import {
   Send, Sparkles, Info, ShieldCheck, MessagesSquare, Compass, Scale, Lightbulb,
   Target, Plus, RotateCcw, Copy, Check, ArrowRight,
 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
-
-const NOVA_URL = 'https://customer-assets.emergentagent.com/job_dea30a66-dd5d-4b69-9dee-68cfc5172ec3/artifacts/g1gq6k95_image.png'
 
 // ---------------------------------------------------------------------------
 // Prompt starter categories — a proper "AI command center" for scholarship intent.
@@ -178,9 +176,21 @@ function Advisor() {
                 Ask Nova anything about scholarships in plain language. She references ONLY our source-linked database — no invented programs, no random deadlines.
               </p>
             </div>
-            <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border border-[#D4AF37]/30 bg-gradient-to-br from-cyan-500/15 to-indigo-500/15 overflow-hidden">
-              <Image src={NOVA_URL} alt="Nova" fill sizes="80px" className="object-cover object-top scale-125"/>
-              <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#05070d]"/>
+            {/* Brand chip — replaces the old Nova astronaut avatar with the actual
+               ScholarshipFit wordmark. Rounded rectangle so the horizontal
+               wordmark reads clearly, with subtle gold glow to match the aesthetic. */}
+            <div className="relative shrink-0 rounded-2xl border border-[#D4AF37]/25 bg-black/50 px-4 py-3 backdrop-blur-sm"
+                 style={{ boxShadow: '0 8px 30px -12px rgba(212,175,55,0.25)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={LOGO_DATA_URI}
+                alt="Scholarshipfit.com"
+                width={800}
+                height={166}
+                className="h-8 md:h-9 w-auto object-contain"
+                draggable={false}
+              />
+              <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-[#05070d]" title="Nova is online"/>
             </div>
           </div>
 

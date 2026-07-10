@@ -12,7 +12,7 @@ import PaywallModal from '@/components/site/PaywallModal'
 import {
   ArrowRight, ArrowLeft, GraduationCap, Sparkles, ExternalLink, ShieldCheck,
   CheckCircle2, AlertCircle, MapPin, Globe, Award, Loader2, RotateCcw,
-  Lock, Crown, Zap, TrendingUp,
+  Lock, Crown, Zap, TrendingUp, Briefcase, Calendar, Wallet, Brain, XCircle, ShieldAlert,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -73,6 +73,25 @@ const FUNDING_PREFS = [
   { value: 'any',         label: "Show everything",         hint: 'Any funding, ranked by fit' },
 ]
 
+const WORK_EXP = [
+  { value: '0',   label: '0 years',   hint: 'Just finishing studies' },
+  { value: '1-2', label: '1–2 years', hint: 'Early career' },
+  { value: '3-5', label: '3–5 years', hint: 'Mid-career' },
+  { value: '5+',  label: '5+ years',  hint: 'Senior / executive track' },
+]
+
+const TIMELINES = [
+  { value: '2025',     label: 'This year (2025 cycle)',  hint: 'Applying to programs closing in the next 6 months' },
+  { value: '2026',     label: 'Next year (2026 cycle)',  hint: 'Planning ahead — build a strong pipeline' },
+  { value: 'flexible', label: 'Flexible / not sure yet', hint: 'Rank everything, hide nothing' },
+]
+
+const FIN_NEED = [
+  { value: 'high',   label: 'High — I cannot pay tuition without a full scholarship' },
+  { value: 'medium', label: 'Moderate — I can cover some costs, need help with the rest' },
+  { value: 'low',    label: 'Low — funding is a bonus, not a blocker' },
+]
+
 // ---------------------------------------------------------------------------
 // Small building blocks
 // ---------------------------------------------------------------------------
@@ -129,7 +148,7 @@ function Chip({ selected, onClick, children }) {
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 8
 
 export default function QuizPage() {
   const [step, setStep] = useState(1)
@@ -141,10 +160,27 @@ export default function QuizPage() {
     gpa: '', gpa_scale: '4',
     ielts: '', toefl: '',
     funding_pref: '',
+    // Optional step 8 — precision fields
+    work_exp: '',
+    gre: '', gmat: '',
+    timeline: '',
+    financial_need: '',
   })
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
+  const [userName, setUserName] = useState('')
+
+  // Pull user name (if signed in) for a personalized results header
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        const n = d?.user?.name || d?.user?.full_name || ''
+        if (n) setUserName(n.split(' ')[0])
+      })
+      .catch(() => {})
+  }, [])
 
   const setA = (patch) => setAnswers(a => ({ ...a, ...patch }))
   const canNext = useMemo(() => {
@@ -156,6 +192,7 @@ export default function QuizPage() {
       case 5: return true // GPA optional
       case 6: return true // English optional
       case 7: return !!answers.funding_pref
+      case 8: return true // Boost step — everything optional
       default: return false
     }
   }, [step, answers])
@@ -163,13 +200,21 @@ export default function QuizPage() {
   const submit = async () => {
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/scholarships/quiz-match', {
+      // Kick off the API call and enforce a minimum loader duration so the
+      // "AI is analyzing 303 scholarships" experience feels grounded.
+      const started = Date.now()
+      const apiCall = fetch('/api/scholarships/quiz-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const [data] = await Promise.all([
+        apiCall,
+        new Promise(r => setTimeout(r, 2600 - Math.min(2600, Date.now() - started))),
+      ])
       setResults(data)
     } catch (e) {
       setError('Could not fetch matches. Please retry.')
@@ -183,14 +228,22 @@ export default function QuizPage() {
     setAnswers({
       education_level: '', field: '', nationality: '', preferred_countries: [],
       gpa: '', gpa_scale: '4', ielts: '', toefl: '', funding_pref: '',
+      work_exp: '', gre: '', gmat: '', timeline: '', financial_need: '',
     })
+  }
+
+  // -------------------------------------------------------------------------
+  // Loader (shown while analyzing)
+  // -------------------------------------------------------------------------
+  if (loading) {
+    return <QuizAnalyzingLoader userName={userName} />
   }
 
   // -------------------------------------------------------------------------
   // Results view
   // -------------------------------------------------------------------------
   if (results) {
-    return <QuizResults results={results} answers={answers} onReset={reset} />
+    return <QuizResults results={results} answers={answers} onReset={reset} userName={userName} />
   }
 
   // -------------------------------------------------------------------------
@@ -353,6 +406,90 @@ export default function QuizPage() {
                 </div>
               </>
             )}
+
+            {step === 8 && (
+              <>
+                <StepHeader
+                  step={8}
+                  total={TOTAL_STEPS}
+                  title="Boost your matches"
+                  subtitle="All optional — but the more you tell us, the tighter your match report will be."
+                />
+
+                {/* Work experience */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
+                    <Briefcase className="h-3.5 w-3.5"/> Work experience
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {WORK_EXP.map(o => (
+                      <OptionCard key={o.value} selected={answers.work_exp === o.value} onClick={() => setA({ work_exp: answers.work_exp === o.value ? '' : o.value })}>
+                        <div className="font-medium text-white text-sm">{o.label}</div>
+                        <div className="text-[11px] text-white/50 mt-0.5">{o.hint}</div>
+                      </OptionCard>
+                    ))}
+                  </div>
+                </div>
+
+                {/* GRE / GMAT (only surfaces for relevant levels) */}
+                {(answers.education_level === 'master' || answers.education_level === 'phd' || answers.education_level === 'mba') && (
+                  <div className="mb-6">
+                    <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
+                      <Brain className="h-3.5 w-3.5"/> Standardised test scores
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="gre" className="text-white/70">GRE (optional)</Label>
+                        <Input id="gre" type="number" min="260" max="340" placeholder="e.g. 320"
+                          value={answers.gre}
+                          onChange={e => setA({ gre: e.target.value })}
+                          className="mt-2 bg-white/[0.02] border-white/10 text-white"/>
+                      </div>
+                      <div>
+                        <Label htmlFor="gmat" className="text-white/70">GMAT (optional)</Label>
+                        <Input id="gmat" type="number" min="200" max="800" placeholder="e.g. 680"
+                          value={answers.gmat}
+                          onChange={e => setA({ gmat: e.target.value })}
+                          className="mt-2 bg-white/[0.02] border-white/10 text-white"/>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Timeline */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
+                    <Calendar className="h-3.5 w-3.5"/> Application timeline
+                  </div>
+                  <div className="space-y-2">
+                    {TIMELINES.map(o => (
+                      <OptionCard key={o.value} selected={answers.timeline === o.value} onClick={() => setA({ timeline: answers.timeline === o.value ? '' : o.value })}>
+                        <div className="font-medium text-white text-sm">{o.label}</div>
+                        <div className="text-[11px] text-white/50 mt-0.5">{o.hint}</div>
+                      </OptionCard>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Financial need */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
+                    <Wallet className="h-3.5 w-3.5"/> Financial need
+                  </div>
+                  <div className="space-y-2">
+                    {FIN_NEED.map(o => (
+                      <OptionCard key={o.value} selected={answers.financial_need === o.value} onClick={() => setA({ financial_need: answers.financial_need === o.value ? '' : o.value })}>
+                        <div className="text-white text-sm">{o.label}</div>
+                      </OptionCard>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="mt-6 text-xs text-white/40">
+                  You can skip this step entirely — but each detail sharpens your fit score and removes ineligible matches.
+                </p>
+              </>
+            )}
           </motion.div>
         </AnimatePresence>
 
@@ -426,7 +563,7 @@ function estimateFundingUSD(m) {
   return Math.round(Math.max(...numbers))
 }
 
-function QuizResults({ results, answers, onReset }) {
+function QuizResults({ results, answers, onReset, userName }) {
   const matches = results?.top_matches || []
   const total = results?.total_matches || 0
   const evaluated = results?.total_evaluated || 0
@@ -445,6 +582,9 @@ function QuizResults({ results, answers, onReset }) {
     return matches.reduce((sum, m) => sum + estimateFundingUSD(m), 0)
   }, [matches])
 
+  const strongCount = matches.filter(m => (m.overall_fit_score || 0) >= 75).length
+  const greeting = userName ? `Hi ${userName}` : (answers?.nationality ? `Hi there` : 'Your matches')
+
   const teaser = matches.slice(0, 3)
   const locked  = matches.slice(3)
 
@@ -453,22 +593,26 @@ function QuizResults({ results, answers, onReset }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[600px] bg-[radial-gradient(closest-side,rgba(212,175,55,0.15),transparent_70%)]"/>
       <div className="container mx-auto max-w-5xl px-4 pt-24 pb-24 relative">
 
-        {/* HERO — huge match-value stat, ScholarshipOwl-style hook */}
+        {/* HERO — personalized results header with match-value stat */}
         <div className="rounded-2xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#D4AF37]/10 via-[#D4AF37]/5 to-transparent p-8 md:p-10">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#D4AF37]">
-                <Sparkles className="h-4 w-4"/> Your matches are ready
+                <Sparkles className="h-4 w-4"/> Your personalized shortlist is ready
               </div>
               <h1 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight leading-tight">
-                You matched{' '}
+                {greeting}
+                {userName && <>,</>} we found{' '}
                 <span className="text-[#D4AF37]">{total} real scholarships</span>
+                {strongCount > 0 && (
+                  <> — <span className="text-emerald-400">{strongCount} strong-fit</span></>
+                )}
                 {totalWorth > 0 && (
                   <> worth up to <span className="text-emerald-400">${totalWorth.toLocaleString()}</span></>
                 )}
               </h1>
               <p className="mt-3 text-white/70 max-w-2xl">
-                Every match is a REAL program with an official source URL — no random suggestions, no hallucinations. Ranked from {evaluated} source-linked scholarships in our database.
+                Every match is a REAL program with an official source URL — no random suggestions, no hallucinations. Ranked from {evaluated} source-linked scholarships in our library.
               </p>
             </div>
             <Button variant="outline" className="border-white/20 text-white/70 hover:text-white shrink-0" onClick={onReset}>
@@ -633,6 +777,15 @@ function MatchCard({ m }) {
   const scoreColor = score >= 80 ? 'text-emerald-400 border-emerald-400/30 bg-emerald-500/10'
                    : score >= 60 ? 'text-[#D4AF37] border-[#D4AF37]/30 bg-[#D4AF37]/10'
                    : 'text-amber-300 border-amber-400/30 bg-amber-500/10'
+  const warnings = Array.isArray(m.warnings) ? m.warnings : []
+  const risk = m.risk_level || (warnings.length >= 2 ? 'high' : warnings.length === 1 ? 'medium' : 'low')
+  const riskBadge = {
+    high:   { cls: 'border-red-500/40 bg-red-500/10 text-red-300',    label: 'Reach — verify carefully', icon: ShieldAlert },
+    medium: { cls: 'border-amber-400/40 bg-amber-500/10 text-amber-200', label: 'Some gaps to close',      icon: AlertCircle },
+    low:    { cls: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300', label: 'Strong fit',        icon: CheckCircle2 },
+  }[risk]
+  const RiskIcon = riskBadge.icon
+
   return (
     <Card className="group overflow-hidden border-white/10 bg-white/[0.02] hover:border-white/25 transition-all">
       <CardContent className="p-5">
@@ -655,6 +808,9 @@ function MatchCard({ m }) {
             {m.deadline_status && (
               <div className="mt-1 text-xs text-white/50">Deadline: {m.deadline_status} — {m.deadline_note}</div>
             )}
+            <div className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${riskBadge.cls}`}>
+              <RiskIcon className="h-3 w-3"/>{riskBadge.label}
+            </div>
           </div>
           <div className={`shrink-0 rounded-full border px-3 py-2 text-center ${scoreColor}`}>
             <div className="text-[10px] uppercase tracking-widest opacity-70">Fit</div>
@@ -675,7 +831,23 @@ function MatchCard({ m }) {
           </div>
         )}
 
-        {m.gaps?.length > 0 && (
+        {/* WHY NOT FIT — surface hard risks in red, so users skip application waste */}
+        {warnings.length > 0 && (
+          <div className="mt-3 rounded-lg border border-red-500/25 bg-red-500/[0.06] p-3">
+            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-widest text-red-300">
+              <XCircle className="h-3.5 w-3.5"/> Why this might NOT fit
+            </div>
+            <ul className="space-y-1">
+              {warnings.map((w, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-red-100/90">
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400"/>{w}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {m.gaps?.length > 0 && warnings.length === 0 && (
           <div className="mt-3">
             <div className="mb-2 text-xs uppercase tracking-widest text-amber-300/80">Gaps to close</div>
             <ul className="space-y-1">
@@ -709,5 +881,73 @@ function MatchCard({ m }) {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Post-quiz loading experience — full-screen animated multi-step analysis.
+// Sells the "AI Command Center" narrative and buys ~2.5s so the API
+// response feels considered rather than instant.
+// ---------------------------------------------------------------------------
+function QuizAnalyzingLoader({ userName }) {
+  const STEPS = [
+    { label: 'Reading your profile',                     detail: 'Parsing 8 answers · normalising GPA + language scores' },
+    { label: 'Applying eligibility filters',             detail: 'Nationality · degree level · field of study' },
+    { label: 'Scoring against 303 real scholarships',    detail: 'Fit engine · deterministic · no hallucinations' },
+    { label: 'Ranking your top matches',                 detail: 'Sorting by fit score · surfacing risks + gaps' },
+  ]
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setI(x => Math.min(STEPS.length - 1, x + 1)), 620)
+    return () => clearInterval(t)
+  }, [])
+
+  return (
+    <div className="relative min-h-screen bg-[#0A0A0A] text-white overflow-hidden">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[700px] bg-[radial-gradient(closest-side,rgba(212,175,55,0.18),transparent_70%)]"/>
+      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:22px_22px]"/>
+      <div className="container mx-auto max-w-2xl px-4 pt-32 pb-24 relative">
+        <div className="text-center">
+          <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10">
+            <Sparkles className="h-7 w-7 text-[#D4AF37] animate-pulse"/>
+          </div>
+          <h1 className="mt-6 text-3xl md:text-4xl font-semibold tracking-tight">
+            {userName ? `${userName}, we're building your report` : 'Building your report'}
+          </h1>
+          <p className="mt-3 text-white/60">
+            Analyzing your profile against every source-linked scholarship in our library.
+          </p>
+        </div>
+
+        <Card className="mt-10 border-white/10 bg-white/[0.03]">
+          <CardContent className="p-6 space-y-4">
+            {STEPS.map((s, idx) => {
+              const done = idx < i
+              const active = idx === i
+              return (
+                <div key={s.label} className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all
+                    ${done ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-400'
+                          : active ? 'border-[#D4AF37]/60 bg-[#D4AF37]/10 text-[#D4AF37]'
+                          : 'border-white/15 text-white/30'}`}>
+                    {done ? <CheckCircle2 className="h-4 w-4"/> : active ? <Loader2 className="h-4 w-4 animate-spin"/> : <span className="text-[10px]">{idx + 1}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-medium ${done ? 'text-white/70' : active ? 'text-white' : 'text-white/40'}`}>
+                      {s.label}
+                    </div>
+                    <div className={`text-xs ${active ? 'text-white/60' : 'text-white/30'}`}>{s.detail}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+
+        <div className="mt-6 text-center text-xs text-white/40">
+          <ShieldCheck className="inline h-3.5 w-3.5 mr-1 text-[#D4AF37]"/> No third-party AI is guessing your matches. Every result is scored against a REAL scholarship record.
+        </div>
+      </div>
+    </div>
   )
 }

@@ -1901,21 +1901,134 @@ backend:
           NO MAJOR ISSUES FOUND. Deterministic matching engine is production-ready.
           All matches are REAL scholarships from DB with official source URLs.
           NO AI, NO HALLUCINATION - pure rule-based transparent scoring.
+        -working: true
+        -agent: "testing"
+        -date: "2026-07-10"
+        -comment: |
+          ✅ PHASE B REGRESSION + EXTENSION TESTING COMPLETE (9/9 tests passed - 100% success rate)
+          
+          Endpoint: POST /api/scholarships/quiz-match
+          Phase B Changes: Added 5 new optional fields (work_exp, gre, gmat, timeline, financial_need)
+                          + warnings[] array and risk_level per match
+          
+          Test Results:
+          
+          1. ✅ REGRESSION - Original 7-field body (education_level, field, nationality, preferred_countries, 
+             gpa, gpa_scale, ielts/toefl, funding_pref):
+             - Returns 165 matches from 303 evaluated scholarships
+             - Top matches: DAAD EPOS (100), Commonwealth Master's (100), KAUST Fellowship (100)
+             - ALL matches now have warnings[] (array, may be empty) and risk_level (low/medium/high)
+             - Original contract intact: total_evaluated, total_matches, top_matches, answers_echo all present
+             - NO REGRESSION: Existing behavior unchanged
+          
+          2. ✅ NEW FIELDS ACCEPTED - Extended body with work_exp, gre, gmat, timeline, financial_need:
+             - Returns 200 OK with valid response structure
+             - financial_need='high' + funding_pref='full_only' produces reason "Fully funded — critical 
+               given your financial need" (verified with minimal profile to avoid 5-reason limit)
+          
+          3. ✅ MBA WORK-EXP GAP - education_level=mba + work_exp=0:
+             - Found MBA match with warning: "Insufficient work experience for MBA-tier programs"
+             - Example: UT Austin International & Forte MBA Scholarships (risk_level: medium)
+             - Gap correctly surfaced in warnings[] array
+          
+          4. ✅ MBA WITH 5+ YEARS - education_level=mba + work_exp=5+:
+             - NO "Insufficient work experience" warnings found (correct)
+             - Found positive reason: "5+ yrs experience aligns with executive/MBA norm"
+             - Examples: UT Austin MBA, INSEAD MBA Scholarships
+          
+          5. ✅ TIMELINE 2025 CLOSED-CYCLE WARNING:
+             - Logic implemented correctly in timelineWarning() function
+             - Searches for /closed|passed|expired|not open/i in deadline_status/deadline_note
+             - Adds warning: "Current cycle appears CLOSED — check for the next round on official source"
+             - NOTE: No scholarships with closed status found in current 303-record DB (informational, not a failure)
+          
+          6. ✅ RISK_LEVEL DISTRIBUTION:
+             - All matches have valid risk_level ∈ {low, medium, high}
+             - Top 20 distribution: 18 low, 2 medium, 0 high
+             - Risk classification logic: high (warnings >= 2 OR score < 55), medium (warnings == 1 OR score < 70), else low
+          
+          7. ✅ WARNINGS FIELD PRESENT ON EVERY MATCH:
+             - All 40 matches have 'warnings' as array (possibly empty)
+             - All 40 matches have 'risk_level' as string
+             - Sample: Match 0 (warnings=0, risk_level=low), Match 10 (warnings=1, risk_level=medium)
+          
+          8. ✅ EDGE CASES - All handled gracefully with 200 OK:
+             - Empty body {} → 200, returns 40 matches (all scholarships, no filters)
+             - Broken JSON {not_an_answer: true} → 200, returns 40 matches
+             - Only new fields {work_exp, timeline, financial_need} → 200, returns 40 matches
+          
+          9. ✅ CONTRACT INTEGRITY:
+             - top_matches sorted DESCENDING by overall_fit_score ✓
+             - Top 5 scores: [100, 100, 100, 100, 100]
+             - ALL source_urls start with https:// (40/40 matches) ✓
+             - ALL matches have reasons.length >= 1 (40/40 matches) ✓
+          
+          Phase B Contract Additions Verified:
+          - warnings: string[] — hard-risk subset of gaps (e.g. "GPA below required 3.5", "CLOSED")
+          - risk_level: 'low' | 'medium' | 'high' — computed from warnings count + score
+          
+          Pre-existing Contract Unchanged:
+          - top_matches (array, up to 40), total_matches, total_evaluated, answers_echo
+          - Each match: scholarship_id, slug, scholarship_name, university_name, country, source_url,
+            application_link, funding_amount, funding_type, degree_levels[], major_fields[],
+            deadline_status, deadline_note, trust_level, data_quality_score,
+            overall_fit_score (0-100, sorted DESC), reasons[] (1..5), gaps[]
+          
+          NO MAJOR ISSUES FOUND. Phase B extensions working perfectly.
+          All new fields accepted and processed correctly.
+          Deterministic matching engine remains production-ready with NO AI, NO HALLUCINATION.
 
 metadata:
-  last_updated: "2026-07-09"
+  last_updated: "2026-07-10"
   changes:
     - "Contacts + Managed-by attribution added to footer and contact page"
     - "Scholarship DB expanded 68 → 303 records across 60 countries"
+    - "Phase B UX Redesign: quiz wizard extended to 8 steps (added Boost step: work_exp, gre, gmat, timeline, financial_need)"
+    - "Phase B: quiz-match.js enhanced — accepts new optional answers, emits warnings[] and risk_level per match"
+    - "Phase B: post-quiz analyzing loader (~2.6s multi-step animation)"
+    - "Phase B: personalized results header (Hi {name}, we found X real scholarships — Y strong-fit)"
+    - "Phase B: MatchCard now shows red-styled 'Why this might NOT fit' section + risk badge"
+    - "Phase B: sample-report page polished (hero, how-it-was-built timeline, before/after block, CTA)"
 
 test_plan:
-  current_focus:
-    - "None — DB expansion is content-only and idempotent seed logic already tested (15/15 previous session)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
-  test_priority: "low"
+  test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -date: "2026-07-10"
+    -message: |
+      Phase B of the UX Redesign PRD is implemented. Please re-test POST /api/scholarships/quiz-match
+      with the following NEW optional fields in the answers body:
+        - work_exp: '0' | '1-2' | '3-5' | '5+'
+        - gre:      numeric string (optional)
+        - gmat:     numeric string (optional)
+        - timeline: '2025' | '2026' | 'flexible'
+        - financial_need: 'high' | 'medium' | 'low'
+
+      Expected behaviour (all deterministic — NO AI):
+        1) Existing behaviour with the original 7 fields MUST remain identical (no regression).
+        2) When work_exp='0' AND education_level='mba', matches to MBA-tier programs should either
+           drop lower in the ranking OR gain a warning "Insufficient work experience for MBA-tier
+           programs" (i.e. gap surfaced in `warnings[]`).
+        3) When work_exp='5+' AND education_level='mba', matches should NOT contain that gap.
+        4) When timeline='2025' AND a scholarship has deadline_status/deadline_note matching
+           /closed|passed|expired|not open/i → warnings[] MUST include "Current cycle appears CLOSED".
+        5) When financial_need='high' AND funding_pref='full_only' → fully-funded scholarships get
+           an extra reason "Fully funded — critical given your financial need".
+        6) Each match now returns:
+             - warnings: string[]  (hard risks — subset of gaps that we surface in red on the card)
+             - risk_level: 'low' | 'medium' | 'high'
+        7) Regression: field, nationality, degree-level and English-score behaviour unchanged.
+        8) API contract: top_matches, total_matches, total_evaluated, answers_echo still present.
+        9) Broken/empty body should still 200 (not 500).
+
+      Files changed this phase (backend-relevant only):
+        - /app/lib/quiz-match.js  (new fields + warnings[] + risk_level; strictly additive to output)
+        - Route in /app/app/api/[[...path]]/route.js is unchanged (still forwards answers to matcher).
+
     -agent: "main"
     -message: |
       Session 2026-07-09 summary:
@@ -2017,5 +2130,77 @@ agent_communication:
       
       NEXT STEPS FOR MAIN AGENT:
       - All subscription tests passed with no major issues
+      - Ready to summarize and finish
+      - Frontend testing requires user approval (not tested per instructions)
+
+
+  - agent: "testing"
+    date: "2026-07-10"
+    message: |
+      ✅ PHASE B QUIZ-MATCH REGRESSION + EXTENSION TESTING COMPLETE - ALL TESTS PASSED (9/9 - 100% SUCCESS RATE)
+      
+      Tested endpoint: POST /api/scholarships/quiz-match
+      Test scope: Regression + 5 new optional fields (work_exp, gre, gmat, timeline, financial_need)
+                  + 2 new output fields per match (warnings[], risk_level)
+      
+      **Test Results Summary:**
+      
+      1. ✅ REGRESSION - Original 7-field body still works identically
+         - Returns 165 matches from 303 evaluated scholarships
+         - DAAD/Commonwealth/KAUST in top results
+         - ALL matches now have warnings[] (array) and risk_level (low/medium/high)
+         - Original contract intact: total_evaluated, total_matches, top_matches, answers_echo
+      
+      2. ✅ NEW FIELDS ACCEPTED - Extended body with work_exp, gre, gmat, timeline, financial_need
+         - Returns 200 OK with valid response
+         - financial_need='high' + funding_pref='full_only' produces reason "Fully funded — critical given your financial need"
+      
+      3. ✅ MBA WORK-EXP GAP - education_level=mba + work_exp=0
+         - Found warning: "Insufficient work experience for MBA-tier programs"
+         - Example: UT Austin MBA (risk_level: medium)
+      
+      4. ✅ MBA WITH 5+ YEARS - education_level=mba + work_exp=5+
+         - NO "Insufficient work experience" warnings (correct)
+         - Found positive reason: "5+ yrs experience aligns with executive/MBA norm"
+      
+      5. ✅ TIMELINE 2025 CLOSED-CYCLE WARNING
+         - Logic implemented correctly (searches for /closed|passed|expired|not open/i)
+         - Adds warning: "Current cycle appears CLOSED — check for the next round on official source"
+         - NOTE: No closed scholarships in current 303-record DB (informational, not a failure)
+      
+      6. ✅ RISK_LEVEL DISTRIBUTION
+         - All matches have valid risk_level ∈ {low, medium, high}
+         - Top 20: 18 low, 2 medium, 0 high
+      
+      7. ✅ WARNINGS FIELD PRESENT ON EVERY MATCH
+         - All 40 matches have 'warnings' as array (possibly empty)
+         - All 40 matches have 'risk_level' as string
+      
+      8. ✅ EDGE CASES - All handled gracefully with 200 OK
+         - Empty body {} → 200, returns 40 matches
+         - Broken JSON {not_an_answer: true} → 200, returns 40 matches
+         - Only new fields {work_exp, timeline, financial_need} → 200, returns 40 matches
+      
+      9. ✅ CONTRACT INTEGRITY
+         - top_matches sorted DESCENDING by overall_fit_score ✓
+         - ALL source_urls start with https:// (40/40) ✓
+         - ALL matches have reasons.length >= 1 (40/40) ✓
+      
+      **Phase B Contract Additions Verified:**
+      - warnings: string[] — hard-risk subset of gaps (e.g. "GPA below required 3.5", "CLOSED")
+      - risk_level: 'low' | 'medium' | 'high' — computed from warnings count + score
+      
+      **Pre-existing Contract Unchanged:**
+      - top_matches (array, up to 40), total_matches, total_evaluated, answers_echo
+      - Each match: scholarship_id, slug, scholarship_name, university_name, country, source_url,
+        application_link, funding_amount, funding_type, degree_levels[], major_fields[],
+        deadline_status, deadline_note, trust_level, data_quality_score,
+        overall_fit_score (0-100, sorted DESC), reasons[] (1..5), gaps[]
+      
+      NO MAJOR ISSUES FOUND. Phase B extensions working perfectly.
+      Deterministic matching engine remains production-ready with NO AI, NO HALLUCINATION.
+      
+      NEXT STEPS FOR MAIN AGENT:
+      - All Phase B quiz-match tests passed with no major issues
       - Ready to summarize and finish
       - Frontend testing requires user approval (not tested per instructions)

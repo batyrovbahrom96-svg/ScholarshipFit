@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import PaywallModal from '@/components/site/PaywallModal'
+import { store } from '@/lib/client-store'
 import {
   ArrowRight, ArrowLeft, GraduationCap, Sparkles, ExternalLink, ShieldCheck,
   CheckCircle2, AlertCircle, MapPin, Globe, Award, Loader2, RotateCcw,
@@ -216,6 +217,57 @@ export default function QuizPage() {
         new Promise(r => setTimeout(r, 2600 - Math.min(2600, Date.now() - started))),
       ])
       setResults(data)
+
+      // Persist to the client-store in the shape /dashboard expects. This
+      // way, when the user activates a plan from the paywall, the redirect
+      // to /dashboard immediately shows their matched scholarships instead
+      // of an empty cabinet.
+      try {
+        const matches = (data.top_matches || []).map(m => ({
+          scholarship_id: m.scholarship_id,
+          slug: m.slug,
+          scholarship_name: m.scholarship_name,
+          university_name: m.university_name,
+          country: m.country,
+          source_url: m.source_url,
+          application_link: m.application_link || m.source_url,
+          trust_level: m.trust_level,
+          funding_amount: m.funding_amount,
+          funding_type: m.funding_type,
+          deadline_note: m.deadline_note,
+          deadline_status: m.deadline_status,
+          overall_fit_score: m.overall_fit_score,
+          academic_fit_score: m.overall_fit_score,
+          scholarship_fit_score: m.overall_fit_score,
+          budget_fit: (answers.funding_pref === 'full_only' && /full/i.test(m.funding_type || '')) ? 'excellent' : 'good',
+          eligibility_status: m.risk_level === 'high' ? 'borderline' : 'likely_eligible',
+          application_waste_risk: m.risk_level || 'low',
+          requirements_met: m.reasons || [],
+          requirements_missing: m.gaps || [],
+          fit_reasoning: (m.reasons || []).slice(0, 2).join(' · '),
+          funding_note: m.funding_summary,
+          next_steps: ['Verify current cycle on official source URL', 'Prepare motivation letter', 'Collect transcripts + references'],
+          disclaimer_hint: 'Verify all details on the official source before applying.',
+          warnings: m.warnings || [],
+          risk_level: m.risk_level || 'low',
+          degree_levels: m.degree_levels,
+          major_fields: m.major_fields,
+        }))
+        const runShape = {
+          run: {
+            id: `quiz-${Date.now()}`,
+            created_at: new Date().toISOString(),
+            profile: { ...answers, source: 'quiz' },
+            result: {
+              matches,
+              summary: `Ranked ${data.total_matches || matches.length} of ${data.total_evaluated || 303} source-linked scholarships against your quiz profile.`,
+              advisory: 'These matches are deterministic — verify every deadline on the official source URL before applying.',
+            },
+          },
+        }
+        store.setRun(runShape.run)
+        store.setLastAnswers?.(answers)
+      } catch { /* localStorage may be blocked in some browsers */ }
     } catch (e) {
       setError('Could not fetch matches. Please retry.')
     } finally {

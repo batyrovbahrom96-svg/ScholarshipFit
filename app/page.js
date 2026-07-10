@@ -19,7 +19,7 @@ import BottomCTA from '@/components/site/BottomCTA'
 import PricingPreview from '@/components/site/PricingPreview'
 import TestimonialWall from '@/components/site/TestimonialWall'
 import OutcomesPreview from '@/components/site/OutcomesPreview'
-import StudentStories from '@/components/site/StudentStories'
+import FounderVideo from '@/components/site/FounderVideo'
 import ProofStats from '@/components/site/ProofStats'
 
 /* ============ decorative info card (floating around hero) ============ */
@@ -408,7 +408,8 @@ function Home() {
 
       <PricingPreview />
       <ProofStats />
-      <StudentStories compact />
+      {/* ================ FOUNDER WELCOME VIDEO ================ */}
+      <FounderVideo />
       <BottomCTA />
       <WinnerTicker />
       <Footer />

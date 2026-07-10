@@ -258,13 +258,17 @@ function SmoothScrollSetup() {
 }
 
 export default function PremiumEffects() {
-  const disabled = useIsTouchOrReducedMotion()
+  // NOTE: Custom cursor disabled for the payment launch — several users
+  // reported it freezing/lagging on data-heavy sections (hero 3D, cabinet).
+  // Native cursor is more reliable. Re-enable by uncommenting when we
+  // have time to profile the paint cost on lower-end machines.
+  // const disabled = useIsTouchOrReducedMotion()
   return (
     <>
       <LoadingCounter />
       <SmoothScrollSetup />
       <ScrollReveal />
-      {!disabled && <CustomCursor />}
+      {/* {!disabled && <CustomCursor />} */}
     </>
   )
 }

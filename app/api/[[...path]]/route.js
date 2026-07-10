@@ -1077,7 +1077,8 @@ Respond with STRICT JSON in this schema:
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ user: null }, { status: 200 }))
       const sub = user.subscription || null
-      const isActive = sub && sub.status === 'active' && (
+      // Users get full access during trial ('trialing') AND when active until expiry.
+      const isActive = sub && (sub.status === 'active' || sub.status === 'trialing') && (
         sub.plan === 'lifetime' || !sub.expires_at || new Date(sub.expires_at) > new Date()
       )
       return withCORS(NextResponse.json({
@@ -1096,34 +1097,60 @@ Respond with STRICT JSON in this schema:
       const body = await request.json().catch(() => ({}))
       const plan = (body?.plan || '').toLowerCase()
       // Plan catalogue: price = amount charged in the billing cycle, days = cycle length,
-      // monthly_rate = effective $/mo shown to user.
+      // monthly_rate = effective $/mo shown to user. trial_days = 7-day free trial (except lifetime).
+      // NEW 2026-07 pricing (length-based):
+      //   monthly     = $14.99 / 30d  (7-day trial)
+      //   quarterly   = $29    / 90d  (7-day trial)
+      //   half_yearly = $49    / 180d (7-day trial)
+      //   lifetime    = $79    forever (no trial — one-time)
       const PLAN_CATALOGUE = {
-        vip:         { price: 69, days: 30,  monthly_rate: 69 },
-        monthly:     { price: 20, days: 30,  monthly_rate: 20 },
-        quarterly:   { price: 45, days: 90,  monthly_rate: 15 },
-        half_yearly: { price: 60, days: 180, monthly_rate: 10 },
-        // Legacy plan keys (kept for backward compatibility with old tests / URLs)
-        pro:         { price: 9,   days: 30, monthly_rate: 9 },
-        elite:       { price: 24,  days: 30, monthly_rate: 24 },
-        lifetime:    { price: 199, days: null, monthly_rate: 0 },
+        monthly:     { price: 14.99, days: 30,  monthly_rate: 14.99, trial_days: 7 },
+        quarterly:   { price: 29,    days: 90,  monthly_rate: 9.67,  trial_days: 7 },
+        half_yearly: { price: 49,    days: 180, monthly_rate: 8.17,  trial_days: 7 },
+        lifetime:    { price: 79,    days: null, monthly_rate: 0,    trial_days: 0 },
+        // Legacy plan keys (kept for backward compatibility with old tests / URLs / active subs).
+        vip:         { price: 69,    days: 30,  monthly_rate: 69,    trial_days: 0 },
+        pro:         { price: 9,     days: 30,  monthly_rate: 9,     trial_days: 0 },
+        elite:       { price: 24,    days: 30,  monthly_rate: 24,    trial_days: 0 },
       }
       const cfg = PLAN_CATALOGUE[plan]
       if (!cfg) {
         return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
       }
       const now = new Date()
-      const expiresAt = cfg.days == null
-        ? null
-        : new Date(now.getTime() + cfg.days * 24 * 60 * 60 * 1000)
+      // Trial handling:
+      //  - If cfg.trial_days > 0 and this is the user's FIRST activation → start in "trialing" status,
+      //    trial_end = now + trial_days, first charge date = trial_end, expires_at = trial_end + billing_days
+      //  - If lifetime (days=null) → status = active, no expiry
+      //  - Otherwise (legacy, no trial) → status = active, expires_at = now + days
+      const hasHadTrialBefore = !!(user.subscription && user.subscription.trial_used)
+      const trialEligible = cfg.trial_days > 0 && !hasHadTrialBefore
+      let status = 'active'
+      let trialEnd = null
+      let firstChargeAt = now
+      let expiresAt = cfg.days == null ? null : new Date(now.getTime() + cfg.days * 24 * 60 * 60 * 1000)
+
+      if (trialEligible) {
+        status = 'trialing'
+        trialEnd = new Date(now.getTime() + cfg.trial_days * 24 * 60 * 60 * 1000)
+        firstChargeAt = trialEnd
+        // User has full access during trial and full billing cycle after
+        expiresAt = new Date(trialEnd.getTime() + cfg.days * 24 * 60 * 60 * 1000)
+      }
+
       const subscription = {
         plan,
-        status: 'active',
+        status,                                // 'trialing' | 'active'
         activated_at: now,
+        trial_end: trialEnd,
+        trial_used: trialEligible ? true : hasHadTrialBefore,
+        first_charge_at: firstChargeAt,
         expires_at: expiresAt,
         price_usd: cfg.price,
         monthly_rate_usd: cfg.monthly_rate,
         billing_cycle_days: cfg.days,
-        payment_method: 'pending_gateway',
+        trial_days: cfg.trial_days,
+        payment_method: body?.payment_method_id ? 'card_captured' : 'pending_gateway',
         payment_reference: body?.payment_reference || null,
       }
       await db.collection('users').updateOne(
@@ -1131,8 +1158,10 @@ Respond with STRICT JSON in this schema:
         { $set: { subscription, updated_at: now } }
       )
       await db.collection('subscription_events').insertOne({
-        id: uuidv4(), user_id: user.id, event: 'activated',
-        plan, price_usd: cfg.price, created_at: now,
+        id: uuidv4(), user_id: user.id,
+        event: trialEligible ? 'trial_started' : 'activated',
+        plan, price_usd: cfg.price, trial_days: cfg.trial_days,
+        created_at: now,
       }).catch(() => {})
       return withCORS(NextResponse.json({ ok: true, subscription }))
     }
@@ -1141,7 +1170,8 @@ Respond with STRICT JSON in this schema:
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ subscription: null, active: false }))
       const sub = user.subscription || null
-      const isActive = sub && sub.status === 'active' && (
+      // Trialing users get full access until trial_end, then active until expires_at.
+      const isActive = sub && (sub.status === 'active' || sub.status === 'trialing') && (
         sub.plan === 'lifetime' || !sub.expires_at || new Date(sub.expires_at) > new Date()
       )
       return withCORS(NextResponse.json({ subscription: sub, active: !!isActive }))

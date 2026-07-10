@@ -3,132 +3,41 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
-  CreditCard, Loader2, AlertCircle, Star,
+  CreditCard, Loader2, AlertCircle, Star, Crown,
 } from 'lucide-react'
 
-// -----------------------------------------------------------------------------
-// Plan catalogue — same pricing that already lives on /pricing. NO free trials.
-// Immediate activation. All features included per tier.
-// -----------------------------------------------------------------------------
-const PLANS = [
-  {
-    key: 'vip',
-    name: 'VIP',
-    price: 69,
-    unit: '/mo',
-    billing: 'billed monthly',
-    ribbon: null,
-    accent: 'red',
-    tagline: 'Concierge tier — human experts + full access',
-    features: [
-      'Access hundreds of thousands of award money',
-      'Enjoy new scholarship opportunities added every week',
-      'Get re-applied automatically to renewable scholarships',
-      'One 500-word essay professionally reviewed every month',
-      '1 × 30-min 1:1 strategy call every month',
-      'Watch 6+ hours of financial aid & admissions content',
-      'Deadline concierge — we hand-verify every deadline',
-      'WhatsApp / Telegram direct line to VIP team',
-      'Priority same-day support (< 2h reply)',
-      'Cancel anytime',
-    ],
-  },
-  {
-    key: 'monthly',
-    name: 'Monthly',
-    price: 20,
-    unit: '/mo',
-    billing: 'billed monthly',
-    ribbon: null,
-    accent: 'orange',
-    tagline: 'Full access, billed monthly',
-    features: [
-      'Hundreds of thousands of award money currently available',
-      'New scholarship opportunities added every month',
-      'Automatically re-apply to repeat scholarships',
-      'Unlock all 303 source-linked scholarships (60 countries)',
-      'Unlimited AI Match reports · Claude Sonnet 4.5',
-      'Unlimited Application Readiness Scores',
-      'Cabinet · Tracker · deadline reminders · PDF export',
-      'Only $20 per month, until you cancel',
-      'Cancel anytime from your account page',
-    ],
-  },
-  {
-    key: 'quarterly',
-    name: 'Quarterly',
-    price: 15,
-    unit: '/mo',
-    billing: 'billed every 3 months',
-    ribbon: 'Most Popular',
-    accent: 'green',
-    tagline: 'Save 25% — pay $45 every 3 months',
-    features: [
-      'Hundreds of thousands of award money currently available',
-      'New scholarship opportunities added every month',
-      'Automatically re-apply to repeat scholarships',
-      'Unlock all 303 source-linked scholarships (60 countries)',
-      'Unlimited AI Match reports · Claude Sonnet 4.5',
-      'Unlimited Application Readiness Scores',
-      'Cabinet · Tracker · deadline reminders · PDF export',
-      'Only $15 per month, billed quarterly, until you cancel',
-      'Cancel anytime from your account page',
-    ],
-  },
-  {
-    key: 'half_yearly',
-    name: 'Half Yearly',
-    price: 10,
-    unit: '/mo',
-    billing: 'billed every 6 months',
-    ribbon: 'Best Value',
-    accent: 'orange',
-    tagline: 'Save 50% — pay $60 every 6 months',
-    features: [
-      'Hundreds of thousands of award money currently available',
-      'New scholarship opportunities added every month',
-      'Automatically re-apply to repeat scholarships',
-      'Unlock all 303 source-linked scholarships (60 countries)',
-      'Unlimited AI Match reports · Claude Sonnet 4.5',
-      'Unlimited Application Readiness Scores',
-      'Cabinet · Tracker · deadline reminders · PDF export',
-      'Only $10 per month, billed half-yearly, until you cancel',
-      'Cancel anytime from your account page',
-    ],
-  },
-]
-
 const TRUST_BADGES = [
-  { icon: Shield,   text: 'Secure Stripe checkout',      sub: '256-bit SSL encrypted' },
-  { icon: Zap,      text: 'Instant access',              sub: 'Unlocked in < 5 seconds' },
-  { icon: Trophy,   text: '303 real scholarships',       sub: 'Source-linked · verified' },
+  { icon: Shield,  text: '7-day free trial', sub: 'Cancel before day 7 — no charge' },
+  { icon: Zap,     text: 'Instant access',   sub: 'Full Command Center in < 5s' },
+  { icon: Trophy,  text: '303 real scholarships', sub: 'Source-linked · verified' },
 ]
 
 // -----------------------------------------------------------------------------
-// Main component
+// PaywallModal — 4-tier length-based pricing with 7-day free trial (card capture).
+// Backed by SUBSCRIPTION_PLANS in /lib/pricing-plans.js.
 // -----------------------------------------------------------------------------
 export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth = 0, initialPlan = 'quarterly' }) {
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState(initialPlan)
-  const [loading, setLoading] = useState(false)
+  const [activatingKey, setActivatingKey] = useState('')
   const [error, setError] = useState('')
 
   const activate = async (planKey) => {
-    setLoading(true); setError('')
+    setActivatingKey(planKey); setError('')
     try {
       // Step 1: check auth
       const meRes = await fetch('/api/auth/me', { credentials: 'include' })
       const me = await meRes.json()
       if (!me?.user) {
-        // Not signed in — redirect to signup with a "next" param to come back
         const next = encodeURIComponent(`/checkout?plan=${planKey}`)
         router.push(`/signup?next=${next}`)
         return
       }
-      // Step 2: activate subscription (mock payment success — real Stripe hook
-      // will be added later. For now backend records subscription immediately.)
+      // Step 2: activate subscription. Backend handles trial vs immediate charge.
+      // When Stripe/LemonSqueezy is wired we will POST payment_method_id here.
       const res = await fetch('/api/subscription/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +53,7 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
     } catch (e) {
       setError(e?.message || 'Activation failed. Please try again.')
     } finally {
-      setLoading(false)
+      setActivatingKey('')
     }
   }
 
@@ -168,7 +77,7 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
               )}
             </h2>
             <p className="mt-3 text-white/60 max-w-2xl">
-              Every match below is a real, source-linked program. Activate now to unlock deadlines, application links, AI Match reports, and the full Cabinet. No trial. No credit card gotchas. Full access instantly.
+              Try any plan free for <span className="text-white font-medium">7 days</span> — card required, cancel anytime before day 7 and you&apos;re not charged. Longer commitment = bigger discount. Lifetime VIP is a one-time payment.
             </p>
           </div>
 
@@ -189,59 +98,59 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
         {/* Plan cards */}
         <div className="p-6 md:p-8">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {PLANS.map((p) => {
+            {SUBSCRIPTION_PLANS.map((p) => {
               const isSelected = selectedPlan === p.key
-              const accent = p.accent === 'green'
-                ? { ring: 'ring-emerald-400/70', ribbon: 'bg-emerald-500 text-white', btn: 'bg-emerald-500 hover:bg-emerald-400 text-white' }
-                : p.accent === 'red'
-                  ? { ring: 'ring-red-400/60', ribbon: 'bg-red-500 text-white', btn: 'bg-red-500 hover:bg-red-400 text-white' }
-                  : p.accent === 'orange'
-                    ? { ring: 'ring-orange-400/60', ribbon: 'bg-orange-500 text-white', btn: 'bg-orange-500 hover:bg-orange-400 text-white' }
-                    : { ring: 'ring-[#D4AF37]', ribbon: 'bg-[#D4AF37] text-black', btn: 'bg-[#D4AF37] hover:bg-[#B8941F] text-black' }
-              const totalDue = p.key === 'quarterly' ? 45 : p.key === 'half_yearly' ? 60 : p.price
+              const isActivating = activatingKey === p.key
+              const accent = accentClasses(p.accent)
+              const isLifetime = p.tier_type === 'lifetime'
               return (
                 <div
                   key={p.key}
                   onClick={() => setSelectedPlan(p.key)}
-                  className={`relative cursor-pointer rounded-2xl border p-5 transition-all
+                  className={`relative cursor-pointer rounded-2xl border p-5 pt-6 transition-all
                     ${isSelected
-                      ? `bg-white/[0.04] border-white/20 ring-2 ${accent.ring}`
+                      ? `bg-white/[0.04] border-white/25 ring-2 ${accent.ring}`
                       : 'bg-white/[0.02] border-white/10 hover:border-white/20'}`}
                 >
                   {p.ribbon && (
-                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap ${accent.ribbon}`}>
-                      <Star className="inline h-3 w-3 mr-1 -mt-0.5"/>{p.ribbon}
+                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-semibold whitespace-nowrap ${accent.ribbon} shadow-lg`}>
+                      {isLifetime ? <Crown className="inline h-3 w-3 mr-1 -mt-0.5"/> : <Star className="inline h-3 w-3 mr-1 -mt-0.5"/>}
+                      {p.ribbon}
                     </div>
                   )}
                   <div className="text-center">
                     <div className="text-lg font-semibold text-white">{p.name}</div>
                     <div className="mt-3 flex items-baseline justify-center gap-1">
-                      <span className="text-4xl font-bold text-white">${p.price}</span>
+                      <span className="text-4xl font-bold text-white">${p.display_price}</span>
                       <span className="text-white/50 text-sm">{p.unit}</span>
                     </div>
                     <div className="mt-1 text-xs text-white/50">{p.billing}</div>
-                    {(p.key === 'quarterly' || p.key === 'half_yearly') && (
-                      <div className="mt-1 text-[11px] text-emerald-300/80">${totalDue} billed today</div>
+                    {p.savings_label && (
+                      <div className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+                        {p.savings_label}
+                      </div>
                     )}
                   </div>
 
                   <Button
                     onClick={(e) => { e.stopPropagation(); activate(p.key) }}
-                    disabled={loading}
-                    className={`mt-4 w-full ${accent.btn} disabled:opacity-40`}
+                    disabled={isActivating}
+                    className={`mt-4 w-full ${accent.btn} disabled:opacity-40 font-semibold`}
                   >
-                    {loading && selectedPlan === p.key ? (
+                    {isActivating ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Activating…</>
                     ) : (
-                      <>Activate {p.name === 'VIP' ? 'VIP' : p.name}</>
+                      <>{p.cta}</>
                     )}
                   </Button>
-                  <div className="mt-2 text-center text-[11px] text-white/40">Cancel anytime</div>
+                  <div className="mt-2 text-center text-[11px] text-white/40 leading-relaxed">
+                    {p.trial_note}
+                  </div>
 
                   <ul className="mt-4 space-y-1.5 border-t border-white/5 pt-4">
                     {p.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-white/75">
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400"/>
+                        <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isLifetime ? 'text-[#D4AF37]' : 'text-emerald-400'}`}/>
                         <span>{f}</span>
                       </li>
                     ))}
@@ -260,11 +169,11 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
           <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-white/5 pt-6 text-center">
             <div className="flex items-center gap-2 text-xs text-white/40">
               <Lock className="h-3 w-3"/>
-              Payment processed securely. No free trials, no hidden fees, no automatic renewals without warning.
+              Card required to start your 7-day trial. We never charge before day 7. Cancel anytime from your account.
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/40">
               <span>✓ Cancel anytime</span>
-              <span>✓ 7-day money-back guarantee</span>
+              <span>✓ 7-day free trial (except Lifetime)</span>
               <span>✓ Instant access</span>
               <span>✓ 303 real scholarships</span>
             </div>
@@ -273,4 +182,18 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
       </DialogContent>
     </Dialog>
   )
+}
+
+function accentClasses(accent) {
+  switch (accent) {
+    case 'green':
+      return { ring: 'ring-emerald-400/70', ribbon: 'bg-emerald-500 text-white', btn: 'bg-emerald-500 hover:bg-emerald-400 text-white' }
+    case 'red':
+      return { ring: 'ring-red-400/60', ribbon: 'bg-red-500 text-white', btn: 'bg-red-500 hover:bg-red-400 text-white' }
+    case 'orange':
+      return { ring: 'ring-orange-400/60', ribbon: 'bg-orange-500 text-white', btn: 'bg-orange-500 hover:bg-orange-400 text-white' }
+    case 'gold':
+    default:
+      return { ring: 'ring-[#D4AF37]', ribbon: 'bg-[#D4AF37] text-black', btn: 'bg-[#D4AF37] hover:bg-[#B8941F] text-black' }
+  }
 }

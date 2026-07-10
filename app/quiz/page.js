@@ -702,7 +702,7 @@ function QuizResults({ results, answers, onReset, userName }) {
                   size="lg"
                   className="btn-gold btn-pill h-12 px-8 text-base font-semibold text-black"
                 >
-                  <Zap className="mr-2 h-4 w-4"/>Activate now — from $10/mo
+                  <Zap className="mr-2 h-4 w-4"/>Start 7-day free trial — from $8.17/mo
                 </Button>
                 <div className="text-xs text-white/50">
                   ✓ Instant access · ✓ Cancel anytime · ✓ 7-day money-back guarantee
@@ -739,7 +739,7 @@ function QuizResults({ results, answers, onReset, userName }) {
                   size="lg"
                   className="btn-gold btn-pill h-12 px-8 font-semibold text-black"
                 >
-                  <Crown className="mr-2 h-4 w-4"/>Unlock all {total} matches — from $10/mo
+                  <Crown className="mr-2 h-4 w-4"/>Unlock all {total} matches — from $8.17/mo
                 </Button>
               </div>
             )}

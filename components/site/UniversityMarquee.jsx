@@ -56,13 +56,17 @@ function FallbackCrest({ variant }) {
 
 function CrestTile({ uni }) {
   // 0 = local /logos/{key}.png (fast, no external calls, always same quality)
-  // 1 = /api/logo proxy (server chain: Clearbit -> icon.horse -> DDG -> Google)
-  // 2 = heraldic SVG crest
+  // 1 = heraldic SVG crest (guaranteed on-brand, never fetches third-party favicons)
+  //
+  // NOTE: We deliberately skip third-party favicon proxies (Clearbit / icon.horse /
+  // DDG / Google) because some university sites run Drupal (e.g. ox.ac.uk) and
+  // return the Drupal CMS teardrop as their favicon — that would render the wrong
+  // logo on our site. Better to show a clean branded crest than a wrong logo.
   const [tier, setTier] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const imgRef = useRef(null)
-  const src = tier === 0 ? staticLogoUrl(uni.logo) : proxyUrl(uni.domain)
-  const showCrest = tier >= 2
+  const src = staticLogoUrl(uni.logo)
+  const showCrest = tier >= 1
   const bumpTier = () => { setLoaded(false); setTier(t => t + 1) }
 
   // If image was already cached and completed loading before React attached

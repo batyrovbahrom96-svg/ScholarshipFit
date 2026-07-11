@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
+import posthog from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -135,6 +136,12 @@ function Onboarding() {
       method: 'POST', credentials: 'include', headers: {'Content-Type':'application/json'},
       body: JSON.stringify(profile),
     }).catch(() => {})
+
+    posthog.capture('onboarding_completed', {
+      nationality: form.nationality,
+      degree_level: form.degree_level,
+      intended_major: form.intended_major,
+    })
 
     // 2) Fire AI match (can take up to 90s on cache miss; ~100ms on cache hit)
     const mr = await safeJsonFetch('/api/match', {

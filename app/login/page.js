@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react'
 import { useAuth, buildSignInUrl } from '@/hooks/use-auth'
+import posthog from 'posthog-js'
 
 /* Reusable email + password auth form.
    Handles both /login and /signup depending on `mode` prop. */
@@ -41,6 +42,15 @@ export function AuthForm({ mode = 'login' }) {
       })
       const data = await r.json()
       if (!r.ok) { setErr(data.error || 'Something went wrong'); return }
+      const userId = data.user?.id || data.user?.email
+      if (userId) {
+        posthog.identify(userId, { email: data.user.email, name: data.user.name || data.user.full_name })
+      }
+      if (mode === 'signup') {
+        posthog.capture('user_signed_up', { method: 'email' })
+      } else {
+        posthog.capture('user_logged_in', { method: 'email' })
+      }
       await refresh()
       router.push(returnTo)
     } catch (err) {

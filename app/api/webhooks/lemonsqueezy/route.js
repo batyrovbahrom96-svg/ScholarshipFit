@@ -19,6 +19,7 @@ import { NextResponse } from 'next/server'
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import crypto from 'crypto'
+import { getPostHogClient } from '@/lib/posthog-server'
 
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
 const DB_NAME   = process.env.DB_NAME   || 'scholarshipfit'
@@ -163,6 +164,21 @@ export async function POST(request) {
           },
         },
       )
+      if (eventName === 'subscription_created' || eventName === 'subscription_payment_success') {
+        const ph = getPostHogClient()
+        ph.capture({
+          distinctId: userId,
+          event: 'subscription_activated',
+          properties: {
+            plan: planKey,
+            status,
+            price_usd: meta.price_usd || null,
+            provider: 'lemonsqueezy',
+            is_trial: status === 'trialing',
+          },
+        })
+        await ph.flush()
+      }
       break
     }
     case 'subscription_cancelled': {
@@ -179,6 +195,13 @@ export async function POST(request) {
           },
         },
       )
+      const ph = getPostHogClient()
+      ph.capture({
+        distinctId: userId,
+        event: 'subscription_cancelled',
+        properties: { plan: planKey, provider: 'lemonsqueezy' },
+      })
+      await ph.flush()
       break
     }
     case 'subscription_expired':

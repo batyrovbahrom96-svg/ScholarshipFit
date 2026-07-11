@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
   CreditCard, Loader2, AlertCircle, Star, Crown,
 } from 'lucide-react'
+import posthog from 'posthog-js'
 
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'preorder'
 const IS_PREORDER = PAYMENT_MODE !== 'live'
@@ -33,9 +34,25 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
   const { region, setOverride, priceFor } = useRegionalPricing()
   const discountPct = region?.discount_pct || 0
   const hasRegionalDiscount = discountPct > 0
+  const openTrackedRef = useRef(false)
+
+  useEffect(() => {
+    if (open && !openTrackedRef.current) {
+      openTrackedRef.current = true
+      posthog.capture('paywall_opened', { match_count: matchCount, total_worth: totalWorth })
+    }
+    if (!open) openTrackedRef.current = false
+  }, [open, matchCount, totalWorth])
 
   const activate = async (planObj) => {
     setError('')
+    posthog.capture('checkout_initiated', {
+      plan: planObj.key,
+      plan_name: planObj.name,
+      price_usd: planObj.total_charge,
+      is_preorder: IS_PREORDER,
+      source: 'paywall_modal',
+    })
     // In preorder mode (payment gateway pending approval) — open founder reservation
     // modal instead of activating a fake subscription. Ensures payment-gateway
     // reviewers walking through the flow see honest, non-deceptive intent.

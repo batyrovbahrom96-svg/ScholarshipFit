@@ -30,6 +30,37 @@ async function db() {
   return _client.db(DB_NAME)
 }
 
+// ============================================================================
+// Paddle IP allowlist — cached from https://api.paddle.com/ips (12h TTL).
+// Ensures webhook POSTs only from Paddle's published egress CIDR ranges.
+// Disabled if PADDLE_IP_ALLOWLIST=off (useful for local dev / testing).
+// ============================================================================
+let _ipsCache = { ts: 0, cidrs: [] }
+async function getPaddleAllowlist() {
+  const TTL = 12 * 60 * 60 * 1000
+  if (Date.now() - _ipsCache.ts < TTL && _ipsCache.cidrs.length) return _ipsCache.cidrs
+  try {
+    const r = await fetch('https://api.paddle.com/ips', { headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    const cidrs = Array.isArray(j?.data?.ipv4_cidrs) ? j.data.ipv4_cidrs : []
+    if (cidrs.length) _ipsCache = { ts: Date.now(), cidrs }
+  } catch { /* keep the stale cache if refresh fails — safer than opening the gate */ }
+  return _ipsCache.cidrs
+}
+function ipInCidr(ip, cidr) {
+  // Supports /32 CIDRs (Paddle publishes only /32 for ipv4). Also accepts bare IPs.
+  const [net, bitsRaw] = cidr.split('/')
+  const bits = bitsRaw ? Number(bitsRaw) : 32
+  const toInt = (x) => x.split('.').reduce((a, b) => (a << 8) + Number(b), 0) >>> 0
+  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0
+  try { return (toInt(ip) & mask) === (toInt(net) & mask) } catch { return false }
+}
+function callerIp(request) {
+  const xff = request.headers.get('x-forwarded-for') || ''
+  return (xff.split(',')[0] || '').trim() ||
+         request.headers.get('x-real-ip') || ''
+}
+
 function timingSafeEqualHex(aHex, bHex) {
   try {
     const a = Buffer.from(String(aHex || ''), 'hex')
@@ -69,6 +100,15 @@ export async function POST(request) {
 
   // Read raw body FIRST (mandatory for signature verification)
   const raw = await request.text()
+
+  // -- Paddle IP allowlist (defence-in-depth on top of HMAC) --
+  if ((process.env.PADDLE_IP_ALLOWLIST || 'on').toLowerCase() !== 'off') {
+    const src = callerIp(request)
+    const cidrs = await getPaddleAllowlist()
+    if (cidrs.length && src && !cidrs.some(c => ipInCidr(src, c))) {
+      return NextResponse.json({ error: 'Source IP not in Paddle allowlist' }, { status: 403 })
+    }
+  }
 
   // Parse the Paddle-Signature header — format: "ts=1671552777;h1=eb4d0..."
   const sigHeader = request.headers.get('paddle-signature') || ''

@@ -41,7 +41,21 @@ export function AuthForm({ mode = 'login' }) {
         body: JSON.stringify({ email, password, ...(mode === 'signup' ? { name } : {}) }),
       })
       const data = await r.json()
-      if (!r.ok) { setErr(data.error || 'Something went wrong'); return }
+      if (!r.ok) {
+        // Login attempt for an unverified account → send them to /verify-email
+        if (data?.needs_verification && data?.email) {
+          try { track.trackEvent && track.trackEvent('login_blocked_unverified', { email_domain: data.email.split('@')[1] }) } catch { /* ignore */ }
+          router.push(`/verify-email?email=${encodeURIComponent(data.email)}&next=${encodeURIComponent(returnTo)}`)
+          return
+        }
+        setErr(data.error || 'Something went wrong'); return
+      }
+      // Signup path — if backend says needs_verification, redirect to /verify-email
+      if (isSignup && data?.needs_verification && data?.email) {
+        try { track.signup({ method: 'email', requires_verification: true }) } catch { /* ignore */ }
+        router.push(`/verify-email?email=${encodeURIComponent(data.email)}&next=${encodeURIComponent(returnTo)}`)
+        return
+      }
       try {
         if (isSignup) track.signup({ method: 'email' })
         else track.login({ method: 'email' })

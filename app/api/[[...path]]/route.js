@@ -7,6 +7,8 @@ import bcrypt from 'bcryptjs'
 import { createRequire } from 'module'
 import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
 import { matchScholarships } from '@/lib/quiz-match'
+import { sendVerificationEmail } from '@/lib/mail/resend'
+import { captureServerEvent } from '@/lib/posthog-server'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -53,6 +55,28 @@ async function ensureSeed(db) {
   if (bulkOps.length) {
     try { await col.bulkWrite(bulkOps, { ordered: false }) } catch (e) { /* ignore dup errors */ }
   }
+
+  // ---------- Email verification collection + TTL index ----------
+  // Documents auto-expire once `expires_at` is reached. Also enforce a
+  // uniqueness constraint so we can efficiently upsert per-email.
+  try {
+    const ev = db.collection('email_verifications')
+    await ev.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }).catch(() => {})
+    await ev.createIndex({ email: 1 }, { unique: true }).catch(() => {})
+  } catch (_) { /* ignore */ }
+
+  // ---------- Grandfather existing users (one-shot) ----------
+  // Anyone whose account was created before we introduced email verification
+  // is automatically marked email_verified=true so they can keep logging in.
+  // This runs at most once per boot (per Mongo document count) and is a
+  // no-op after the first run.
+  try {
+    const users = db.collection('users')
+    await users.updateMany(
+      { email_verified: { $exists: false } },
+      { $set: { email_verified: true, email_verified_at: new Date(), email_verified_source: 'grandfathered' } },
+    )
+  } catch (_) { /* ignore */ }
 }
 
 // ---------- CORS ----------
@@ -1555,16 +1579,30 @@ Respond with STRICT JSON in this schema:
       }
       const users = db.collection('users')
       const existing = await users.findOne({ email })
-      if (existing?.password_hash) {
+
+      // Already fully registered + verified → block, tell them to sign in
+      if (existing?.password_hash && existing?.email_verified === true) {
         return withCORS(NextResponse.json({ error: 'Account already exists — sign in instead' }, { status: 409 }))
       }
+
       const password_hash = await bcrypt.hash(password, 10)
       const now = new Date()
       let userDoc
       if (existing) {
-        // Existing Google user is adding a password — merge, don't duplicate
-        await users.updateOne({ id: existing.id }, { $set: { password_hash, name: existing.name || name, last_login: now } })
-        userDoc = { ...existing, password_hash, name: existing.name || name, last_login: now }
+        // Two paths hit this branch:
+        //   a) Google user adding a password — keep their email_verified (from grandfather)
+        //   b) Prior signup where user never verified — overwrite password + require re-verification
+        const wasVerified = existing.email_verified === true
+        await users.updateOne(
+          { id: existing.id },
+          { $set: {
+              password_hash,
+              name: existing.name || name,
+              last_login: now,
+              email_verified: wasVerified,  // preserve if true, otherwise keep false
+            } },
+        )
+        userDoc = { ...existing, password_hash, name: existing.name || name, last_login: now, email_verified: wasVerified }
       } else {
         userDoc = {
           id: uuidv4(),
@@ -1574,12 +1612,60 @@ Respond with STRICT JSON in this schema:
           created_at: now,
           last_login: now,
           auth_method: 'password',
+          email_verified: false,
+          email_verified_at: null,
         }
         await users.insertOne(userDoc)
       }
-      await setSessionCookie(userDoc.id)
-      const { _id, password_hash: _p, ...clean } = userDoc
-      return withCORS(NextResponse.json({ user: clean, ok: true }))
+
+      // If somehow already verified (Google user setting password), issue session immediately
+      if (userDoc.email_verified === true) {
+        await setSessionCookie(userDoc.id)
+        const { _id, password_hash: _p, ...clean } = userDoc
+        return withCORS(NextResponse.json({ user: clean, ok: true, verified: true }))
+      }
+
+      // Otherwise: generate + send OTP, DO NOT create a session yet
+      const code = crypto.randomInt(100000, 1000000).toString()
+      const codeHash = crypto.createHash('sha256').update(code).digest('hex')
+      const otpExpires = new Date(now.getTime() + 10 * 60 * 1000) // 10 min
+      await db.collection('email_verifications').updateOne(
+        { email },
+        { $set: {
+            email,
+            user_id: userDoc.id,
+            code_hash: codeHash,
+            attempts: 0,
+            last_sent_at: now,
+            expires_at: otpExpires,
+            purpose: 'signup',
+          } },
+        { upsert: true },
+      )
+
+      const mailRes = await sendVerificationEmail({ to: email, code, name: userDoc.name })
+      if (!mailRes.ok) {
+        // Log but don't leak the code — return a generic error
+        console.error('[send-otp] failed for', email, ':', mailRes.error)
+        return withCORS(NextResponse.json({ error: 'Could not send verification email. Please try again.' }, { status: 502 }))
+      }
+
+      // PostHog server event (fire-and-forget)
+      captureServerEvent({ distinctId: userDoc.id, event: 'otp_sent', properties: { purpose: 'signup', email_domain: email.split('@')[1] } }).catch(() => {})
+
+      // Dev-only test hook — if NODE_ENV != production AND the request explicitly
+      // passes { _test: true }, return the plaintext code so the automated
+      // testing agent can complete the happy path without needing to read email.
+      const dbg = (process.env.NODE_ENV !== 'production' && body?._test === true) ? { _debug_code: code } : {}
+
+      return withCORS(NextResponse.json({
+        ok: true,
+        verified: false,
+        needs_verification: true,
+        email,
+        message: 'We sent a 6-digit code to your email. It expires in 10 minutes.',
+        ...dbg,
+      }))
     }
 
     if (route === '/auth/login' && method === 'POST') {
@@ -1597,10 +1683,105 @@ Respond with STRICT JSON in this schema:
       if (!ok) {
         return withCORS(NextResponse.json({ error: 'Invalid email or password' }, { status: 401 }))
       }
+      // Block unverified users — direct them to /verify-email
+      if (user.email_verified === false) {
+        return withCORS(NextResponse.json({
+          error: 'Please verify your email first',
+          needs_verification: true,
+          email,
+        }, { status: 403 }))
+      }
       await db.collection('users').updateOne({ id: user.id }, { $set: { last_login: new Date() } })
       await setSessionCookie(user.id)
       const { _id, password_hash, ...clean } = user
       return withCORS(NextResponse.json({ user: clean, ok: true }))
+    }
+
+    // ============ Email OTP: send + verify ============
+    // /auth/send-otp — user asks for a fresh code (from /verify-email "Resend" button)
+    if (route === '/auth/send-otp' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Invalid email' }, { status: 400 }))
+      }
+      const users = db.collection('users')
+      const user = await users.findOne({ email })
+      // For privacy, always return ok=true even if the email isn't registered — otherwise
+      // this endpoint becomes an email enumeration oracle. Only actually send if the user
+      // exists AND is not already verified.
+      if (!user || user.email_verified === true) {
+        return withCORS(NextResponse.json({ ok: true, sent: false }))
+      }
+      const now = new Date()
+      const evCol = db.collection('email_verifications')
+      const prev = await evCol.findOne({ email })
+      if (prev?.last_sent_at) {
+        const secs = (now.getTime() - new Date(prev.last_sent_at).getTime()) / 1000
+        if (secs < 60) {
+          return withCORS(NextResponse.json({
+            error: `Please wait ${Math.ceil(60 - secs)}s before requesting a new code.`,
+            retry_in_seconds: Math.ceil(60 - secs),
+          }, { status: 429 }))
+        }
+      }
+      const code = crypto.randomInt(100000, 1000000).toString()
+      const codeHash = crypto.createHash('sha256').update(code).digest('hex')
+      const expires = new Date(now.getTime() + 10 * 60 * 1000)
+      await evCol.updateOne(
+        { email },
+        { $set: { email, user_id: user.id, code_hash: codeHash, attempts: 0, last_sent_at: now, expires_at: expires, purpose: 'signup' } },
+        { upsert: true },
+      )
+      const mailRes = await sendVerificationEmail({ to: email, code, name: user.name })
+      if (!mailRes.ok) {
+        return withCORS(NextResponse.json({ error: 'Could not send verification email. Please try again.' }, { status: 502 }))
+      }
+      captureServerEvent({ distinctId: user.id, event: 'otp_resent', properties: { purpose: 'signup' } }).catch(() => {})
+      const dbg = (process.env.NODE_ENV !== 'production' && body?._test === true) ? { _debug_code: code } : {}
+      return withCORS(NextResponse.json({ ok: true, sent: true, ...dbg }))
+    }
+
+    // /auth/verify-otp — user submits their 6-digit code
+    if (route === '/auth/verify-otp' && method === 'POST') {      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      const code  = String(body.code  || '').trim()
+      if (!/^\d{6}$/.test(code)) {
+        return withCORS(NextResponse.json({ error: 'Enter the 6-digit code' }, { status: 400 }))
+      }
+      const evCol = db.collection('email_verifications')
+      const record = await evCol.findOne({ email })
+      if (!record) {
+        return withCORS(NextResponse.json({ error: 'Code expired or invalid. Please request a new one.' }, { status: 400 }))
+      }
+      if (record.expires_at && new Date(record.expires_at) < new Date()) {
+        await evCol.deleteOne({ email }).catch(() => {})
+        return withCORS(NextResponse.json({ error: 'Code expired. Please request a new one.' }, { status: 400 }))
+      }
+      if ((record.attempts || 0) >= 5) {
+        await evCol.deleteOne({ email }).catch(() => {})
+        captureServerEvent({ distinctId: record.user_id || email, event: 'otp_locked', properties: { purpose: record.purpose || 'signup' } }).catch(() => {})
+        return withCORS(NextResponse.json({ error: 'Too many failed attempts. Please request a new code.' }, { status: 403 }))
+      }
+      const codeHash = crypto.createHash('sha256').update(code).digest('hex')
+      if (codeHash !== record.code_hash) {
+        await evCol.updateOne({ email }, { $inc: { attempts: 1 } })
+        captureServerEvent({ distinctId: record.user_id || email, event: 'otp_failed', properties: { purpose: record.purpose || 'signup', attempt: (record.attempts || 0) + 1 } }).catch(() => {})
+        return withCORS(NextResponse.json({ error: 'Invalid verification code' }, { status: 400 }))
+      }
+      // Success! Mark user verified, drop record, set session cookie
+      const users = db.collection('users')
+      await users.updateOne(
+        { id: record.user_id },
+        { $set: { email_verified: true, email_verified_at: new Date(), email_verified_source: 'otp' } },
+      )
+      await evCol.deleteOne({ email }).catch(() => {})
+      await setSessionCookie(record.user_id)
+      const user = await users.findOne({ id: record.user_id })
+      captureServerEvent({ distinctId: record.user_id, event: 'otp_verified', properties: { purpose: record.purpose || 'signup' } }).catch(() => {})
+      captureServerEvent({ distinctId: record.user_id, event: 'signup_verified', properties: { method: 'email_otp' } }).catch(() => {})
+      const { _id, password_hash, ...clean } = user || {}
+      return withCORS(NextResponse.json({ ok: true, user: clean }))
     }
 
     // ============ Emergent Google Auth ============

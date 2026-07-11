@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { store } from '@/lib/client-store'
 import { LOGO_DATA_URI } from '@/components/site/logo-data'
+import { track } from '@/lib/analytics'
 import {
   Send, Sparkles, Info, ShieldCheck, MessagesSquare, Compass, Scale, Lightbulb,
   Target, Plus, RotateCcw, Copy, Check, ArrowRight,
@@ -139,6 +140,7 @@ function Advisor() {
     setInput('')
     setMessages(m => [...m, { role: 'user', content: msg, id: 'tmp-' + Date.now() }])
     setBusy(true)
+    try { track.advisorMessage({ session_id: sessionId, message_length: msg.length }) } catch { /* ignore */ }
     try {
       const res = await fetch('/api/advisor', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },

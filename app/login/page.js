@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react'
 import { useAuth, buildSignInUrl } from '@/hooks/use-auth'
+import { track } from '@/lib/analytics'
 
 /* Reusable email + password auth form.
    Handles both /login and /signup depending on `mode` prop. */
@@ -41,6 +42,10 @@ export function AuthForm({ mode = 'login' }) {
       })
       const data = await r.json()
       if (!r.ok) { setErr(data.error || 'Something went wrong'); return }
+      try {
+        if (isSignup) track.signup({ method: 'email' })
+        else track.login({ method: 'email' })
+      } catch { /* ignore */ }
       await refresh()
       router.push(returnTo)
     } catch (err) {

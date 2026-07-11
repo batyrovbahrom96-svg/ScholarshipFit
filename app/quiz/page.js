@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import PaywallModal from '@/components/site/PaywallModal'
 import { store } from '@/lib/client-store'
+import { track } from '@/lib/analytics'
 import {
   ArrowRight, ArrowLeft, GraduationCap, Sparkles, ExternalLink, ShieldCheck,
   CheckCircle2, AlertCircle, MapPin, Globe, Award, Loader2, RotateCcw,
@@ -183,6 +184,16 @@ export default function QuizPage() {
       .catch(() => {})
   }, [])
 
+  // Track quiz_started once on mount (funnel entry)
+  useEffect(() => {
+    try { track.quizStarted() } catch { /* ignore */ }
+  }, [])
+
+  // Track each step advance for drop-off analysis
+  useEffect(() => {
+    try { track.quizStepCompleted(step) } catch { /* ignore */ }
+  }, [step])
+
   const setA = (patch) => setAnswers(a => ({ ...a, ...patch }))
   const canNext = useMemo(() => {
     switch (step) {
@@ -218,7 +229,17 @@ export default function QuizPage() {
       ])
       setResults(data)
 
-      // Persist to the client-store in the shape /dashboard expects. This
+      try {
+        track.quizCompleted({
+          match_count: (data.top_matches || []).length,
+          total_worth: data.total_worth || 0,
+          education_level: answers.education_level,
+          field: answers.field,
+          nationality: answers.nationality,
+          preferred_countries_count: (answers.preferred_countries || []).length,
+          funding_pref: answers.funding_pref,
+        })
+      } catch { /* ignore */ }
       // way, when the user activates a plan from the paywall, the redirect
       // to /dashboard immediately shows their matched scholarships instead
       // of an empty cabinet.

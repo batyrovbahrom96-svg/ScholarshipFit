@@ -47,9 +47,9 @@ export default function CookieBanner() {
             <Cookie className="h-4 w-4 text-[#D4AF37]"/>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white">We use only essential cookies</p>
+            <p className="text-sm font-semibold text-white">Cookies & product analytics</p>
             <p className="mt-1 text-xs leading-relaxed text-white/65">
-              ScholarshipFit uses a session cookie so you stay signed in and no analytics or marketing trackers. See our{' '}
+              We use a session cookie so you stay signed in, plus privacy-friendly product analytics (PostHog) to understand how the product is used and improve it. No ad trackers, no data sold. See our{' '}
               <Link href="/privacy" className="text-[#D4AF37] hover:underline">Privacy Policy</Link>.
             </p>
             <div className="mt-3 flex items-center gap-2">

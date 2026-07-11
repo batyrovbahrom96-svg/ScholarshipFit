@@ -2717,3 +2717,73 @@ agent_communication:
       No test_result.md tasks changed status — this batch is UI + copy + env-flag hardening
       only; no behavioural change to existing tested endpoints. subscription/activate remains
       unchanged and available for the live-payment flow post-approval.
+
+## SESSION 2026-07-11 — PostHog Analytics Integration
+
+frontend:
+  - task: "PostHog Analytics Integration (client + server)"
+    implemented: true
+    working: "NA"
+    file: "/app/lib/analytics.js, /app/lib/posthog-server.js, /app/components/site/PostHogProvider.jsx, /app/components/site/PostHogPageView.jsx, /app/app/providers.js, /app/app/layout.js, /app/hooks/use-auth.js, /app/components/site/PaywallModal.jsx, /app/components/site/FounderReservationModal.jsx, /app/components/site/ExitIntentModal.jsx, /app/app/login/page.js, /app/app/quiz/page.js, /app/app/advisor/page.js, /app/app/api/webhooks/paddle/route.js, /app/components/site/CookieBanner.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Integrated PostHog product analytics (frontend SDK + Node SDK).
+
+            Env vars added to /app/.env:
+              NEXT_PUBLIC_POSTHOG_KEY=phc_BPsPwcDkUcnjCBFQLqpGMVRtj29Yn9yG89q3z8MLjBHS
+              NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+
+            New files:
+              - lib/analytics.js          → track.* wrappers + identifyUser/resetAnalytics
+              - lib/posthog-server.js     → captureServerEvent for API routes (flushes immediately, safe for serverless)
+              - components/site/PostHogProvider.jsx  → boots posthog-js with autocapture + session replay (password fields masked)
+              - components/site/PostHogPageView.jsx  → App Router SPA-safe $pageview tracker (usePathname + useSearchParams inside Suspense)
+
+            Wire-up:
+              - providers.js now wraps AuthProvider in PostHogProvider
+              - layout.js renders <Suspense><PostHogPageView/></Suspense> at the root
+              - use-auth.js calls identifyUser(id, email, {plan, subscription_status}) on refresh; resetAnalytics on signOut
+              - CookieBanner copy updated to be honest: "privacy-friendly product analytics (PostHog)" (previous copy incorrectly said "no analytics")
+
+            Instrumented funnel events (client):
+              - signup_completed, login_completed, logout   (login/page.js + use-auth.js)
+              - quiz_started, quiz_step_completed, quiz_completed with match_count/total_worth (quiz/page.js)
+              - paywall_view, checkout_initiated with plan + region + discount (PaywallModal.jsx)
+              - founder_reservation_submitted with plan/tier_type (FounderReservationModal.jsx)
+              - exit_intent_captured with email domain + path (ExitIntentModal.jsx)
+              - advisor_message_sent with session_id + message_length (advisor/page.js)
+
+            Instrumented server events (Paddle webhook):
+              - subscription_activated, subscription_updated, subscription_cancelled
+              - checkout_completed (transaction.completed / transaction.paid → lifetime)
+              - checkout_failed (transaction.payment_failed)
+              All server events include plan, price_usd, billing_cycle_days, paddle_event, env.
+
+            Verification:
+              - Lint: 0 issues on all changed JS files
+              - Runtime: browser screenshot captured 5 network calls to us-assets.i.posthog.com
+                (config.js, posthog-recorder.js, surveys.js, dead-clicks-autocapture.js, web-vitals.js)
+                → confirms SDK loads with the correct project token + US host + session recording enabled.
+              - Full event flow verification (pageview + custom capture) needs user to check
+                PostHog dashboard → Activity → Live Events after visiting the site.
+
+            Notes:
+              - Session Replay is ON. Password inputs are masked (maskInputOptions.password=true).
+                Email inputs are visible so we can see UX friction on forms.
+              - CookieBanner is notice-only (no consent gating). Sufficient for US traffic;
+                EU-grade consent flow can be added later if the site gets significant EU volume.
+
+agent_communication:
+    - agent: "main"
+      message: |
+        PostHog integration complete. Not calling backend test agent — no new backend
+        endpoints were added; only the Paddle webhook was augmented with a fire-and-forget
+        server-side capture call inside a try/catch (analytics can never break the webhook).
+        User can validate live events by visiting https://scholarshipfit.com and checking
+        PostHog dashboard → Activity → Live Events (should show $pageview, $autocapture,
+        and any funnel events triggered during the visit).

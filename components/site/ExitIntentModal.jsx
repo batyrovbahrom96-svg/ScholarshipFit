@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Calendar, ArrowRight, ShieldCheck, Check, Loader2, Lock } from 'lucide-react'
+import { track } from '@/lib/analytics'
 
 /* ============================================================================
    ExitIntentModal — one-shot exit-intent capture (per session).
@@ -100,6 +101,14 @@ export default function ExitIntentModal() {
       const d = await r.json()
       if (d?.download_url) setDlUrl(d.download_url)
       setDone(true)
+      try {
+        track.exitIntentCaptured({
+          source: 'exit-intent',
+          intent: 'deadline-calendar',
+          path: window.location.pathname,
+          email_domain: clean.split('@')[1] || '',
+        })
+      } catch { /* ignore */ }
       try { sessionStorage.setItem(STORAGE_KEY, '1') } catch { /* ignore */ }
     } catch { /* ignore network hiccups */ }
     finally { setBusy(false) }

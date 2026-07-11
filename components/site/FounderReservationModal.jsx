@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sparkles, Check, ArrowRight, ShieldCheck, Lock, Loader2, Crown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
+import { track } from '@/lib/analytics'
 
 /* ============================================================================
    FounderReservationModal — payment-gateway-safe pre-launch reservation.
@@ -52,6 +53,13 @@ export default function FounderReservationModal({ plan, source = 'paywall', onCl
       const data = await r.json()
       if (!r.ok) { toast.error(data.error || 'Could not reserve'); return }
       setDone(true)
+      track.founderReservation({
+        plan: plan?.key,
+        tier_type: plan?.tier_type,
+        total_charge: plan?.total_charge,
+        source,
+        email_domain: eff.split('@')[1] || '',
+      })
       toast.success("You're on the founder list", {
         description: "We'll email your locked-in checkout link the moment payments open."
       })

@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { store } from '@/lib/client-store'
+import { identifyUser, resetAnalytics, trackEvent } from '@/lib/analytics'
 
 const AuthCtx = createContext({ user: null, loading: true, refresh: () => {}, signOut: () => {} })
 
@@ -13,6 +14,15 @@ export function AuthProvider({ children }) {
       const r = await fetch('/api/auth/me', { credentials: 'include' })
       const data = await r.json()
       setUser(data.user || null)
+
+      // PostHog: identify the user for funnel/segment analytics
+      if (data.user) {
+        identifyUser(data.user.id, data.user.email, {
+          name: data.user.name,
+          plan: data.user?.subscription?.plan || 'free',
+          subscription_status: data.user?.subscription?.status || 'inactive',
+        })
+      }
 
       // One-shot migration of localStorage cabinet into DB after first login
       if (data.user && typeof window !== 'undefined' && !localStorage.getItem('sf.cabinetMigratedFor_' + data.user.id)) {
@@ -44,6 +54,8 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }) } catch { /* ignore */ }
+    try { trackEvent('logout') } catch { /* ignore */ }
+    try { resetAnalytics() } catch { /* ignore */ }
     setUser(null)
     if (typeof window !== 'undefined') window.location.href = '/'
   }, [])

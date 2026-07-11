@@ -1,11 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
 import FounderReservationModal from './FounderReservationModal'
+import { track } from '@/lib/analytics'
 import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
   CreditCard, Loader2, AlertCircle, Star, Crown,
@@ -34,8 +35,28 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
   const discountPct = region?.discount_pct || 0
   const hasRegionalDiscount = discountPct > 0
 
+  // Track paywall_view whenever the modal actually opens (funnel top)
+  useEffect(() => {
+    if (open) {
+      track.paywallView({
+        match_count: matchCount,
+        total_worth: totalWorth,
+        initial_plan: initialPlan,
+        mode: IS_PREORDER ? 'preorder' : 'live',
+      })
+    }
+  }, [open, matchCount, totalWorth, initialPlan])
+
   const activate = async (planObj) => {
     setError('')
+    // Track intent regardless of preorder/live mode
+    track.checkoutInitiated({
+      plan: planObj.key,
+      total_charge: planObj.total_charge,
+      mode: IS_PREORDER ? 'preorder' : 'live',
+      region_country: region?.detected_country || '',
+      discount_pct: discountPct || 0,
+    })
     // In preorder mode (payment gateway pending approval) — open founder reservation
     // modal instead of activating a fake subscription. Ensures payment-gateway
     // reviewers walking through the flow see honest, non-deceptive intent.

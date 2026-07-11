@@ -20,6 +20,7 @@ import { NextResponse } from 'next/server'
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import crypto from 'crypto'
+import { captureServerEvent } from '@/lib/posthog-server'
 
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
 const DB_NAME   = process.env.DB_NAME   || 'scholarshipfit'
@@ -244,6 +245,32 @@ export async function POST(request) {
       { $set: { 'subscription.status': 'past_due', 'subscription.updated_at': nowIso } },
     )
   }
+
+  // Fire server-side PostHog event for the funnel (checkout_completed, subscription_activated, etc.)
+  try {
+    let phEvent = null
+    if (['subscription.created', 'subscription.resumed'].includes(eventType)) phEvent = 'subscription_activated'
+    else if (eventType === 'subscription.updated') phEvent = 'subscription_updated'
+    else if (['subscription.canceled', 'subscription.paused'].includes(eventType)) phEvent = 'subscription_cancelled'
+    else if (['transaction.completed', 'transaction.paid'].includes(eventType)) phEvent = 'checkout_completed'
+    else if (eventType === 'transaction.payment_failed') phEvent = 'checkout_failed'
+
+    if (phEvent) {
+      await captureServerEvent({
+        distinctId: userId,
+        event: phEvent,
+        properties: {
+          plan: planKey,
+          provider: 'paddle',
+          paddle_event: eventType,
+          paddle_status: data.status || null,
+          price_usd: (PLAN_META[planKey] || {}).price_usd || null,
+          billing_cycle_days: (PLAN_META[planKey] || {}).days || null,
+          env: process.env.PADDLE_ENV || 'production',
+        },
+      })
+    }
+  } catch { /* swallow — analytics must never break webhooks */ }
 
   return NextResponse.json({ ok: true, handled: eventType })
 }

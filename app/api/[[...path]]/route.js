@@ -1913,6 +1913,16 @@ Respond with STRICT JSON in this schema:
         // needs Paddle.js to open the overlay. To keep things simple and get
         // a checkout URL right away, we set customer.email so Paddle creates
         // (or reuses) the customer inline.
+        //
+        // NOTE on checkout.url:
+        //   Paddle requires the redirect domain to be approved on the account.
+        //   In sandbox, no domain is auto-approved. So we ONLY include
+        //   checkout.url when it's explicitly set via PADDLE_CHECKOUT_REDIRECT
+        //   env — otherwise Paddle falls back to the Default Payment Link
+        //   configured in Checkout Settings. Once you request approval for
+        //   scholarshipfit.com (Checkout → Request website approval), set
+        //   PADDLE_CHECKOUT_REDIRECT=https://scholarshipfit.com/dashboard?activated=1
+        const redirectOverride = process.env.PADDLE_CHECKOUT_REDIRECT
         const payload = {
           items: [{ price_id: String(priceId), quantity: 1 }],
           customer: { email: user.email },
@@ -1923,9 +1933,7 @@ Respond with STRICT JSON in this schema:
             region_country: String(body.region_country || ''),
             discount_pct: String(body.discount_pct || 0),
           },
-          checkout: {
-            url: `${baseUrl}/dashboard?activated=1`,
-          },
+          ...(redirectOverride ? { checkout: { url: redirectOverride } } : {}),
         }
         // Regional PPP price override (Paddle allows unit_price override per item)
         if (customPriceCents) {

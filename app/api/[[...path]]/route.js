@@ -1867,14 +1867,111 @@ Respond with STRICT JSON in this schema:
     }
 
     // ============================================================================
-    // LemonSqueezy checkout — creates a hosted checkout URL for the given plan.
-    // Only usable when live keys are configured (NEXT_PUBLIC_PAYMENT_MODE=live).
-    // Otherwise front-end should use the FounderReservationModal preorder flow.
+    // Checkout — creates a hosted checkout URL for the given plan.
+    // Supports two processors selectable via PAYMENT_PROCESSOR env
+    // ('paddle' default, 'lemonsqueezy' fallback). Only active when
+    // NEXT_PUBLIC_PAYMENT_MODE=live and required keys are set — otherwise the
+    // FounderReservationModal preorder flow is used on the frontend.
     // ============================================================================
     if (route === '/checkout/create-session' && method === 'POST') {
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
 
+      const processor = (process.env.PAYMENT_PROCESSOR || 'paddle').toLowerCase()
+      const body = await request.json().catch(() => ({}))
+      const planKey = String(body.plan || '').toLowerCase()
+      const customPriceCents = Number.isFinite(body.custom_price_cents)
+        ? Math.max(100, Math.round(body.custom_price_cents))
+        : null
+
+      const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+
+      // -------- Paddle Billing (default) --------
+      if (processor === 'paddle') {
+        const PADDLE_KEY = process.env.PADDLE_API_KEY
+        if (!PADDLE_KEY) {
+          return withCORS(NextResponse.json({
+            error: 'Payments not yet configured',
+            detail: 'PADDLE_API_KEY not set. Site is still in preorder mode.',
+          }, { status: 503 }))
+        }
+        const PRICES = {
+          monthly:     process.env.PADDLE_PRICE_MONTHLY,
+          quarterly:   process.env.PADDLE_PRICE_QUARTERLY,
+          half_yearly: process.env.PADDLE_PRICE_HALF_YEARLY,
+          lifetime:    process.env.PADDLE_PRICE_LIFETIME,
+        }
+        const priceId = PRICES[planKey]
+        if (!priceId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
+
+        const paddleEnv = (process.env.PADDLE_ENV || 'production').toLowerCase()
+        const paddleBase = paddleEnv === 'sandbox' ? 'https://sandbox-api.paddle.com' : 'https://api.paddle.com'
+
+        // Build the transaction payload. We include custom_data so the webhook
+        // can reconcile back to our user. When Paddle receives a transaction
+        // without a customer_id it creates it as "draft" — the frontend then
+        // needs Paddle.js to open the overlay. To keep things simple and get
+        // a checkout URL right away, we set customer.email so Paddle creates
+        // (or reuses) the customer inline.
+        const payload = {
+          items: [{ price_id: String(priceId), quantity: 1 }],
+          customer: { email: user.email },
+          custom_data: {
+            user_id:  user.id,
+            plan_key: planKey,
+            base_price: String(body.base_price ?? ''),
+            region_country: String(body.region_country || ''),
+            discount_pct: String(body.discount_pct || 0),
+          },
+          checkout: {
+            url: `${baseUrl}/dashboard?activated=1`,
+          },
+        }
+        // Regional PPP price override (Paddle allows unit_price override per item)
+        if (customPriceCents) {
+          payload.items[0].price_override = {
+            unit_price: { amount: String(customPriceCents), currency_code: 'USD' },
+          }
+        }
+
+        try {
+          const pRes = await fetch(`${paddleBase}/transactions`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${PADDLE_KEY}`,
+              'Content-Type':  'application/json',
+              'Paddle-Version': '1',
+            },
+            body: JSON.stringify(payload),
+          })
+          const pJson = await pRes.json().catch(() => ({}))
+          if (!pRes.ok) {
+            return withCORS(NextResponse.json({
+              error: 'Paddle checkout failed',
+              status: pRes.status,
+              detail: pJson?.error || pJson,
+            }, { status: 502 }))
+          }
+          const url = pJson?.data?.checkout?.url
+          if (!url) {
+            return withCORS(NextResponse.json({ error: 'Paddle did not return a checkout URL', paddle: pJson }, { status: 502 }))
+          }
+          await db.collection('checkout_intents').insertOne({
+            id: uuidv4(),
+            user_id: user.id, user_email: user.email,
+            processor: 'paddle',
+            plan_key: planKey, price_id: String(priceId),
+            custom_price_cents: customPriceCents,
+            paddle_transaction_id: pJson.data.id,
+            created_at: new Date(),
+          }).catch(() => {})
+          return withCORS(NextResponse.json({ ok: true, url, transaction_id: pJson.data.id, processor: 'paddle' }))
+        } catch (e) {
+          return withCORS(NextResponse.json({ error: 'Paddle request failed', detail: String(e?.message || e) }, { status: 502 }))
+        }
+      }
+
+      // -------- LemonSqueezy (fallback) --------
       const LS_KEY   = process.env.LEMONSQUEEZY_API_KEY
       const LS_STORE = process.env.LEMONSQUEEZY_STORE_ID
       if (!LS_KEY || !LS_STORE) {
@@ -1884,12 +1981,6 @@ Respond with STRICT JSON in this schema:
         }, { status: 503 }))
       }
 
-      const body = await request.json().catch(() => ({}))
-      const planKey = String(body.plan || '').toLowerCase()
-      const customPriceCents = Number.isFinite(body.custom_price_cents)
-        ? Math.max(100, Math.round(body.custom_price_cents)) // min $1, integer cents
-        : null
-
       const VARIANTS = {
         monthly:     process.env.LS_VARIANT_MONTHLY,
         quarterly:   process.env.LS_VARIANT_QUARTERLY,
@@ -1897,21 +1988,16 @@ Respond with STRICT JSON in this schema:
         lifetime:    process.env.LS_VARIANT_LIFETIME,
       }
       const variantId = VARIANTS[planKey]
-      if (!variantId) {
-        return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
-      }
+      if (!variantId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
 
-      const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
-
-      const payload = {
+      const lsPayload = {
         data: {
           type: 'checkouts',
           attributes: {
             checkout_data: {
               email: user.email,
               custom: {
-                user_id:   user.id,
-                plan_key:  planKey,
+                user_id: user.id, plan_key: planKey,
                 base_price: String(body.base_price ?? ''),
                 region_country: String(body.region_country || ''),
                 discount_pct: String(body.discount_pct || ''),
@@ -1922,12 +2008,7 @@ Respond with STRICT JSON in this schema:
               receipt_button_text: 'Go to my Command Center',
               receipt_thank_you_note: 'Thanks for joining ScholarshipFit — your Command Center is ready.',
             },
-            checkout_options: {
-              embed: false,
-              media: false,
-              logo: true,
-              dark: true,
-            },
+            checkout_options: { embed: false, media: false, logo: true, dark: true },
           },
           relationships: {
             store:   { data: { type: 'stores',   id: String(LS_STORE) } },
@@ -1935,9 +2016,7 @@ Respond with STRICT JSON in this schema:
           },
         },
       }
-      if (customPriceCents) {
-        payload.data.attributes.custom_price = customPriceCents
-      }
+      if (customPriceCents) lsPayload.data.attributes.custom_price = customPriceCents
 
       try {
         const lsRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
@@ -1947,37 +2026,28 @@ Respond with STRICT JSON in this schema:
             'Content-Type':  'application/vnd.api+json',
             'Authorization': `Bearer ${LS_KEY}`,
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(lsPayload),
         })
         const lsJson = await lsRes.json().catch(() => ({}))
         if (!lsRes.ok) {
           return withCORS(NextResponse.json({
-            error:  'LemonSqueezy checkout failed',
-            status: lsRes.status,
-            detail: lsJson?.errors || lsJson,
+            error: 'LemonSqueezy checkout failed', status: lsRes.status, detail: lsJson?.errors || lsJson,
           }, { status: 502 }))
         }
         const url = lsJson?.data?.attributes?.url
-        if (!url) {
-          return withCORS(NextResponse.json({ error: 'No checkout URL returned' }, { status: 502 }))
-        }
-        // Audit the checkout intent so we can reconcile against webhooks
+        if (!url) return withCORS(NextResponse.json({ error: 'No checkout URL returned' }, { status: 502 }))
         await db.collection('checkout_intents').insertOne({
           id: uuidv4(),
-          user_id: user.id,
-          user_email: user.email,
-          plan_key: planKey,
-          variant_id: String(variantId),
+          user_id: user.id, user_email: user.email,
+          processor: 'lemonsqueezy',
+          plan_key: planKey, variant_id: String(variantId),
           custom_price_cents: customPriceCents,
           ls_checkout_id: lsJson.data.id,
           created_at: new Date(),
         }).catch(() => {})
-        return withCORS(NextResponse.json({ ok: true, url, checkout_id: lsJson.data.id }))
+        return withCORS(NextResponse.json({ ok: true, url, checkout_id: lsJson.data.id, processor: 'lemonsqueezy' }))
       } catch (e) {
-        return withCORS(NextResponse.json({
-          error:  'LemonSqueezy request failed',
-          detail: String(e?.message || e),
-        }, { status: 502 }))
+        return withCORS(NextResponse.json({ error: 'LemonSqueezy request failed', detail: String(e?.message || e) }, { status: 502 }))
       }
     }
 

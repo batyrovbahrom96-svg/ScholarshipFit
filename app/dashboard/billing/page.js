@@ -209,15 +209,17 @@ export default function BillingPage() {
               </Card>
             )}
 
-            {/* LS customer portal (once we have the field populated) */}
-            {sub.ls_customer_id && (
+            {/* Billing portal link — shown once a Paddle/LemonSqueezy subscription exists */}
+            {(sub.paddle_customer_id || sub.ls_customer_id) && (
               <Card className="border-white/10 bg-white/[0.02]">
                 <CardContent className="p-5 flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm text-white/70">
-                    Update your payment method, download invoices, or view your full billing history in the LemonSqueezy customer portal.
+                    Update your payment method, download invoices, or view your full billing history in your billing portal.
                   </div>
                   <a
-                    href={`https://app.lemonsqueezy.com/my-orders`}
+                    href={sub.paddle_customer_id
+                      ? 'https://customer-portal.paddle.com'
+                      : 'https://app.lemonsqueezy.com/my-orders'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-sm text-[#D4AF37] hover:underline"

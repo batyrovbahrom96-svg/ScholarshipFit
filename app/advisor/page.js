@@ -151,7 +151,7 @@ function Advisor() {
         // Roll back the optimistic user message
         setMessages(m => m.filter(x => !x.id?.startsWith('tmp-')))
       } else if (d.reply) {
-        setMessages(m => [...m, { role: 'assistant', content: d.reply, id: 'a-' + Date.now() }])
+        setMessages(m => [...m, { role: 'assistant', content: d.reply, id: 'a-' + Date.now(), verification: d.verification || null }])
         if (d.usage) setUsage(u => ({ ...(u || {}), ...d.usage, signed_in: u?.signed_in }))
       } else {
         setMessages(m => [...m, { role: 'assistant', content: '_Sorry, I could not respond right now. Please try again._', id: 'e-' + Date.now() }])
@@ -337,6 +337,31 @@ function Advisor() {
                             </div>
                           )}
                           {m.role === 'user' ? <p>{m.content}</p> : <Md text={m.content}/>}
+                          {m.role === 'assistant' && m.verification && (
+                            <div className="mt-3 pt-3 border-t border-white/5">
+                              {m.verification.confidence === 'high' && m.verification.verified_scholarships?.length > 0 && (
+                                <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] uppercase tracking-widest text-emerald-300">
+                                  <ShieldCheck className="h-3 w-3"/>
+                                  Verified · {m.verification.verified_scholarships.length} in database
+                                </div>
+                              )}
+                              {m.verification.confidence === 'low' && (
+                                <div className="inline-flex items-start gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-100">
+                                  <Info className="mt-0.5 h-3 w-3 shrink-0"/>
+                                  <span>
+                                    <span className="uppercase tracking-widest text-[10px] font-semibold">Unverified mention</span><br/>
+                                    Nova mentioned {m.verification.unverified_flags.map(f => `\u201C${f}\u201D`).join(', ')} — {m.verification.unverified_flags.length > 1 ? 'these are not' : 'this is not'} in our verified DB. Treat as unverified until you check the official source.
+                                  </span>
+                                </div>
+                              )}
+                              {m.verification.confidence === 'medium' && (
+                                <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-widest text-white/50">
+                                  <Info className="h-3 w-3"/>
+                                  General advice · no scholarships cited
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

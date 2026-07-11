@@ -41,6 +41,8 @@ export default function Footer() {
               <li><Link className="hover:text-[#D4AF37]" href="/advisor">AI Advisor</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/database">Database</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/sample-report">Sample Report</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/verify">Scam Verifier</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/deadline-calendar">2026 Deadline Calendar</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/pricing">Pricing</Link></li>
             </ul>
           </div>
@@ -51,6 +53,7 @@ export default function Footer() {
               <li><Link className="hover:text-[#D4AF37]" href="/methodology">Methodology</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/outcomes">Outcomes</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/testimonials">Testimonials</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/vs-chatgpt">Vs. ChatGPT</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/contact">Contact</Link></li>
             </ul>
           </div>

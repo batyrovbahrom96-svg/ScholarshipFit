@@ -194,6 +194,168 @@ function buildDatabaseBlock(scholarships) {
   })).join('\n')
 }
 
+/* ============================================================================
+   verifyReplyAgainstDb — anti-hallucination check for Nova's replies.
+   Given the raw reply text and the DB block used to ground it, returns:
+     • verified_scholarships: list of scholarship names cited that ARE in DB
+     • unverified_flags: any phrase that looks like a scholarship name but
+       could not be matched against the DB (heuristic — capitalised phrase
+       ending with "Scholarship" / "Fellowship" / "Grant" / "Award" / etc.)
+     • confidence: 'high' when all detected mentions match DB, 'medium' when
+       0 mentions detected at all (still safe), 'low' when unverified names
+       are found. Frontend uses this to render a badge on every reply.
+   ============================================================================ */
+function verifyReplyAgainstDb(reply, scholarships) {
+  const text = String(reply || '')
+  if (!text) return { verified_scholarships: [], unverified_flags: [], confidence: 'medium' }
+
+  // 1. Match DB scholarships whose name (or trimmed variant) is mentioned.
+  const verified = []
+  const seen = new Set()
+  for (const s of (scholarships || [])) {
+    const name = String(s.scholarship_name || '').trim()
+    if (!name || name.length < 6) continue
+    // Case-insensitive whole-phrase check. Escape regex specials.
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp(`\\b${esc}\\b`, 'i')
+    if (re.test(text) && !seen.has(s.id)) {
+      seen.add(s.id)
+      verified.push({ id: s.id, name, source_url: s.source_url })
+    }
+  }
+
+  // 2. Detect capitalised phrases that LOOK like scholarship names but weren't
+  //    matched above (potential hallucinations).
+  const looksLikeScholarshipRegex = /\b([A-Z][A-Za-z0-9\-&']+(?:\s+[A-Z][A-Za-z0-9\-&']+){0,6}\s+(?:Scholarship|Fellowship|Grant|Award|Bursary|Programme|Program))\b/g
+  const flags = []
+  const flagSet = new Set()
+  let m
+  while ((m = looksLikeScholarshipRegex.exec(text)) !== null) {
+    const phrase = m[1].trim()
+    // Skip generic terms.
+    if (/^(The|Our|Their|Available|This|That|A|An)\s/i.test(phrase)) continue
+    if (phrase.length < 12) continue
+    // If any verified name is a substring of this phrase (or vice-versa), it's OK.
+    const alreadyVerified = verified.some(v =>
+      v.name.toLowerCase().includes(phrase.toLowerCase()) ||
+      phrase.toLowerCase().includes(v.name.toLowerCase())
+    )
+    if (alreadyVerified) continue
+    // Also skip if any DB scholarship's first 3 significant words appear in this phrase
+    // (guards against slight paraphrases like "Rhodes Scholarship" → "The Rhodes Scholarship").
+    const paraphrased = (scholarships || []).some(s => {
+      const parts = String(s.scholarship_name || '').split(/\s+/).filter(w => w.length > 3).slice(0, 3)
+      return parts.length >= 2 && parts.every(p => phrase.toLowerCase().includes(p.toLowerCase()))
+    })
+    if (paraphrased) return { verified_scholarships: verified, unverified_flags: flags, confidence: verified.length ? 'high' : 'medium' }
+    if (!flagSet.has(phrase.toLowerCase())) {
+      flagSet.add(phrase.toLowerCase())
+      flags.push(phrase)
+    }
+  }
+
+  let confidence = 'medium'
+  if (verified.length > 0 && flags.length === 0) confidence = 'high'
+  else if (flags.length > 0) confidence = 'low'
+  return { verified_scholarships: verified, unverified_flags: flags, confidence }
+}
+
+/* ============================================================================
+   verifyScholarshipUrl — /verify tool backend.
+   Traffic-light scoring for any user-pasted scholarship URL. Uses only local
+   pattern analysis (no external calls) so it's fast and cannot leak PII.
+   Signals scored:
+     🟢 GREEN  when: HTTPS + institutional TLD (.edu / .gov / .ac.*) OR
+                     domain matches a verified DB provider
+     🟡 YELLOW when: HTTPS + generic domain (.com / .org) + no red flags
+     🔴 RED    when: any scam signal (fee/apply-now-pay, .tk/.ml/.ga TLD,
+                     no HTTPS, suspicious keywords).
+   ============================================================================ */
+function verifyScholarshipUrl(rawUrl, knownProviders = []) {
+  const reasons = []
+  let level = 'yellow'
+  let url
+  try { url = new URL(rawUrl) } catch {
+    return { level: 'red', reasons: ['Not a valid URL'], normalized: null }
+  }
+  const host = url.hostname.toLowerCase()
+  const scheme = url.protocol.toLowerCase()
+
+  // Signal: HTTPS
+  if (scheme !== 'https:') {
+    reasons.push('URL does not use HTTPS — data you send is not encrypted')
+    level = 'red'
+  } else {
+    reasons.push('Uses secure HTTPS connection')
+  }
+
+  // Signal: institutional TLD or trusted domain
+  const instTlds = [
+    /\.edu(\.[a-z]{2})?$/i,
+    /\.ac\.[a-z]{2,}$/i,
+    /\.gov(\.[a-z]{2})?$/i,
+    /\.gob\.[a-z]{2,}$/i,
+  ]
+  const isInstitutional = instTlds.some(rx => rx.test(host))
+  if (isInstitutional) {
+    reasons.push('Institutional domain (.edu / .ac / .gov) — high trust')
+    if (level !== 'red') level = 'green'
+  }
+
+  // Signal: matches a scholarship provider in our DB
+  const rootHost = host.replace(/^www\./, '')
+  const provMatch = knownProviders.find(p => {
+    if (!p) return false
+    try {
+      const purl = new URL(String(p).startsWith('http') ? p : `https://${p}`)
+      return purl.hostname.replace(/^www\./, '') === rootHost
+    } catch { return false }
+  })
+  if (provMatch) {
+    reasons.push('Domain matches a provider already in the ScholarshipFit verified database')
+    if (level !== 'red') level = 'green'
+  }
+
+  // Signal: dodgy TLDs frequently abused by scam scholarships
+  const dodgyTlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.top', '.click', '.buzz', '.zip']
+  if (dodgyTlds.some(t => host.endsWith(t))) {
+    reasons.push('Free / low-reputation TLD frequently used by scam sites')
+    level = 'red'
+  }
+
+  // Signal: URL contains payment / fee keywords → scholarship scam pattern
+  const scammyKeywords = ['pay-now', 'application-fee', 'processing-fee', 'send-money', 'wire-transfer', 'western-union', 'moneygram', 'admission-fee', 'registration-fee']
+  const pathLower = (url.pathname + '?' + url.search).toLowerCase()
+  const matched = scammyKeywords.filter(k => pathLower.includes(k))
+  if (matched.length) {
+    reasons.push('URL contains payment-related keywords (' + matched.join(', ') + ') — legitimate scholarships never require payment to apply')
+    level = 'red'
+  }
+
+  // Signal: subdomain masquerading (e.g. harvard-scholarship.tk)
+  const brandInPath = /(harvard|oxford|cambridge|mit|stanford|princeton|yale|imperial|ethz|fulbright|chevening|rhodes|erasmus|daad|mext)/i.test(host)
+  const looksLikeBrandOnScamHost = brandInPath && !isInstitutional && !provMatch
+  if (looksLikeBrandOnScamHost) {
+    reasons.push('Uses a famous institution\u2019s name on a non-institutional domain — possible impersonation')
+    level = 'red'
+  }
+
+  if (!isInstitutional && !provMatch && level === 'yellow') {
+    reasons.push('Generic domain, no institutional signals — verify on the provider\u2019s official website before applying')
+  }
+
+  return {
+    level,
+    reasons,
+    normalized: `${scheme}//${host}${url.pathname}`,
+    host,
+    is_institutional: isInstitutional,
+    matches_known_provider: !!provMatch,
+    scam_signals: matched,
+  }
+}
+
+
 // ---------- Router ----------
 async function handleRoute(request, { params }) {
   const { path = [] } = await params
@@ -650,9 +812,15 @@ DATABASE:\n${dbBlock}`
       }
 
       const newUsed = unlimited ? 0 : used + 1
+
+      // Anti-hallucination verification pass — grounds the response in DB and
+      // surfaces any potentially invented scholarship names.
+      const verification = verifyReplyAgainstDb(reply, scholarships)
+
       return withCORS(NextResponse.json({
         session_id: sessionId,
         reply,
+        verification,
         usage: {
           used: newUsed,
           daily_limit: unlimited ? null : dailyLimit,
@@ -723,6 +891,52 @@ DATABASE:\n${dbBlock}`
       return withCORS(NextResponse.json({ count: withDate.length, scholarships: withDate }))
     }
 
+    // ============================================================================
+    // /api/verify — public Scholarship Verifier tool. Paste any URL, get a
+    // traffic-light score with reasons. No auth needed — this is a public
+    // free lead-magnet feature. Rate-limited softly by IP (30 checks / hour).
+    // ============================================================================
+    if (route === '/verify' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const targetUrl = String(body.url || '').trim()
+      if (!targetUrl) return withCORS(NextResponse.json({ error: 'url required' }, { status: 400 }))
+
+      // Soft rate-limit: 30 / hour / IP
+      const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                    request.headers.get('x-real-ip') || 'anon'
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      const recent = await db.collection('verify_log').countDocuments({
+        ip: rawIp, created_at: { $gte: hourAgo },
+      })
+      if (recent > 30) {
+        return withCORS(NextResponse.json({
+          error: 'rate_limited',
+          message: 'Too many verifications this hour. Please try again in an hour.',
+        }, { status: 429 }))
+      }
+
+      // Pull the DB provider list to boost the "known provider" green signal.
+      const providers = await db.collection('scholarships')
+        .find({ public_status: { $ne: 'hidden' } })
+        .project({ _id: 0, source_url: 1, university_name: 1 })
+        .toArray()
+      const providerUrls = providers.map(p => p.source_url).filter(Boolean)
+
+      const result = verifyScholarshipUrl(targetUrl, providerUrls)
+
+      // Audit
+      await db.collection('verify_log').insertOne({
+        id: uuidv4(),
+        url: targetUrl,
+        result,
+        ip: rawIp,
+        created_at: new Date(),
+      }).catch(() => {})
+
+      return withCORS(NextResponse.json({ ok: true, url: targetUrl, ...result }))
+    }
+
+    // ------- Nova usage snapshot (frontend uses this to show the counter) -------
     if (route === '/advisor/usage' && method === 'GET') {
       const currentUser = await getSessionUser()
       const isPaid = !!(currentUser?.subscription && (

@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useAuth } from '@/hooks/use-auth'
 import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
+import posthog from 'posthog-js'
 
 const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'preorder'
 const IS_PREORDER = PAYMENT_MODE !== 'live'
@@ -51,6 +52,13 @@ function Pricing() {
 
   const activate = async (planObj) => {
     setError('')
+    posthog.capture('pricing_checkout_started', {
+      plan: planObj.key,
+      plan_name: planObj.name,
+      price_usd: planObj.total_charge,
+      is_preorder: IS_PREORDER,
+      source: 'pricing_page',
+    })
     // In preorder mode (payment gateway pending approval) — open founder reservation
     // modal instead of activating a fake subscription. This is the pattern payment
     // gateway reviewers see when they walk through the flow.

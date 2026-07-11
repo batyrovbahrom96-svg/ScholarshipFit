@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { store } from '@/lib/client-store'
+import posthog from 'posthog-js'
 
 const AuthCtx = createContext({ user: null, loading: true, refresh: () => {}, signOut: () => {} })
 
@@ -13,6 +14,13 @@ export function AuthProvider({ children }) {
       const r = await fetch('/api/auth/me', { credentials: 'include' })
       const data = await r.json()
       setUser(data.user || null)
+
+      if (data.user?.id) {
+        posthog.identify(data.user.id, {
+          email: data.user.email,
+          name: data.user.name || data.user.full_name,
+        })
+      }
 
       // One-shot migration of localStorage cabinet into DB after first login
       if (data.user && typeof window !== 'undefined' && !localStorage.getItem('sf.cabinetMigratedFor_' + data.user.id)) {
@@ -44,6 +52,7 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }) } catch { /* ignore */ }
+    posthog.reset()
     setUser(null)
     if (typeof window !== 'undefined') window.location.href = '/'
   }, [])

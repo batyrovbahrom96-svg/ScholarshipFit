@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
   CheckCircle2, AlertCircle, MapPin, Globe, Award, Loader2, RotateCcw,
   Lock, Crown, Zap, TrendingUp, Briefcase, Calendar, Wallet, Brain, XCircle, ShieldAlert,
 } from 'lucide-react'
+import posthog from 'posthog-js'
 
 // ---------------------------------------------------------------------------
 // Option lists
@@ -171,6 +172,14 @@ export default function QuizPage() {
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
   const [userName, setUserName] = useState('')
+  const quizStartedRef = useRef(false)
+
+  useEffect(() => {
+    if (!quizStartedRef.current) {
+      quizStartedRef.current = true
+      posthog.capture('quiz_started')
+    }
+  }, [])
 
   // Pull user name (if signed in) for a personalized results header
   useEffect(() => {
@@ -200,6 +209,13 @@ export default function QuizPage() {
 
   const submit = async () => {
     setLoading(true); setError('')
+    posthog.capture('quiz_submitted', {
+      education_level: answers.education_level,
+      field: answers.field,
+      nationality: answers.nationality,
+      funding_pref: answers.funding_pref,
+      destination_count: (answers.preferred_countries || []).length,
+    })
     try {
       // Kick off the API call and enforce a minimum loader duration so the
       // "AI is analyzing 303 scholarships" experience feels grounded.
@@ -216,6 +232,13 @@ export default function QuizPage() {
         apiCall,
         new Promise(r => setTimeout(r, 2600 - Math.min(2600, Date.now() - started))),
       ])
+      posthog.capture('quiz_results_viewed', {
+        total_matches: data.total_matches || 0,
+        total_evaluated: data.total_evaluated || 0,
+        education_level: answers.education_level,
+        field: answers.field,
+        nationality: answers.nationality,
+      })
       setResults(data)
 
       // Persist to the client-store in the shape /dashboard expects. This
@@ -561,7 +584,10 @@ export default function QuizPage() {
 
           {step < TOTAL_STEPS ? (
             <Button
-              onClick={() => setStep(s => s + 1)}
+              onClick={() => {
+                posthog.capture('quiz_step_completed', { step, total_steps: TOTAL_STEPS })
+                setStep(s => s + 1)
+              }}
               disabled={!canNext}
               className="bg-[#D4AF37] text-black hover:bg-[#B8941F] disabled:opacity-30"
             >

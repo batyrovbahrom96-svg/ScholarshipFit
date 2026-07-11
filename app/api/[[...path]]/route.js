@@ -213,6 +213,22 @@ async function handleRoute(request, { params }) {
     const requireAdmin = () =>
       withCORS(NextResponse.json({ error: 'Unauthorized (admin only)' }, { status: 401 }))
 
+    // Session helper — hoisted here so ANY route below can look up the caller.
+    // (Previously defined lower in the file, causing TDZ errors on routes that
+    // are declared earlier — e.g. /advisor rate limiting.)
+    const getSessionUser = async () => {
+      const cookieStore = await cookies()
+      const token = cookieStore.get('sf_session')?.value
+      if (!token) return null
+      const s = await db.collection('sessions').findOne({ session_token: token })
+      if (!s) return null
+      const u = await db.collection('users').findOne({ id: s.user_id })
+      if (!u) return null
+      const { _id, password_hash, ...clean } = u
+      return clean
+    }
+
+
     // Health
     if ((route === '/' || route === '/root') && method === 'GET') {
       return withCORS(NextResponse.json({ ok: true, service: 'ScholarshipFit API' }))
@@ -533,6 +549,54 @@ async function handleRoute(request, { params }) {
       const userMsg = body.message || ''
       if (!userMsg) return withCORS(NextResponse.json({ error: 'message required' }, { status: 400 }))
 
+      // ============================================================================
+      // Free-tier rate limiting — stops anonymous visitors from burning Claude
+      // tokens indefinitely. Paid subscribers are unlimited.
+      //   • Anonymous (identified by IP): 3 free replies / 24h
+      //   • Signed-in free tier:          10 free replies / 24h
+      //   • Paid subscriber (trialing or active): unlimited
+      // Counts are stored in `nova_usage` with a compound key + rolling 24h window.
+      // ============================================================================
+      const currentUser = await getSessionUser()
+      const isPaid = !!(currentUser?.subscription && (
+        currentUser.subscription.plan === 'lifetime' ||
+        currentUser.subscription.status === 'active' ||
+        currentUser.subscription.status === 'trialing'
+      ))
+      const isOwner = currentUser?.role === 'owner'
+      // Grant unlimited if paid OR owner OR admin-flagged
+      const unlimited = isPaid || isOwner
+
+      let usageKey, dailyLimit
+      if (currentUser) {
+        usageKey = `user:${currentUser.id}`
+        dailyLimit = 10
+      } else {
+        // IP-based key for anonymous users. X-Forwarded-For handles reverse proxies.
+        const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                      request.headers.get('x-real-ip') || 'anon'
+        usageKey = `ip:${rawIp}`
+        dailyLimit = 3
+      }
+
+      const now = new Date()
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      const used = await db.collection('nova_usage').countDocuments({
+        key: usageKey, created_at: { $gte: dayAgo },
+      })
+
+      if (!unlimited && used >= dailyLimit) {
+        return withCORS(NextResponse.json({
+          error: 'rate_limited',
+          limit_reason: currentUser ? 'free_tier_daily' : 'anonymous_daily',
+          used, daily_limit: dailyLimit,
+          message: currentUser
+            ? `You've used all ${dailyLimit} of your free daily Nova replies. Reserve founder pricing to unlock unlimited AI advising.`
+            : `You've used all ${dailyLimit} anonymous replies today. Create a free account for 10/day, or reserve founder pricing for unlimited.`,
+          require: currentUser ? 'paywall' : 'signup',
+        }, { status: 429 }))
+      }
+
       const scholarships = await db.collection('scholarships')
         .find({ public_status: { $ne: 'hidden' } }).limit(200).toArray()
       const dbBlock = buildDatabaseBlock(scholarships)
@@ -568,13 +632,125 @@ DATABASE:\n${dbBlock}`
         return withCORS(NextResponse.json({ error: 'Advisor failed', detail: String(e.message) }, { status: 502 }))
       }
 
-      const now = new Date()
+      const finalNow = new Date()
       await db.collection('advisor_messages').insertMany([
-        { id: uuidv4(), session_id: sessionId, role: 'user', content: userMsg, created_at: now },
-        { id: uuidv4(), session_id: sessionId, role: 'assistant', content: reply, created_at: new Date(now.getTime() + 1) },
+        { id: uuidv4(), session_id: sessionId, role: 'user', content: userMsg, created_at: finalNow },
+        { id: uuidv4(), session_id: sessionId, role: 'assistant', content: reply, created_at: new Date(finalNow.getTime() + 1) },
       ])
 
-      return withCORS(NextResponse.json({ session_id: sessionId, reply }))
+      // Increment usage counter (only if we're rate-limiting this user)
+      if (!unlimited) {
+        await db.collection('nova_usage').insertOne({
+          id: uuidv4(),
+          key: usageKey,
+          user_id: currentUser?.id || null,
+          session_id: sessionId,
+          created_at: finalNow,
+        }).catch(() => {})
+      }
+
+      const newUsed = unlimited ? 0 : used + 1
+      return withCORS(NextResponse.json({
+        session_id: sessionId,
+        reply,
+        usage: {
+          used: newUsed,
+          daily_limit: unlimited ? null : dailyLimit,
+          unlimited,
+          remaining: unlimited ? null : Math.max(0, dailyLimit - newUsed),
+          tier: unlimited ? 'unlimited' : (currentUser ? 'free_signed_in' : 'anonymous'),
+        },
+      }))
+    }
+
+    // ============================================================================
+    // Lead-magnet capture — exit-intent, deadline-calendar PDF download, etc.
+    // Stores an email + source tag + optional intent into `leads` collection.
+    // Returns a download URL for the deadline-calendar HTML page (browser can
+    // print → PDF). This becomes an email-drip audience post-launch.
+    // ============================================================================
+    if (route === '/lead-magnet' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      const source = String(body.source || 'exit-intent').slice(0, 80)
+      const intent = String(body.intent || 'deadline-calendar').slice(0, 80)
+      const context = body.context && typeof body.context === 'object' ? body.context : {}
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Valid email required' }, { status: 400 }))
+      }
+      const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                    request.headers.get('x-real-ip') || null
+      const ua = request.headers.get('user-agent') || null
+      const now = new Date()
+
+      // Upsert — same email hitting the exit-intent again shouldn't create dupes.
+      await db.collection('leads').updateOne(
+        { email },
+        {
+          $setOnInsert: { id: uuidv4(), created_at: now },
+          $set: {
+            email, source, intent, context, ip: rawIp, user_agent: ua, updated_at: now,
+          },
+          $push: { history: { source, intent, at: now } },
+        },
+        { upsert: true },
+      )
+
+      return withCORS(NextResponse.json({
+        ok: true,
+        message: 'Your 2026 Scholarship Deadline Calendar is ready.',
+        download_url: '/deadline-calendar',
+      }))
+    }
+
+    // ------- Public deadline-calendar data (for the printable page) -------
+    if (route === '/deadline-calendar/data' && method === 'GET') {
+      const scholarships = await db.collection('scholarships')
+        .find({ public_status: { $ne: 'hidden' } })
+        .project({
+          _id: 0,
+          id: 1, scholarship_name: 1, university_name: 1, country: 1,
+          funding_amount: 1, funding_type: 1, deadline_note: 1,
+          deadline_iso: 1, deadline_status: 1, source_url: 1,
+        })
+        .toArray()
+      // Sort by real deadline date if available, else deadline_status alphabetical
+      const withDate = scholarships.map(s => {
+        const raw = s.deadline_iso || s.deadline_note
+        const t = raw ? Date.parse(raw) : NaN
+        return { ...s, _ts: isNaN(t) ? Infinity : t }
+      }).sort((a, b) => a._ts - b._ts)
+      return withCORS(NextResponse.json({ count: withDate.length, scholarships: withDate }))
+    }
+
+    if (route === '/advisor/usage' && method === 'GET') {
+      const currentUser = await getSessionUser()
+      const isPaid = !!(currentUser?.subscription && (
+        currentUser.subscription.plan === 'lifetime' ||
+        currentUser.subscription.status === 'active' ||
+        currentUser.subscription.status === 'trialing'
+      ))
+      const isOwner = currentUser?.role === 'owner'
+      const unlimited = isPaid || isOwner
+      let usageKey, dailyLimit
+      if (currentUser) { usageKey = `user:${currentUser.id}`; dailyLimit = 10 }
+      else {
+        const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                      request.headers.get('x-real-ip') || 'anon'
+        usageKey = `ip:${rawIp}`; dailyLimit = 3
+      }
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const used = unlimited ? 0 : await db.collection('nova_usage').countDocuments({
+        key: usageKey, created_at: { $gte: dayAgo },
+      })
+      return withCORS(NextResponse.json({
+        used,
+        daily_limit: unlimited ? null : dailyLimit,
+        remaining: unlimited ? null : Math.max(0, dailyLimit - used),
+        unlimited,
+        signed_in: !!currentUser,
+        tier: unlimited ? 'unlimited' : (currentUser ? 'free_signed_in' : 'anonymous'),
+      }))
     }
 
     if (route === '/advisor/history' && method === 'GET') {
@@ -1143,18 +1319,8 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ user: cleanUser, ok: true }))
     }
 
-    // Get current session (from cookie)
-    const getSessionUser = async () => {
-      const cookieStore = await cookies()
-      const token = cookieStore.get('sf_session')?.value
-      if (!token) return null
-      const s = await db.collection('sessions').findOne({ session_token: token })
-      if (!s) return null
-      const u = await db.collection('users').findOne({ id: s.user_id })
-      if (!u) return null
-      const { _id, password_hash, ...clean } = u
-      return clean
-    }
+    // (getSessionUser was hoisted above near the top of handleRoute so
+    //  earlier routes can use it — no duplicate definition here.)
 
     if (route === '/auth/me' && method === 'GET') {
       const user = await getSessionUser()

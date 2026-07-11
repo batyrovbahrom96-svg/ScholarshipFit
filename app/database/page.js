@@ -58,6 +58,18 @@ function DatabaseInner() {
   const [cat,     setCat]     = useState('all')
   const [sort,    setSort]    = useState('deadline')
   const [showFavOnly, setShowFavOnly] = useState(false)
+  const [subActive,  setSubActive] = useState(null) // null while loading, then bool
+
+  // Fetch subscription state — determines how many rows are unlocked.
+  useEffect(() => {
+    fetch('/api/subscription/status', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setSubActive(!!d?.active))
+      .catch(() => setSubActive(false))
+  }, [])
+
+  // Free tier sees 20 full rows + rest blurred; paid sees everything.
+  const FREE_VISIBLE = 20
 
   const [favTick, setFavTick] = useState(0) // force re-render on favorite toggle
   const [profile, setProfile] = useState(null)
@@ -229,6 +241,9 @@ function DatabaseInner() {
             <Filter className="inline h-3.5 w-3.5 mr-1 -mt-0.5"/>
             Showing <span className="text-white">{filtered.length}</span> of {items.length} scholarships
             {activeCategory.key !== 'all' && <> in <span className="text-[#D4AF37]">{activeCategory.label}</span></>}
+            {subActive === false && filtered.length > FREE_VISIBLE && (
+              <> · <span className="text-[#D4AF37]">First {FREE_VISIBLE} unlocked, {filtered.length - FREE_VISIBLE} locked</span></>
+            )}
           </p>
           <Link href="/onboarding" className="text-sm text-[#D4AF37] hover:underline">Get AI-personalized ranking →</Link>
         </div>
@@ -238,12 +253,14 @@ function DatabaseInner() {
           {loading && Array.from({length: 4}).map((_, i) => (
             <div key={i} className="h-56 rounded-2xl border border-white/10 bg-white/[0.02] animate-pulse"/>
           ))}
-          {!loading && filtered.map(s => {
+          {!loading && filtered.map((s, idx) => {
             const isFav = favSet.has(s.id)
+            const isLocked = subActive === false && idx >= FREE_VISIBLE
             return (
-              <Card key={s.id} className="group relative overflow-hidden border-white/10 bg-white/[0.03] hover:border-[#D4AF37]/30 transition">
+              <Card key={s.id} className={`group relative overflow-hidden border-white/10 bg-white/[0.03] hover:border-[#D4AF37]/30 transition ${isLocked ? 'select-none' : ''}`}>
                 <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#D4AF37]/10 blur-3xl"/>
-                <CardContent className="relative p-5">
+                <CardContent className={`relative p-5 ${isLocked ? 'blur-[6px] pointer-events-none opacity-70' : ''}`}
+                             aria-hidden={isLocked || undefined}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs text-white/60 flex-wrap">
@@ -299,6 +316,23 @@ function DatabaseInner() {
                     )}
                   </div>
                 </CardContent>
+                {/* Unlock overlay for locked cards (non-subscribers past FREE_VISIBLE) */}
+                {isLocked && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10 bg-gradient-to-t from-black/90 via-black/60 to-black/40">
+                    <div className="h-10 w-10 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-[#D4AF37]"/>
+                    </div>
+                    <div className="mt-3 text-sm font-semibold text-white">Locked scholarship</div>
+                    <div className="mt-1 text-[11px] text-white/60 max-w-[220px]">
+                      Reserve founder pricing to unlock all {filtered.length} matches.
+                    </div>
+                    <Link href="/pricing" className="mt-3">
+                      <Button className="btn-gold btn-pill h-9 px-4 text-xs font-semibold">
+                        Unlock all → 
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </Card>
             )
           })}

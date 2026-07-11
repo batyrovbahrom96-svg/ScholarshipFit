@@ -97,7 +97,17 @@ function Advisor() {
   const [busy, setBusy] = useState(false)
   const [activeCat, setActiveCat] = useState('discover')
   const [copiedId, setCopiedId] = useState('')
+  const [usage, setUsage] = useState(null)
+  const [gate, setGate] = useState(null) // { require: 'signup' | 'paywall', message }
   const scrollRef = useRef(null)
+
+  const refreshUsage = async () => {
+    try {
+      const r = await fetch('/api/advisor/usage', { credentials: 'include' })
+      const d = await r.json()
+      setUsage(d)
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     let s = store.getAdvisorSession()
@@ -106,6 +116,7 @@ function Advisor() {
     fetch(`/api/advisor/history?session_id=${s}`).then(r => r.json()).then(d => {
       if (d.messages?.length) setMessages(d.messages)
     })
+    refreshUsage()
   }, [])
 
   useEffect(() => {
@@ -115,16 +126,36 @@ function Advisor() {
   const send = async (text) => {
     const msg = (text ?? input).trim()
     if (!msg || busy) return
+    // Client-side pre-block if we already know limit is hit
+    if (usage && !usage.unlimited && usage.remaining === 0) {
+      setGate({
+        require: usage.signed_in ? 'paywall' : 'signup',
+        message: usage.signed_in
+          ? `You\u2019ve used all ${usage.daily_limit} of your free daily Nova replies. Reserve founder pricing to unlock unlimited AI advising.`
+          : `You\u2019ve used all ${usage.daily_limit} anonymous replies today. Create a free account for 10/day, or reserve founder pricing for unlimited.`,
+      })
+      return
+    }
     setInput('')
     setMessages(m => [...m, { role: 'user', content: msg, id: 'tmp-' + Date.now() }])
     setBusy(true)
     try {
       const res = await fetch('/api/advisor', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ session_id: sessionId, message: msg })
-      }).then(r => r.json())
-      if (res.reply) setMessages(m => [...m, { role: 'assistant', content: res.reply, id: 'a-' + Date.now() }])
-      else setMessages(m => [...m, { role: 'assistant', content: '_Sorry, I could not respond right now. Please try again._', id: 'e-' + Date.now() }])
+      })
+      const d = await res.json()
+      if (res.status === 429) {
+        setGate({ require: d.require || 'signup', message: d.message || 'Rate limit reached.' })
+        // Roll back the optimistic user message
+        setMessages(m => m.filter(x => !x.id?.startsWith('tmp-')))
+      } else if (d.reply) {
+        setMessages(m => [...m, { role: 'assistant', content: d.reply, id: 'a-' + Date.now() }])
+        if (d.usage) setUsage(u => ({ ...(u || {}), ...d.usage, signed_in: u?.signed_in }))
+      } else {
+        setMessages(m => [...m, { role: 'assistant', content: '_Sorry, I could not respond right now. Please try again._', id: 'e-' + Date.now() }])
+      }
     } catch (e) {
       setMessages(m => [...m, { role: 'assistant', content: '_Network error._ ' + String(e.message), id: 'e-' + Date.now() }])
     } finally { setBusy(false) }
@@ -363,6 +394,28 @@ function Advisor() {
                       <Send className="h-4 w-4"/>
                     </Button>
                   </form>
+
+                  {/* Free-tier usage counter — shown to non-paying users. */}
+                  {usage && !usage.unlimited && (
+                    <div className={`border-t border-white/5 px-4 py-2.5 text-[11px] flex items-center justify-between gap-3 ${
+                      usage.remaining === 0 ? 'bg-red-500/5 text-red-200' :
+                      usage.remaining === 1 ? 'bg-amber-500/5 text-amber-200' :
+                      'bg-white/[0.02] text-white/50'
+                    }`}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3"/>
+                        {usage.remaining === 0
+                          ? `Daily Nova limit reached (${usage.daily_limit}/${usage.daily_limit} used)`
+                          : `${usage.remaining} of ${usage.daily_limit} free Nova ${usage.daily_limit === 1 ? 'reply' : 'replies'} left today`}
+                        {!usage.signed_in && usage.remaining > 0 && (
+                          <span className="opacity-60"> · sign up for 10/day</span>
+                        )}
+                      </span>
+                      <Link href="/pricing" className="text-[#D4AF37] hover:underline whitespace-nowrap">
+                        Unlock unlimited →
+                      </Link>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -380,6 +433,52 @@ function Advisor() {
         </div>
       </div>
       <Footer />
+
+      {/* Rate-limit gate modal — appears when free-tier daily limit hit */}
+      {gate && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setGate(null)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-[#D4AF37]/30 bg-black p-6 md:p-7"
+            onClick={(e) => e.stopPropagation()}
+            style={{ boxShadow: '0 40px 80px -20px rgba(212,175,55,0.35)' }}
+          >
+            <div className="mx-auto h-12 w-12 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-[#D4AF37]"/>
+            </div>
+            <h3 className="mt-4 text-center text-xl font-semibold text-white">
+              {gate.require === 'paywall' ? 'Ready for unlimited Nova?' : 'One quick step'}
+            </h3>
+            <p className="mt-2 text-center text-sm text-white/70 leading-relaxed">{gate.message}</p>
+            <div className="mt-5 grid gap-2">
+              {gate.require === 'signup' ? (
+                <>
+                  <Link href="/signup?next=/advisor">
+                    <Button className="w-full h-11 btn-gold btn-pill font-semibold">Create free account · 10 replies/day</Button>
+                  </Link>
+                  <Link href="/pricing">
+                    <Button variant="outline" className="w-full h-11 border-white/15 bg-transparent text-white hover:bg-white/5">Reserve founder pricing · unlimited</Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/pricing">
+                    <Button className="w-full h-11 btn-gold btn-pill font-semibold">Reserve founder pricing · unlimited Nova</Button>
+                  </Link>
+                  <button onClick={() => setGate(null)} className="text-xs text-white/50 hover:text-white mt-1">Maybe tomorrow — I&apos;ll come back</button>
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => setGate(null)}
+              className="absolute top-3 right-3 h-8 w-8 rounded-full text-white/50 hover:text-white hover:bg-white/10 inline-flex items-center justify-center"
+              aria-label="Close"
+            >✕</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

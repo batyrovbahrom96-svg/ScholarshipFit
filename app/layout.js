@@ -2,6 +2,7 @@ import './globals.css'
 import { Providers } from './providers'
 import CookieBanner from '@/components/site/CookieBanner'
 import PremiumEffects from '@/components/site/PremiumEffects'
+import ExitIntentModal from '@/components/site/ExitIntentModal'
 
 export const metadata = {
   title: 'ScholarshipFit — AI-powered, source-linked scholarship research',
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
         <Providers>{children}</Providers>
         <PremiumEffects />
         <CookieBanner />
+        <ExitIntentModal />
       </body>
     </html>
   )

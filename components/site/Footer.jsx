@@ -39,6 +39,7 @@ export default function Footer() {
             <ul className="mt-3 space-y-2 text-sm text-white/80">
               <li><Link className="hover:text-[#D4AF37]" href="/quiz">Match Quiz</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/simulator">Fit Simulator</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/rejection-debugger">Rejection Debugger</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/advisor">AI Advisor</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/database">Database</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/sample-report">Sample Report</Link></li>

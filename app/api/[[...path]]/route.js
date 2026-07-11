@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { createRequire } from 'module'
 import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
+import { matchScholarships } from '@/lib/quiz-match'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -934,6 +935,184 @@ DATABASE:\n${dbBlock}`
       }).catch(() => {})
 
       return withCORS(NextResponse.json({ ok: true, url: targetUrl, ...result }))
+    }
+
+    // ============================================================================
+    // /api/rejection/analyze — Rejection Debugger.
+    // User pastes a scholarship rejection letter. We use Claude to extract
+    // (in structured JSON) the likely rejection categories + specific profile
+    // gaps. Then we call the deterministic matcher against our DB to suggest
+    // 3-5 REAL, better-fit alternatives — grounded, never invented.
+    //
+    // Privacy: rejection text is NOT persisted. We only log a hash + reason
+    // categories + user id (if signed-in) into `rejection_analyses` for audit
+    // and rate-limiting.
+    //
+    // Rate limits (per 24h rolling):
+    //   anonymous (by IP): 2 analyses
+    //   signed-in free:    5 analyses
+    //   paid subscribers:  unlimited
+    // ============================================================================
+    if (route === '/rejection/analyze' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const letter = String(body.letter || '').trim().slice(0, 8000)
+      if (letter.length < 40) {
+        return withCORS(NextResponse.json({
+          error: 'Rejection letter is too short — paste the full message so we can find useful patterns.',
+        }, { status: 400 }))
+      }
+
+      const profile = body.profile && typeof body.profile === 'object' ? body.profile : {}
+
+      // ---- Rate limiting ----
+      const currentUser = await getSessionUser()
+      const isPaid = !!(currentUser?.subscription && (
+        currentUser.subscription.plan === 'lifetime' ||
+        currentUser.subscription.status === 'active' ||
+        currentUser.subscription.status === 'trialing'
+      ))
+      const isOwner = currentUser?.role === 'owner'
+      const unlimited = isPaid || isOwner
+
+      let usageKey, dailyLimit
+      if (currentUser) { usageKey = `user:${currentUser.id}`; dailyLimit = 5 }
+      else {
+        const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                      request.headers.get('x-real-ip') || 'anon'
+        usageKey = `ip:${rawIp}`; dailyLimit = 2
+      }
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const used = unlimited ? 0 : await db.collection('rejection_analyses').countDocuments({
+        rl_key: usageKey, created_at: { $gte: dayAgo },
+      })
+      if (!unlimited && used >= dailyLimit) {
+        return withCORS(NextResponse.json({
+          error: 'rate_limited',
+          message: currentUser
+            ? `You\u2019ve used all ${dailyLimit} rejection analyses today. Reserve founder pricing for unlimited.`
+            : `You\u2019ve used all ${dailyLimit} anonymous rejection analyses today. Create a free account for ${5}/day.`,
+          require: currentUser ? 'paywall' : 'signup',
+          used, daily_limit: dailyLimit,
+        }, { status: 429 }))
+      }
+
+      // ---- Ask Claude to extract structured signals ----
+      const REJECTION_SYSTEM = `You are a scholarship application analyst. Given a rejection letter (and optional user profile), extract STRUCTURED signals. Be empathetic but decisive. Never invent scholarships or details not stated in the letter.
+
+Return STRICT JSON only (no prose, no markdown fences) with this shape:
+{
+  "scholarship_mentioned": string | null,          // scholarship name if clearly identifiable, else null
+  "provider_mentioned": string | null,             // provider/institution if clearly identifiable
+  "rejection_categories": [                        // ranked by likelihood, max 4
+    {
+      "code": "profile_below_bar" | "field_mismatch" | "nationality_ineligible" | "documentation" | "timing" | "high_competition" | "language_score" | "financial_criteria" | "essay_or_interview" | "unknown",
+      "confidence": "high" | "medium" | "low",
+      "reason": string,                             // 1 short sentence, factual, no assumptions beyond letter
+      "quoted_signal": string                       // short quote from the letter that supports this (max 120 chars)
+    }
+  ],
+  "profile_gaps": [                                // 2-5 SPECIFIC gaps the user should close
+    { "area": "GPA" | "IELTS/TOEFL" | "work experience" | "publications" | "field alignment" | "leadership" | "documentation" | "financial demonstration", "action": string /* short imperative like "Retake IELTS to 8.0" */ }
+  ],
+  "recovery_time_estimate": "weeks" | "3-6 months" | "6-12 months" | "12+ months",
+  "empathy_note": string                            // 1-2 sentences, kind, honest, forward-looking
+}
+
+STRICT RULES:
+- If the letter is generic and gives no signal, use code "unknown" for categories and low confidence.
+- Do NOT recommend specific scholarships in this JSON (a separate step does that from a verified DB).
+- Do NOT judge the user. Rejection letters rarely reveal the real reason; state uncertainty honestly.`
+
+      let extracted
+      try {
+        const rawJson = await callClaude({
+          system: REJECTION_SYSTEM,
+          messages: [{
+            role: 'user',
+            content: `Rejection letter:\n"""\n${letter}\n"""\n\nUser profile (optional): ${JSON.stringify(profile)}\n\nReturn the JSON now.`,
+          }],
+          temperature: 0.2,
+          maxTokens: 1200,
+        })
+        // Try to parse: strip any code fences just in case.
+        const cleaned = rawJson.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '')
+        extracted = JSON.parse(cleaned)
+      } catch (e) {
+        return withCORS(NextResponse.json({
+          error: 'Analysis failed — please try again in a moment.',
+          detail: String(e?.message || e),
+        }, { status: 502 }))
+      }
+
+      // ---- Find real, better-fit alternatives from our DB ----
+      // We use the user's profile hints + gap areas to run the deterministic matcher.
+      const scholarships = await db.collection('scholarships')
+        .find({ public_status: { $ne: 'hidden' } }).limit(400).toArray()
+
+      // Derive a synthetic answers payload for matchScholarships.
+      // Boost profile using gap awareness — if the letter flagged an IELTS gap,
+      // don't pretend they have a higher score; keep their actual.
+      const answers = {
+        education_level: profile.degree || profile.education_level || 'masters',
+        field:           profile.field || 'all',
+        nationality:     profile.nationality || profile.country || '',
+        gpa:             Number(profile.gpa) || null,
+        gpa_scale:       profile.gpa_scale || '4',
+        ielts:           Number(profile.ielts) || null,
+        toefl:           Number(profile.toefl) || null,
+        funding_pref:    'any',
+        work_exp:        String(profile.work_exp ?? ''),
+        timeline:        'flexible',
+      }
+      const ranked = (typeof matchScholarships === 'function')
+        ? matchScholarships(answers, scholarships)
+        : []
+
+      // Filter out any scholarship name that appears in the rejection letter to
+      // avoid re-suggesting the exact program the user was rejected from.
+      const rejectedName = (extracted?.scholarship_mentioned || '').toLowerCase()
+      const alternatives = ranked
+        .filter(s => !rejectedName || !String(s.scholarship_name || '').toLowerCase().includes(rejectedName))
+        .slice(0, 5)
+        .map(s => ({
+          scholarship_id: s.scholarship_id,
+          slug: s.slug,
+          name: s.scholarship_name,
+          provider: s.university_name,
+          country: s.country,
+          fit_score: s.overall_fit_score,
+          funding_type: s.funding_type,
+          funding_amount: s.funding_amount,
+          reasons: (s.reasons || []).slice(0, 3),
+          gaps: (s.gaps || []).slice(0, 2),
+          source_url: s.source_url,
+        }))
+
+      // ---- Audit (hashed, no plaintext letter) ----
+      const letterHash = crypto.createHash('sha256').update(letter).digest('hex').slice(0, 24)
+      await db.collection('rejection_analyses').insertOne({
+        id: uuidv4(),
+        rl_key: usageKey,
+        user_id: currentUser?.id || null,
+        letter_hash: letterHash,
+        letter_length: letter.length,
+        categories: (extracted?.rejection_categories || []).map(c => c.code),
+        alt_ids: alternatives.map(a => a.scholarship_id).filter(Boolean),
+        created_at: new Date(),
+      }).catch(() => {})
+
+      return withCORS(NextResponse.json({
+        ok: true,
+        analysis: extracted,
+        alternatives,
+        usage: {
+          used: unlimited ? 0 : used + 1,
+          daily_limit: unlimited ? null : dailyLimit,
+          unlimited,
+          remaining: unlimited ? null : Math.max(0, dailyLimit - (used + 1)),
+          tier: unlimited ? 'unlimited' : (currentUser ? 'free_signed_in' : 'anonymous'),
+        },
+      }))
     }
 
     // ------- Nova usage snapshot (frontend uses this to show the counter) -------

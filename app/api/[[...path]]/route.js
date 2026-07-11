@@ -95,10 +95,10 @@ async function callClaude({ system, messages, maxTokens = 4096, temperature = 0.
 }
 
 function safeParseJSON(str) {
-  try { return JSON.parse(str) } catch {}
+  try { return JSON.parse(str) } catch { /* fall through — try to extract embedded JSON */ }
   // Try to extract JSON block
   const m = str.match(/\{[\s\S]*\}/)
-  if (m) { try { return JSON.parse(m[0]) } catch {} }
+  if (m) { try { return JSON.parse(m[0]) } catch { /* give up, return null below */ } }
   return null
 }
 
@@ -1207,7 +1207,7 @@ STRICT RULES:
             const out = await parser.getText()
             text = String(out?.text || '').trim()
           } finally {
-            try { await parser.destroy?.() } catch (_) {}
+            try { await parser.destroy?.() } catch { /* parser cleanup errors ignored */ }
           }
         } else if (name.endsWith('.docx') || type.includes('officedocument.wordprocessingml')) {
           kind = 'docx'

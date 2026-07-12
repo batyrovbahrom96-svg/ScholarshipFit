@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react'
 import { useAuth, buildSignInUrl } from '@/hooks/use-auth'
 import { track } from '@/lib/analytics'
+import TurnstileWidget from '@/components/site/TurnstileWidget'
 
 /* Reusable email + password auth form.
    Handles both /login and /signup depending on `mode` prop. */
@@ -25,12 +26,16 @@ export function AuthForm({ mode = 'login' }) {
   const [showPw, setShowPw]     = useState(false)
   const [busy, setBusy]         = useState(false)
   const [err, setErr]           = useState('')
+  const [turnstileToken, setTurnstileToken] = useState(null)  // null until Turnstile solved (signup only)
+
+  const isSignup = mode === 'signup'
 
   const submit = async (e) => {
     e?.preventDefault()
     setErr('')
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Please enter a valid email')
     if (password.length < 8) return setErr('Password must be at least 8 characters')
+    if (isSignup && !turnstileToken) return setErr('Please complete the security check to continue')
     setBusy(true)
     try {
       const url = mode === 'signup' ? '/api/auth/register' : '/api/auth/login'
@@ -38,7 +43,11 @@ export function AuthForm({ mode = 'login' }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, ...(mode === 'signup' ? { name } : {}) }),
+        body: JSON.stringify({
+          email,
+          password,
+          ...(mode === 'signup' ? { name, turnstile_token: turnstileToken } : {}),
+        }),
       })
       const data = await r.json()
       if (!r.ok) {
@@ -70,8 +79,6 @@ export function AuthForm({ mode = 'login' }) {
   const googleSignIn = () => {
     if (typeof window !== 'undefined') window.location.href = buildSignInUrl(returnTo)
   }
-
-  const isSignup = mode === 'signup'
 
   return (
     <div className="dark-bg min-h-screen">
@@ -151,7 +158,13 @@ export function AuthForm({ mode = 'login' }) {
                 </div>
               )}
 
-              <Button type="submit" disabled={busy}
+              {isSignup && (
+                <div className="rounded-md border border-white/10 bg-white/[0.02] p-2.5">
+                  <TurnstileWidget action="signup" onVerify={setTurnstileToken}/>
+                </div>
+              )}
+
+              <Button type="submit" disabled={busy || (isSignup && !turnstileToken)}
                 className="w-full h-11 btn-gold btn-pill font-semibold disabled:opacity-60">
                 {busy ? 'Please wait…' : (isSignup ? 'Create account' : 'Sign in')}
                 {!busy && <ArrowRight className="ml-2 h-4 w-4"/>}

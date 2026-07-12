@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Mail, Loader2, ArrowRight, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react'
 import { trackEvent } from '@/lib/analytics'
+import TurnstileWidget from '@/components/site/TurnstileWidget'
 
 export default function ForgotPasswordClient() {
   const [email, setEmail] = useState('')
   const [busy, setBusy]   = useState(false)
   const [err, setErr]     = useState('')
   const [sent, setSent]   = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState(null)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -22,12 +24,15 @@ export default function ForgotPasswordClient() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) {
       setErr('Please enter a valid email address'); return
     }
+    if (!turnstileToken) {
+      setErr('Please complete the security check to continue'); return
+    }
     setBusy(true)
     try {
       const r = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: clean }),
+        body: JSON.stringify({ email: clean, turnstile_token: turnstileToken }),
       })
       const data = await r.json()
       if (!r.ok) { setErr(data.error || 'Something went wrong'); return }
@@ -59,9 +64,9 @@ export default function ForgotPasswordClient() {
             </h1>
             <p className="mt-2 text-center text-sm text-white/60">
               {sent ? (
-                <>If an account exists for<br/><span className="text-white/90 font-medium">{email}</span><br/>we've sent a secure reset link. It expires in 60 minutes.</>
+                <>If an account exists for<br/><span className="text-white/90 font-medium">{email}</span><br/>we&apos;ve sent a secure reset link. It expires in 60 minutes.</>
               ) : (
-                <>Enter your email and we'll send you a secure link to choose a new password.</>
+                <>Enter your email and we&apos;ll send you a secure link to choose a new password.</>
               )}
             </p>
 
@@ -87,9 +92,13 @@ export default function ForgotPasswordClient() {
                   </div>
                 )}
 
+                <div className="rounded-md border border-white/10 bg-white/[0.02] p-2.5">
+                  <TurnstileWidget action="forgot_password" onVerify={setTurnstileToken}/>
+                </div>
+
                 <Button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || !turnstileToken}
                   className="h-11 w-full btn-gold btn-pill font-semibold disabled:opacity-50"
                 >
                   {busy ? (
@@ -102,7 +111,7 @@ export default function ForgotPasswordClient() {
             ) : (
               <div className="mt-6 text-center">
                 <p className="text-xs text-white/40">
-                  Tip: check your spam folder. If it doesn't arrive within 5 minutes, try again.
+                  Tip: check your spam folder. If it doesn&apos;t arrive within 5 minutes, try again.
                 </p>
                 <Button
                   onClick={() => { setSent(false); setEmail('') }}

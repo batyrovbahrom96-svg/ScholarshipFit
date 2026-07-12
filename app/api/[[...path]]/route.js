@@ -10,6 +10,7 @@ import { matchScholarships } from '@/lib/quiz-match'
 import { sendVerificationEmail, sendPasswordResetEmail } from '@/lib/mail/resend'
 import { captureServerEvent } from '@/lib/posthog-server'
 import { campaignSchedule, displaySpots } from '@/lib/urgency-config'
+import { verifyTurnstile } from '@/lib/turnstile'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -1599,6 +1600,11 @@ Respond with STRICT JSON in this schema:
 
     if (route === '/auth/register' && method === 'POST') {
       const body = await request.json().catch(() => ({}))
+      // ---- Turnstile gate (bot protection) ----
+      const gate = await verifyTurnstile(body.turnstile_token, request)
+      if (!gate.ok) {
+        return withCORS(NextResponse.json({ error: gate.error }, { status: 400 }))
+      }
       const email    = String(body.email    || '').trim().toLowerCase()
       const password = String(body.password || '')
       const name     = String(body.name     || '').trim().slice(0, 120) || email.split('@')[0]
@@ -1730,6 +1736,9 @@ Respond with STRICT JSON in this schema:
 
     // ============ Email OTP: send + verify ============
     // /auth/send-otp — user asks for a fresh code (from /verify-email "Resend" button)
+    // Note: NOT gated by Turnstile — resend already has a 60s server rate-limit + can only
+    // fire for an already-existing unverified account, so bot drain surface is minimal.
+    // Turnstile is enforced on /auth/register instead, which is the actual account-creation gate.
     if (route === '/auth/send-otp' && method === 'POST') {
       const body = await request.json().catch(() => ({}))
       const email = String(body.email || '').trim().toLowerCase()
@@ -1819,6 +1828,11 @@ Respond with STRICT JSON in this schema:
     // /auth/forgot-password — user asks for reset link
     if (route === '/auth/forgot-password' && method === 'POST') {
       const body = await request.json().catch(() => ({}))
+      // ---- Turnstile gate (bot protection) ----
+      const gate = await verifyTurnstile(body.turnstile_token, request)
+      if (!gate.ok) {
+        return withCORS(NextResponse.json({ error: gate.error }, { status: 400 }))
+      }
       const email = String(body.email || '').trim().toLowerCase()
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return withCORS(NextResponse.json({ error: 'Please enter a valid email' }, { status: 400 }))

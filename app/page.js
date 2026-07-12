@@ -20,6 +20,7 @@ import TestimonialWall from '@/components/site/TestimonialWall'
 import OutcomesPreview from '@/components/site/OutcomesPreview'
 import FounderVideo from '@/components/site/FounderVideo'
 import ProofStats from '@/components/site/ProofStats'
+import ProductDemoPreview from '@/components/site/ProductDemoPreview'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -186,6 +187,9 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* ================ PRODUCT DEMO PREVIEW (Notion-style) ================ */}
+      <ProductDemoPreview />
 
       {/* ================ QUALITY > QUANTITY promise ================ */}
       <section className="relative border-t border-white/5">

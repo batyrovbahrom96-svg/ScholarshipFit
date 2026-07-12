@@ -17,6 +17,7 @@ import HeroSearch from '@/components/site/HeroSearch'
 import BottomCTA from '@/components/site/BottomCTA'
 import PricingPreview from '@/components/site/PricingPreview'
 import TestimonialWall from '@/components/site/TestimonialWall'
+import TestimonialShowcase from '@/components/site/TestimonialShowcase'
 import OutcomesPreview from '@/components/site/OutcomesPreview'
 import FounderVideo from '@/components/site/FounderVideo'
 import ProofStats from '@/components/site/ProofStats'
@@ -435,6 +436,7 @@ function Home() {
       <OutcomesPreview />
 
       {/* ================ TESTIMONIAL WALL — 3-col masonry ================ */}
+      <TestimonialShowcase />
       <TestimonialWall />
 
       {/* ================ Honest strip ================ */}

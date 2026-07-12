@@ -31,12 +31,12 @@ export default function TestimonialWall() {
           <h2 className="mt-4 text-3xl md:text-4xl font-semibold text-white">
             {items.length > 0
               ? 'Real students. Real LinkedIn profiles. Real scholarships.'
-              : "We're a young company. We won't fake the numbers."}
+              : "Won a scholarship using ScholarshipFit? We want to feature you."}
           </h2>
           <p className="mt-3 text-white/60 leading-relaxed">
             {items.length > 0
               ? 'Every quote below is from a verified user — click the LinkedIn icon on any card to check the profile yourself. No pseudonyms, no stock photos, no invented reviews.'
-              : "Rather than paste fake testimonials that would insult your intelligence, we're waiting until our first cohort receives their scholarship results. If you've won a scholarship using ScholarshipFit — even in part — we'd love to feature your story."}
+              : "The stories above are illustrative composites of the typical ScholarshipFit journey. This section is reserved for our verified winners — with LinkedIn-confirmed identities, real profile photos, and a link to the scholarship they won. Be the first name on the wall."}
           </p>
         </div>
 

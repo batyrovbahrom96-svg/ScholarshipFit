@@ -18,7 +18,7 @@ const IS_PREORDER = PAYMENT_MODE !== 'live'
 const TRUST_BADGES = [
   { icon: Shield,  text: '7-day free trial', sub: 'Cancel before day 7 — no charge' },
   { icon: Zap,     text: 'Instant access',   sub: 'Full Command Center in < 5s' },
-  { icon: Trophy,  text: '303 real scholarships', sub: 'Source-linked · verified' },
+  { icon: Trophy,  text: '800+ real scholarships', sub: 'Source-linked · verified' },
 ]
 
 // -----------------------------------------------------------------------------
@@ -281,7 +281,7 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
               <span>✓ Cancel anytime</span>
               <span>{IS_PREORDER ? '✓ Founder price locked in' : '✓ 7-day free trial (except Lifetime)'}</span>
               <span>{IS_PREORDER ? '✓ No charges today' : '✓ Instant access'}</span>
-              <span>✓ 303 real scholarships</span>
+              <span>✓ 800+ real scholarships</span>
             </div>
           </div>
         </div>

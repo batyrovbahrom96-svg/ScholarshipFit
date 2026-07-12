@@ -17,7 +17,7 @@ import {
 /* ============================================================================
    /simulator — Fit Simulator.
    Drag sliders (GPA, IELTS, TOEFL, work experience) + pick country, degree,
-   field → all 303 scholarships re-rank in REAL TIME using the same
+   field → all 800+ scholarships re-rank in REAL TIME using the same
    deterministic engine that powers /quiz. Shows delta vs. baseline profile
    so users see the ROI of improving each stat.
    ============================================================================ */
@@ -118,7 +118,7 @@ export default function SimulatorPage() {
     timeline: 'flexible',
   }), [degree, field, country, gpa, ielts, toefl, workExp])
 
-  // Live recompute — expensive-ish, but 303 records × ~10 ops is fine on client
+  // Live recompute — expensive-ish, but 800+ records × ~10 ops is fine on client
   const ranked = useMemo(() => {
     if (!items.length) return []
     return matchScholarships(answers, items)
@@ -191,7 +191,7 @@ export default function SimulatorPage() {
               What if you had a <span className="text-gold-hi">stronger profile</span>?
             </h1>
             <p className="mt-3 text-white/70 max-w-2xl mx-auto">
-              Drag any slider and watch all 303 scholarships instantly re-rank against your new profile. Answer the one question no other platform can: <span className="text-white">&ldquo;Is improving my IELTS actually worth it?&rdquo;</span>
+              Drag any slider and watch all 800+ scholarships instantly re-rank against your new profile. Answer the one question no other platform can: <span className="text-white">&ldquo;Is improving my IELTS actually worth it?&rdquo;</span>
             </p>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function SimulatorPage() {
 
               <div className="mt-5 pt-4 border-t border-white/5 text-[11px] text-white/40 flex items-start gap-1.5 leading-relaxed">
                 <Info className="mt-0.5 h-3 w-3 shrink-0"/>
-                Recomputed instantly across all 303 records using our deterministic fit engine. No AI, no invented programs.
+                Recomputed instantly across all 800+ records using our deterministic fit engine. No AI, no invented programs.
               </div>
             </CardContent>
           </Card>

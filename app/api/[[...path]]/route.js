@@ -2628,7 +2628,30 @@ Respond with STRICT JSON in this schema:
         db.collection('match_cache').countDocuments({}),
         db.collection('preorders').countDocuments({}),
       ])
-      return withCORS(NextResponse.json({ scholarships: s, profiles: p, match_runs: m, advisor_messages: a, waitlist: w, contacts: c, match_cache: cache, preorders: po }))
+      // Scraper breakdown (per source + last run timestamp)
+      const scraperBreakdown = await db.collection('scholarships').aggregate([
+        { $group: { _id: '$scraper_source', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]).toArray()
+      const lastRun = await db.collection('scraper_runs').find({}).sort({ started_at: -1 }).limit(1).toArray()
+      return withCORS(NextResponse.json({
+        scholarships: s, profiles: p, match_runs: m, advisor_messages: a,
+        waitlist: w, contacts: c, match_cache: cache, preorders: po,
+        scholarship_sources: scraperBreakdown.map(x => ({ source: x._id || 'seed', count: x.count })),
+        last_scrape: lastRun[0] ? {
+          started_at: lastRun[0].started_at,
+          duration_ms: lastRun[0].duration_ms,
+          per_source: lastRun[0].per_source,
+          total_after: lastRun[0].total_scholarships_after,
+        } : null,
+      }))
+    }
+
+    // Scraper run history (last 10 runs)
+    if (route === '/admin/scraper-runs' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const runs = await db.collection('scraper_runs').find({}).sort({ started_at: -1 }).limit(10).toArray()
+      return withCORS(NextResponse.json({ runs: runs.map(({ _id, ...r }) => r) }))
     }
 
     if (route === '/admin/logs' && method === 'GET') {

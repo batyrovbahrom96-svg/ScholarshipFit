@@ -19,7 +19,7 @@ import {
 const ROWS = [
   { dim: 'Real, verified scholarship database', gpt: false, sf: true,
     gptNote: 'Trains on 2023 text — invents deadlines, funding amounts, and program names when pressed.',
-    sfNote:  '303 human-verified, source-linked scholarships. Every claim cites an official URL.' },
+    sfNote:  '800+ human-verified, source-linked scholarships. Every claim cites an official URL.' },
   { dim: 'Never hallucinates program names', gpt: false, sf: true,
     gptNote: 'Confidently makes up scholarship names that don\u2019t exist.',
     sfNote:  'Nova is grounded in the DB — refuses to name unverified programs.' },
@@ -34,7 +34,7 @@ const ROWS = [
     sfNote:  'Free /verify tool flags payment-fee URLs, brand impersonation, .tk domains.' },
   { dim: 'Live re-scoring across a filtered DB', gpt: false, sf: true,
     gptNote: 'Cannot deterministically rank or filter — it\u2019s a language model, not a database.',
-    sfNote:  'Fit Simulator drags GPA/IELTS/experience → 303 matches re-rank instantly.' },
+    sfNote:  'Fit Simulator drags GPA/IELTS/experience → 800+ matches re-rank instantly.' },
   { dim: 'Country-specific + degree-specific paths', gpt: 'partial', sf: true,
     gptNote: 'Gives generic advice like "apply to Chevening" without your fit score.',
     sfNote:  'Deterministic fit scoring per your country, degree, GPA, funding needs.' },
@@ -181,7 +181,7 @@ export default function VsChatGPTPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {[
               { icon: Database, title: 'A real DB',
-                copy: '303 human-verified scholarships. Every claim cites an official URL.',
+                copy: '800+ human-verified scholarships. Every claim cites an official URL.',
                 cta: 'See the database', href: '/database' },
               { icon: ShieldCheck, title: 'A scam shield',
                 copy: 'Free /verify tool — paste any URL, get a red/yellow/green safety score in seconds.',

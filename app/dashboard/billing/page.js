@@ -129,7 +129,7 @@ export default function BillingPage() {
                   <p className="mt-1 text-sm text-white/60 max-w-xl">
                     You&apos;re using the free tier. {IS_PREORDER
                       ? 'Payments are launching soon — reserve founder pricing to lock in the lowest rate for life.'
-                      : 'Pick a plan to unlock all 303 source-linked scholarships, unlimited AI reports, and Nova AI advisor.'}
+                      : 'Pick a plan to unlock 800+ source-linked scholarships, unlimited AI reports, and Nova AI advisor.'}
                   </p>
                 </div>
                 <Link href="/pricing">

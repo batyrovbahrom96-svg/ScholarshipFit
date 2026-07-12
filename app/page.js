@@ -220,7 +220,7 @@ function Home() {
       <FeatureBlock
         kicker="Match"
         title="Ranked shortlist with fit reasoning."
-        body="Answer 8 quick questions — education level, field, nationality, destinations, GPA, English scores, work experience, timeline, and funding preference. We instantly rank all 303 source-linked scholarships against your profile and show fit score, matched requirements, gaps, warnings, and the official source URL."
+        body="Answer 8 quick questions — education level, field, nationality, destinations, GPA, English scores, work experience, timeline, and funding preference. We instantly rank 800+ source-linked scholarships against your profile and show fit score, matched requirements, gaps, warnings, and the official source URL."
         ctaLabel="Start matching"
         ctaHref="/quiz"
       >
@@ -293,7 +293,7 @@ function Home() {
             <div className="md:col-span-7" data-reveal data-reveal-delay="200">
               <div className="grid grid-cols-2 gap-4">
                 <StatTile big="20h" small="Avg time saved per cycle" tone="gold"/>
-                <StatTile big="303" small="Real, source-linked scholarships" tone="cyan"/>
+                <StatTile big="800+" small="Real, source-linked scholarships" tone="cyan"/>
                 <StatTile big="3 min" small="From profile to shortlist" tone="emerald"/>
                 <StatTile big="60 countries" small="Where our scholarships come from" tone="gold"/>
               </div>

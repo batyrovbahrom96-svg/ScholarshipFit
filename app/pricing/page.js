@@ -133,7 +133,7 @@ function Pricing() {
             <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 7-day free trial</span>
             <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Instant access</span>
             <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-[#D4AF37]"/> Cancel anytime</span>
-            <span className="inline-flex items-center gap-1.5"><Trophy className="h-4 w-4 text-[#D4AF37]"/> 303 real scholarships</span>
+            <span className="inline-flex items-center gap-1.5"><Trophy className="h-4 w-4 text-[#D4AF37]"/> 800+ real scholarships</span>
           </div>
 
           {/* Regional pricing banner + selector */}
@@ -309,7 +309,7 @@ function Pricing() {
               </thead>
               <tbody className="[&>tr]:border-t [&>tr]:border-white/5">
                 {[
-                  ['Unlock all 303 real scholarships', '✓', '✓', '✓', '✓'],
+                  ['Unlock all 800+ real scholarships', '✓', '✓', '✓', '✓'],
                   ['Unlimited AI Match reports',       '✓', '✓', '✓', '✓'],
                   ['Application Readiness Score',      '✓', '✓', '✓', '✓'],
                   ['Cabinet + Tracker + PDF export',   '✓', '✓', '✓', '✓'],

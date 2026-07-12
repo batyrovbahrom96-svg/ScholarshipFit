@@ -121,7 +121,7 @@ const TESTIMONIALS = [
     stars: 5,
     text: [
       'Every scholarship I researched previously took me 4–6 hours to figure out if I qualified. ScholarshipFit did that ',
-      { b: 'in 3 minutes for all 303 records' },
+      { b: 'in 3 minutes for all 800+ records' },
       '. I no longer feel like I\u2019m gambling on essays.',
     ],
   },

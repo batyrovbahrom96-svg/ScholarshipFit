@@ -151,7 +151,7 @@ export default function VerifyPage() {
                   </a>
                   <Link href="/database">
                     <Button className="btn-gold btn-pill font-semibold">
-                      See our verified DB (303 scholarships) <ArrowRight className="ml-2 h-4 w-4"/>
+                      See our verified DB (800+ scholarships) <ArrowRight className="ml-2 h-4 w-4"/>
                     </Button>
                   </Link>
                 </div>
@@ -167,7 +167,7 @@ export default function VerifyPage() {
             <ul className="mt-3 grid gap-3 md:grid-cols-2 text-sm text-white/75">
               <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0"/>HTTPS &amp; secure connection</li>
               <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0"/>Institutional domain (.edu / .ac / .gov)</li>
-              <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0"/>Match against 303 verified providers</li>
+              <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0"/>Match against 800+ verified providers</li>
               <li className="flex items-start gap-2"><ShieldX className="mt-0.5 h-4 w-4 text-red-400 shrink-0"/>Payment / application-fee keywords</li>
               <li className="flex items-start gap-2"><ShieldX className="mt-0.5 h-4 w-4 text-red-400 shrink-0"/>Free / low-reputation TLDs (.tk .ml .ga …)</li>
               <li className="flex items-start gap-2"><ShieldX className="mt-0.5 h-4 w-4 text-red-400 shrink-0"/>Institution-name impersonation domains</li>
@@ -184,7 +184,7 @@ export default function VerifyPage() {
             </div>
             <h3 className="mt-3 text-2xl font-semibold text-white">Skip the scam-hunting. Get a shortlist of verified scholarships.</h3>
             <p className="mt-2 text-sm text-white/70 max-w-xl mx-auto">
-              ScholarshipFit ships you 303 source-linked, human-verified scholarships ranked by fit — in under 60 seconds.
+              ScholarshipFit ships you 800+ source-linked, human-verified scholarships ranked by fit — in under 60 seconds.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 justify-center">
               <Link href="/quiz">

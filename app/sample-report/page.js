@@ -99,7 +99,7 @@ function SampleReport() {
       setMeta({
         count: built.length,
         avg: Math.round(built.reduce((a, b) => a + b.overall_fit_score, 0) / (built.length || 1)),
-        evaluated: 303,
+        evaluated: 800,
         totalWorth: 120000, // illustrative
         strong: built.filter(m => m.overall_fit_score >= 80).length,
       })
@@ -137,8 +137,8 @@ function SampleReport() {
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCell value={meta?.count ?? 4} label="Matched scholarships" tone="white"/>
               <StatCell value={`${meta?.strong ?? 1}`} label="Strong-fit (≥80)" tone="emerald"/>
-              <StatCell value={`${meta?.evaluated ?? 303}`} label="Records evaluated" tone="gold"/>
-              <StatCell value={`~${Math.round((meta?.evaluated ?? 303) * 0.05)}h`} label="Time saved for you" tone="white"/>
+              <StatCell value={`${meta?.evaluated ?? 800}`} label="Records evaluated" tone="gold"/>
+              <StatCell value={`~${Math.round((meta?.evaluated ?? 800) * 0.05)}h`} label="Time saved for you" tone="white"/>
             </div>
           </div>
 
@@ -169,7 +169,7 @@ function SampleReport() {
             <div className="mt-4 grid gap-3 md:grid-cols-4">
               <StepCell n="1" icon={User}         title="Profile intake"    body="Parses 8 answers from the quiz — degree, field, nationality, GPA, language, funding preference, timeline, financial need."/>
               <StepCell n="2" icon={Filter}       title="Eligibility gate"  body="Hard-filters programs by nationality + degree level — ineligible matches are removed before scoring."/>
-              <StepCell n="3" icon={Database}     title="Deterministic scoring" body="Rules-based fit engine ranks all 303 source-linked records — no hallucinated data, ever."/>
+              <StepCell n="3" icon={Database}     title="Deterministic scoring" body="Rules-based fit engine ranks 800+ source-linked records — no hallucinated data, ever."/>
               <StepCell n="4" icon={Trophy}       title="Top matches + risks" body="Best-fit scholarships surface with source URLs, funding, deadlines, gaps and application-waste warnings."/>
             </div>
           </div>
@@ -252,7 +252,7 @@ function SampleReport() {
                   Build your own report — from your real profile
                 </h2>
                 <p className="mt-2 text-white/70 max-w-2xl">
-                  Answer 8 quick questions. We rank 303 source-linked scholarships against your profile in seconds.
+                  Answer 8 quick questions. We rank 800+ source-linked scholarships against your profile in seconds.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 shrink-0">

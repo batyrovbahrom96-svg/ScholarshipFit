@@ -7,6 +7,7 @@ import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
 import FounderReservationModal from './FounderReservationModal'
 import UrgencyBanner from './UrgencyBanner'
+import GuaranteeBadge from './GuaranteeBadge'
 import { track } from '@/lib/analytics'
 import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
@@ -255,6 +256,11 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
                           ? 'No card today · locked-in launch price'
                           : 'No card today · we email you when payments open')
                       : trialNote}
+                  </div>
+
+                  {/* 7-day money-back guarantee — appears under every plan CTA */}
+                  <div className="mt-3">
+                    <GuaranteeBadge variant="card"/>
                   </div>
 
                   <ul className="mt-4 space-y-1.5 border-t border-white/5 pt-4">

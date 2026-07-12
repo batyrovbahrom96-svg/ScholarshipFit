@@ -7,6 +7,7 @@ import Footer from '@/components/site/Footer'
 import BottomCTA from '@/components/site/BottomCTA'
 import FounderReservationModal from '@/components/site/FounderReservationModal'
 import UrgencyBanner from '@/components/site/UrgencyBanner'
+import GuaranteeBadge from '@/components/site/GuaranteeBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -136,7 +137,7 @@ function Pricing() {
 
           {/* Feature strip */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
-            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 7-day free trial</span>
+            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400"/> 7-day money-back</span>
             <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Instant access</span>
             <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-[#D4AF37]"/> Cancel anytime</span>
             <span className="inline-flex items-center gap-1.5"><Trophy className="h-4 w-4 text-[#D4AF37]"/> 800+ real scholarships</span>
@@ -255,6 +256,11 @@ function Pricing() {
                       : trialNote}
                   </div>
 
+                  {/* 7-day money-back guarantee — under every plan CTA */}
+                  <div className="mt-3">
+                    <GuaranteeBadge variant="card"/>
+                  </div>
+
                   <ul className="mt-5 space-y-2 border-t border-white/5 pt-4 flex-1">
                     {p.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-white/80">
@@ -278,7 +284,7 @@ function Pricing() {
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70">
               <span className="inline-flex items-center gap-1.5"><Lock className="h-4 w-4 text-[#D4AF37]"/> Card required to start trial — never charged before day 7</span>
-              <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 14-day money-back guarantee after first paid charge</span>
+              <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400"/> 7-day money-back guarantee — no questions asked</span>
               <span className="inline-flex items-center gap-1.5"><CreditCard className="h-4 w-4 text-[#D4AF37]"/> All major cards · secure processor</span>
             </div>
           </div>

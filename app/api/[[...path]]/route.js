@@ -88,6 +88,13 @@ async function ensureSeed(db) {
     await uu.createIndex({ user_id: 1 }).catch(() => {})
   } catch (_) { /* ignore */ }
 
+  // ---------- Application tracker (Kanban) ----------
+  try {
+    const ap = db.collection('applications')
+    await ap.createIndex({ user_id: 1, status: 1, display_order: 1 }).catch(() => {})
+    await ap.createIndex({ user_id: 1, updated_at: -1 }).catch(() => {})
+  } catch (_) { /* ignore */ }
+
   // ---------- Grandfather existing users (one-shot) ----------
   // Anyone whose account was created before we introduced email verification
   // is automatically marked email_verified=true so they can keep logging in.
@@ -2507,8 +2514,137 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ ok: true, reminders_pref: clean }))
     }
 
+    // ============ Application Tracker (Kanban) ============
+    const TRACKER_STATUSES = ['saved', 'preparing', 'submitted', 'waiting', 'result']
+
+    if (route === '/applications' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const apps = await db.collection('applications')
+        .find({ user_id: user.id })
+        .sort({ status: 1, display_order: 1, created_at: -1 })
+        .project({ _id: 0 })
+        .toArray()
+      return withCORS(NextResponse.json({ applications: apps }))
+    }
+
+    // Auto-import: create tracker rows for every saved scholarship that isn't
+    // already in the tracker. Called once from the UI when the board is empty.
+    if (route === '/applications/import-saves' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const saves = await db.collection('saved_scholarships').find({ user_id: user.id }).toArray()
+      const existing = await db.collection('applications')
+        .find({ user_id: user.id, scholarship_id: { $in: saves.map(s => s.scholarship_id) } })
+        .project({ scholarship_id: 1 })
+        .toArray()
+      const existingSet = new Set(existing.map(e => e.scholarship_id))
+      const toCreate = saves.filter(s => !existingSet.has(s.scholarship_id))
+      const now = new Date()
+      const docs = toCreate.map((s, idx) => ({
+        id: uuidv4(),
+        user_id: user.id,
+        scholarship_id: s.scholarship_id,
+        scholarship_slug: s.scholarship_slug || null,
+        scholarship_name: s.scholarship_name || 'Untitled scholarship',
+        scholarship_provider: s.scholarship_provider || '',
+        scholarship_url: s.scholarship_url || '',
+        deadline_date: s.deadline_date || null,
+        status: 'saved',
+        result: null,
+        notes: '',
+        submitted_date: null,
+        result_date: null,
+        display_order: idx,
+        created_at: now,
+        updated_at: now,
+      }))
+      if (docs.length) await db.collection('applications').insertMany(docs)
+      return withCORS(NextResponse.json({ ok: true, imported: docs.length }))
+    }
+
+    if (route === '/applications/create' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const b = await request.json().catch(() => ({}))
+      const status = TRACKER_STATUSES.includes(b.status) ? b.status : 'saved'
+      const name   = String(b.scholarship_name || '').trim().slice(0, 300)
+      if (!name) return withCORS(NextResponse.json({ error: 'scholarship_name required' }, { status: 400 }))
+
+      // Compute display_order = max + 1 within the column
+      const last = await db.collection('applications')
+        .find({ user_id: user.id, status })
+        .sort({ display_order: -1 })
+        .limit(1).toArray()
+      const nextOrder = (last[0]?.display_order || 0) + 1
+
+      const doc = {
+        id: uuidv4(),
+        user_id: user.id,
+        scholarship_id:       b.scholarship_id || null,
+        scholarship_slug:     b.scholarship_slug || null,
+        scholarship_name:     name,
+        scholarship_provider: String(b.scholarship_provider || '').slice(0, 200),
+        scholarship_url:      String(b.scholarship_url || '').slice(0, 500),
+        deadline_date:        b.deadline_date ? new Date(b.deadline_date) : null,
+        status,
+        result:               null,
+        notes:                String(b.notes || '').slice(0, 4000),
+        submitted_date:       null,
+        result_date:          null,
+        display_order:        nextOrder,
+        created_at:           new Date(),
+        updated_at:           new Date(),
+      }
+      await db.collection('applications').insertOne(doc)
+      const { _id, ...clean } = doc
+      return withCORS(NextResponse.json({ ok: true, application: clean }))
+    }
+
+    if (route.startsWith('/applications/') && (method === 'PATCH' || method === 'PUT')) {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const id = route.split('/')[2]
+      if (!id) return withCORS(NextResponse.json({ error: 'id required' }, { status: 400 }))
+      const b = await request.json().catch(() => ({}))
+      const update = { updated_at: new Date() }
+      if (b.status !== undefined) {
+        if (!TRACKER_STATUSES.includes(b.status)) return withCORS(NextResponse.json({ error: 'Invalid status' }, { status: 400 }))
+        update.status = b.status
+        // When moving to submitted, auto-stamp submitted_date if not set
+        if (b.status === 'submitted') update.submitted_date = update.submitted_date || new Date()
+        if (b.status === 'result')    update.result_date    = update.result_date || new Date()
+      }
+      if (b.result !== undefined) {
+        const allowed = [null, 'accepted', 'rejected', 'waitlisted', 'withdrawn']
+        if (!allowed.includes(b.result)) return withCORS(NextResponse.json({ error: 'Invalid result' }, { status: 400 }))
+        update.result = b.result
+      }
+      if (b.notes !== undefined)          update.notes = String(b.notes).slice(0, 4000)
+      if (b.deadline_date !== undefined)  update.deadline_date = b.deadline_date ? new Date(b.deadline_date) : null
+      if (b.submitted_date !== undefined) update.submitted_date = b.submitted_date ? new Date(b.submitted_date) : null
+      if (b.result_date !== undefined)    update.result_date = b.result_date ? new Date(b.result_date) : null
+      if (b.display_order !== undefined)  update.display_order = Number(b.display_order) || 0
+
+      const res = await db.collection('applications').updateOne(
+        { id, user_id: user.id },
+        { $set: update },
+      )
+      if (res.matchedCount === 0) return withCORS(NextResponse.json({ error: 'Not found' }, { status: 404 }))
+      const app = await db.collection('applications').findOne({ id, user_id: user.id }, { projection: { _id: 0 } })
+      return withCORS(NextResponse.json({ ok: true, application: app }))
+    }
+
+    if (route.startsWith('/applications/') && method === 'DELETE') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const id = route.split('/')[2]
+      if (!id) return withCORS(NextResponse.json({ error: 'id required' }, { status: 400 }))
+      await db.collection('applications').deleteOne({ id, user_id: user.id })
+      return withCORS(NextResponse.json({ ok: true }))
+    }
+
     // /unsubscribe/:token — one-click unsubscribe from all deadline reminders
-    // Accepts GET (so we can put it in emails directly) and returns a small HTML page.
     if (route.startsWith('/unsubscribe/') && method === 'GET') {
       const token = route.split('/')[2] || ''
       const rec = await db.collection('unsubscribe_tokens').findOne({ token })

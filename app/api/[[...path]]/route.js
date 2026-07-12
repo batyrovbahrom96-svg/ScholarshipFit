@@ -73,6 +73,21 @@ async function ensureSeed(db) {
     await pr.createIndex({ email: 1 }).catch(() => {})
   } catch (_) { /* ignore */ }
 
+  // ---------- Saved scholarships (deadline-reminder source of truth) ----------
+  try {
+    const ss = db.collection('saved_scholarships')
+    await ss.createIndex({ user_id: 1, scholarship_id: 1 }, { unique: true }).catch(() => {})
+    await ss.createIndex({ user_id: 1 }).catch(() => {})
+    await ss.createIndex({ deadline_date: 1 }).catch(() => {})
+  } catch (_) { /* ignore */ }
+
+  // ---------- Reminder-unsubscribe tokens ----------
+  try {
+    const uu = db.collection('unsubscribe_tokens')
+    await uu.createIndex({ token: 1 }, { unique: true }).catch(() => {})
+    await uu.createIndex({ user_id: 1 }).catch(() => {})
+  } catch (_) { /* ignore */ }
+
   // ---------- Grandfather existing users (one-shot) ----------
   // Anyone whose account was created before we introduced email verification
   // is automatically marked email_verified=true so they can keep logging in.
@@ -2392,9 +2407,129 @@ Respond with STRICT JSON in this schema:
       if (!scholarship_id) return withCORS(NextResponse.json({ error: 'scholarship_id required' }, { status: 400 }))
       const favs = (user.cabinet?.favorites || [])
       const idx = favs.indexOf(scholarship_id)
-      if (idx === -1) favs.push(scholarship_id); else favs.splice(idx, 1)
+      const isAdding = idx === -1
+      if (isAdding) favs.push(scholarship_id); else favs.splice(idx, 1)
       await db.collection('users').updateOne({ id: user.id }, { $set: { 'cabinet.favorites': favs, updated_at: new Date() } })
-      return withCORS(NextResponse.json({ ok: true, favorites: favs, added: idx === -1 }))
+
+      // Mirror into saved_scholarships collection so the reminder cron has
+      // rich per-save data (deadline_date, reminders_sent, etc.)
+      const ssCol = db.collection('saved_scholarships')
+      if (isAdding) {
+        const sch = await db.collection('scholarships').findOne({ id: scholarship_id })
+        if (sch) {
+          await ssCol.updateOne(
+            { user_id: user.id, scholarship_id },
+            { $setOnInsert: {
+                id: uuidv4(),
+                user_id: user.id,
+                scholarship_id,
+                scholarship_slug: sch.slug || null,
+                scholarship_name: sch.scholarship_name || 'Scholarship',
+                scholarship_provider: sch.university_name || '',
+                scholarship_url: sch.application_link || sch.source_url || '',
+                deadline_date: null,
+                reminders_enabled: true,
+                reminders_sent: { '30': null, '14': null, '7': null, '1': null },
+                created_at: new Date(),
+              },
+              $set: { updated_at: new Date() },
+            },
+            { upsert: true },
+          )
+        }
+      } else {
+        await ssCol.deleteOne({ user_id: user.id, scholarship_id })
+      }
+      return withCORS(NextResponse.json({ ok: true, favorites: favs, added: isAdding }))
+    }
+
+    // /cabinet/saves — list saved scholarships with full reminder data
+    if (route === '/cabinet/saves' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const saves = await db.collection('saved_scholarships')
+        .find({ user_id: user.id })
+        .sort({ deadline_date: 1, created_at: -1 })
+        .project({ _id: 0 })
+        .toArray()
+      return withCORS(NextResponse.json({ saves, reminders_pref: user.reminders_pref || 'on' }))
+    }
+
+    // /cabinet/set-deadline — user sets or updates the deadline for a saved scholarship
+    if (route === '/cabinet/set-deadline' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const { scholarship_id, deadline_date } = await request.json().catch(() => ({}))
+      if (!scholarship_id) return withCORS(NextResponse.json({ error: 'scholarship_id required' }, { status: 400 }))
+      let parsedDate = null
+      if (deadline_date) {
+        const d = new Date(deadline_date)
+        if (Number.isNaN(d.getTime())) return withCORS(NextResponse.json({ error: 'Invalid date' }, { status: 400 }))
+        if (d.getTime() < Date.now()) return withCORS(NextResponse.json({ error: 'Deadline must be in the future' }, { status: 400 }))
+        parsedDate = d
+      }
+      const res = await db.collection('saved_scholarships').updateOne(
+        { user_id: user.id, scholarship_id },
+        { $set: {
+            deadline_date: parsedDate,
+            // Reset any previously-sent reminders when the deadline changes
+            reminders_sent: { '30': null, '14': null, '7': null, '1': null },
+            updated_at: new Date(),
+          } },
+      )
+      if (res.matchedCount === 0) return withCORS(NextResponse.json({ error: 'You have not saved this scholarship yet.' }, { status: 404 }))
+      return withCORS(NextResponse.json({ ok: true, deadline_date: parsedDate }))
+    }
+
+    // /cabinet/toggle-reminders — per-save on/off toggle
+    if (route === '/cabinet/toggle-reminders' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const { scholarship_id, enabled } = await request.json().catch(() => ({}))
+      if (!scholarship_id) return withCORS(NextResponse.json({ error: 'scholarship_id required' }, { status: 400 }))
+      await db.collection('saved_scholarships').updateOne(
+        { user_id: user.id, scholarship_id },
+        { $set: { reminders_enabled: !!enabled, updated_at: new Date() } },
+      )
+      return withCORS(NextResponse.json({ ok: true, reminders_enabled: !!enabled }))
+    }
+
+    // /user/reminders-pref — global on/off for the current user
+    if (route === '/user/reminders-pref' && method === 'POST') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const { pref } = await request.json().catch(() => ({}))
+      const clean = ['on', 'off'].includes(pref) ? pref : 'on'
+      await db.collection('users').updateOne(
+        { id: user.id },
+        { $set: { reminders_pref: clean, updated_at: new Date() } },
+      )
+      return withCORS(NextResponse.json({ ok: true, reminders_pref: clean }))
+    }
+
+    // /unsubscribe/:token — one-click unsubscribe from all deadline reminders
+    // Accepts GET (so we can put it in emails directly) and returns a small HTML page.
+    if (route.startsWith('/unsubscribe/') && method === 'GET') {
+      const token = route.split('/')[2] || ''
+      const rec = await db.collection('unsubscribe_tokens').findOne({ token })
+      if (!rec) {
+        return new NextResponse(
+          `<!doctype html><html><body style="font-family:sans-serif;background:#0a0a0a;color:#fff;padding:40px;text-align:center;"><h2>Link invalid or expired</h2><p style="color:#888">If you'd like to turn off reminders, <a style="color:#D4AF37" href="/dashboard">sign in and use your settings</a>.</p></body></html>`,
+          { status: 400, headers: { 'Content-Type': 'text/html' } },
+        )
+      }
+      await db.collection('users').updateOne(
+        { id: rec.user_id },
+        { $set: { reminders_pref: 'off', updated_at: new Date() } },
+      )
+      return new NextResponse(
+        `<!doctype html><html><body style="font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;padding:60px 20px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#D4AF37;">ScholarshipFit<span style="color:#fff">.com</span></div>
+          <h1 style="margin-top:24px;font-size:26px;">You're unsubscribed</h1>
+          <p style="color:rgba(255,255,255,0.65);max-width:480px;margin:16px auto;line-height:1.5;">We won't send you any more deadline reminder emails. You can turn them back on any time from your <a style="color:#D4AF37" href="/dashboard">dashboard settings</a>.</p>
+        </body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } },
+      )
     }
 
     if (route === '/cabinet/search' && method === 'POST') {

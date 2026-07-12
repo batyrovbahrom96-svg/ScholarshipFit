@@ -82,7 +82,6 @@ To hit 2,000+ scholarships, add more scraper modules in `/app/lib/scrapers/`:
 Each new scraper is a single file in `/app/lib/scrapers/` following the pattern of `chevening.js`. Register it in `/app/lib/scrapers/index.js` — the orchestrator picks it up automatically.
 
 ## Backup plan (if cron-job.org is down)
-
 Alternatives that work with our endpoint (no code change needed):
 - **EasyCron** (https://easycron.com) — free tier, more reliable SLA
 - **UptimeRobot** monitor — set as a "keyword" monitor hitting the URL, effectively acts as a cron

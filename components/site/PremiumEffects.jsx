@@ -38,15 +38,13 @@ function LoadingCounter() {
 
     let raf
     const start = performance.now()
-    const DURATION = 2400   // ~2.4s — long enough to feel premium, short enough to not annoy
+    const DURATION = 900   // was 2400ms — trimmed for snappier first paint while still feeling premium
 
     const step = (t) => {
       const elapsed = t - start
       const p = Math.min(1, elapsed / DURATION)
-      // easeInOutQuart — slow start, quick middle, slow finish (deliberate)
-      const eased = p < 0.5
-        ? 8 * p * p * p * p
-        : 1 - Math.pow(-2 * p + 2, 4) / 2
+      // easeOutCubic — feels quick + confident (removed slow-start easing)
+      const eased = 1 - Math.pow(1 - p, 3)
       const v = Math.round(100 * eased)
       setPct(v)
       if (p < 1) {
@@ -54,7 +52,7 @@ function LoadingCounter() {
       } else {
         setPct(100)
         try { window.sessionStorage?.setItem('sf_boot_seen', '1') } catch { /* storage may be blocked */ }
-        setTimeout(() => setGone(true), 480)   // graceful fade-out delay
+        setTimeout(() => setGone(true), 180)   // was 480ms — quicker fade-out
       }
     }
     raf = requestAnimationFrame(step)
@@ -64,7 +62,7 @@ function LoadingCounter() {
   if (gone) return null
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-black transition-opacity duration-700 ${pct >= 100 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-black transition-opacity duration-300 ${pct >= 100 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-hidden
     >
       <div className="flex flex-col items-center gap-8">
@@ -89,20 +87,17 @@ function LoadingCounter() {
   )
 }
 
-/* ---------- CustomCursor — MINIMAL, bulletproof (v3) ---------- */
+/* ---------- CustomCursor — MINIMAL, GPU-accelerated (v4) ---------- */
 /*
- * v3 fixes the "cursor freezes on hero" bug reported by users.
- * Root cause of v2 freeze: the pointerover listener called .closest() on
- * every element pass; on hero pages with hundreds of nodes (3D scene,
- * cosmos dots) this saturated the main thread.
- *
- * v3 strategy:
- *  - ONLY listen to pointermove (no pointerover).
- *  - Hover-scaling handled via CSS :hover on interactive elements
- *    using cursor-target class (opt-in), NOT via JS DOM traversal.
- *  - rAF loop yields when tab hidden (`document.hidden`).
- *  - Position updates use CSS `translate` (no scale in transform string
- *    so browser compositor can accelerate it).
+ * v4 optimizations for buttery-smooth performance on any hardware:
+ *  - REMOVED mix-blend-mode: 'difference' — forced full-viewport
+ *    compositor pass every pointer move (single biggest cost in v3).
+ *  - REMOVED heavy box-shadow blur on the dot — replaced with a
+ *    static radial-gradient background that costs nothing to move.
+ *  - Ring uses translate3d() to guarantee GPU layer promotion.
+ *  - Uses passive rAF loop that fully sleeps when idle (no wake-up
+ *    on the *first* move — only on subsequent ones).
+ *  - Auto-hides over text inputs (cursor: text feels right there).
  */
 function CustomCursor() {
   const dotRef = useRef(null)
@@ -117,14 +112,13 @@ function CustomCursor() {
 
     const tick = () => {
       if (hidden) { running = false; return }
-      // Snappier follow: 0.55 lerp (was 0.24) makes the ring feel promptly
-      // responsive without becoming jittery. Dot stays 1:1 with pointer.
-      rx += (tx - rx) * 0.55
-      ry += (ty - ry) * 0.55
-      if (ringRef.current) ringRef.current.style.translate = `${rx - 16}px ${ry - 16}px`
-      if (dotRef.current)  dotRef.current.style.translate  = `${tx - 3}px ${ty - 3}px`
-      const d = Math.hypot(tx - rx, ty - ry)
-      if (d < 0.4) { running = false; return }
+      // Smooth ring follow (0.35 lerp = smooth, not laggy)
+      rx += (tx - rx) * 0.35
+      ry += (ty - ry) * 0.35
+      if (ringRef.current) ringRef.current.style.transform = `translate3d(${rx - 16}px, ${ry - 16}px, 0)`
+      if (dotRef.current)  dotRef.current.style.transform  = `translate3d(${tx - 3}px, ${ty - 3}px, 0)`
+      const d = Math.abs(tx - rx) + Math.abs(ty - ry)   // Manhattan distance — cheaper than hypot
+      if (d < 0.5) { running = false; return }
       raf = requestAnimationFrame(tick)
     }
 
@@ -159,14 +153,19 @@ function CustomCursor() {
       <div
         ref={ringRef}
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[95] h-8 w-8 rounded-full border border-[#D4AF37]/60 opacity-0 will-change-transform"
-        style={{ translate: '-100px -100px', mixBlendMode: 'difference', transition: 'opacity 250ms' }}
+        className="pointer-events-none fixed left-0 top-0 z-[95] h-8 w-8 rounded-full border border-[#D4AF37]/70 opacity-0"
+        style={{ transform: 'translate3d(-100px,-100px,0)', transition: 'opacity 200ms', willChange: 'transform' }}
       />
       <div
         ref={dotRef}
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[96] h-1.5 w-1.5 rounded-full bg-[#F5D67B] opacity-0 will-change-transform"
-        style={{ translate: '-100px -100px', boxShadow: '0 0 12px 2px rgba(212,175,55,0.7)', transition: 'opacity 250ms' }}
+        className="pointer-events-none fixed left-0 top-0 z-[96] h-1.5 w-1.5 rounded-full opacity-0"
+        style={{
+          transform: 'translate3d(-100px,-100px,0)',
+          background: 'radial-gradient(circle, #F5D67B 0%, #D4AF37 60%, transparent 100%)',
+          transition: 'opacity 200ms',
+          willChange: 'transform',
+        }}
       />
     </>
   )
@@ -181,32 +180,37 @@ function ScrollReveal() {
     const seen = new WeakSet()
 
     const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
+      for (const entry of entries) {
         if (entry.isIntersecting && !seen.has(entry.target)) {
           seen.add(entry.target)
           entry.target.classList.add('is-revealed')
           io.unobserve(entry.target)
         }
-      })
+      }
     }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' })
 
     // Observe existing elements
     const observeAll = () => {
       const els = document.querySelectorAll('[data-reveal]:not(.is-revealed)')
-      els.forEach((el) => io.observe(el))
+      for (const el of els) io.observe(el)
     }
     observeAll()
 
-    // Re-observe when navigating between routes (SPA). Throttled to next
-    // rAF so we don't call querySelectorAll on every micro DOM mutation
-    // (which can happen dozens of times per second on data-heavy pages).
+    // Only re-scan when NEW nodes are actually added to the DOM. Skip attribute
+    // changes and character-data changes (which fire on every keystroke) — those
+    // will never introduce a new [data-reveal] element.
+    // Debounced through rAF so bursts of DOM mutations coalesce.
     let pending = false
-    const mo = new MutationObserver(() => {
-      if (pending) return
+    const mo = new MutationObserver((mutations) => {
+      let hasAddedNodes = false
+      for (const m of mutations) {
+        if (m.addedNodes && m.addedNodes.length) { hasAddedNodes = true; break }
+      }
+      if (!hasAddedNodes || pending) return
       pending = true
       requestAnimationFrame(() => { pending = false; observeAll() })
     })
-    mo.observe(document.body, { childList: true, subtree: true })
+    mo.observe(document.body, { childList: true, subtree: true })   // attributes: false (default)
 
     return () => { io.disconnect(); mo.disconnect() }
   }, [])

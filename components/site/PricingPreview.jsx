@@ -6,8 +6,8 @@ import { Check, Sparkles, ArrowRight, ShieldCheck, Clock, Star, Crown } from 'lu
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useRegionalPricing } from '@/hooks/use-regional-pricing'
 
-/* Compact landing-page pricing preview — 4 tiers (Monthly / Quarterly /
-   Half-Yearly / Lifetime), with regional pricing auto-applied. */
+/* Compact landing-page pricing preview — 3 tiers (Monthly / Annual /
+   Lifetime), with regional pricing auto-applied. */
 export default function PricingPreview() {
   const router = useRouter()
   const { region, priceFor } = useRegionalPricing()
@@ -35,8 +35,8 @@ export default function PricingPreview() {
           )}
         </div>
 
-        {/* 4-card grid */}
-        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-reveal data-reveal-delay="200">
+        {/* 3-card grid */}
+        <div className="mt-10 grid gap-4 md:grid-cols-3" data-reveal data-reveal-delay="200">
           {SUBSCRIPTION_PLANS.map(p => {
             const accent = accentClasses(p.accent)
             const isLifetime = p.tier_type === 'lifetime'

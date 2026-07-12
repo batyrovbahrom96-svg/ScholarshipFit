@@ -1441,8 +1441,8 @@ Respond with STRICT JSON in this schema:
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return withCORS(NextResponse.json({ error: 'Valid email required' }, { status: 400 }))
       }
-      // Accept legacy tiers (pro/elite) and new length-based plans (monthly/quarterly/half_yearly/lifetime)
-      const VALID_TIERS = ['pro', 'elite', 'monthly', 'quarterly', 'half_yearly', 'lifetime']
+      // Accept legacy tiers (pro/elite, quarterly/half_yearly for existing subs) and current plans (monthly/annual/lifetime)
+      const VALID_TIERS = ['pro', 'elite', 'monthly', 'annual', 'lifetime', 'quarterly', 'half_yearly']
       if (!VALID_TIERS.includes(tier)) {
         return withCORS(NextResponse.json({ error: 'Invalid tier' }, { status: 400 }))
       }
@@ -2076,20 +2076,20 @@ Respond with STRICT JSON in this schema:
       const tier = tierForCountry(detected)
       // Plan catalogue: price = amount charged in the billing cycle, days = cycle length,
       // monthly_rate = effective $/mo shown to user. trial_days = 7-day free trial (except lifetime).
-      // NEW 2026-07 pricing (length-based):
-      //   monthly     = $14.99 / 30d  (7-day trial)
-      //   quarterly   = $29    / 90d  (7-day trial)
-      //   half_yearly = $49    / 180d (7-day trial)
-      //   lifetime    = $79    forever (no trial — one-time)
+      // 2026 pricing (3 tiers — length-based):
+      //   monthly  = $14.99 / 30d   (7-day trial)
+      //   annual   = $89    / 365d  (7-day trial, save 51%)
+      //   lifetime = $249   forever (no trial — one-time)
       const PLAN_CATALOGUE = {
-        monthly:     { price: 14.99, days: 30,  monthly_rate: 14.99, trial_days: 7 },
-        quarterly:   { price: 29,    days: 90,  monthly_rate: 9.67,  trial_days: 7 },
-        half_yearly: { price: 49,    days: 180, monthly_rate: 8.17,  trial_days: 7 },
-        lifetime:    { price: 79,    days: null, monthly_rate: 0,    trial_days: 0 },
+        monthly:     { price: 14.99, days: 30,   monthly_rate: 14.99, trial_days: 7 },
+        annual:      { price: 89,    days: 365,  monthly_rate: 7.42,  trial_days: 7 },
+        lifetime:    { price: 249,   days: null, monthly_rate: 0,     trial_days: 0 },
         // Legacy plan keys (kept for backward compatibility with old tests / URLs / active subs).
-        vip:         { price: 69,    days: 30,  monthly_rate: 69,    trial_days: 0 },
-        pro:         { price: 9,     days: 30,  monthly_rate: 9,     trial_days: 0 },
-        elite:       { price: 24,    days: 30,  monthly_rate: 24,    trial_days: 0 },
+        quarterly:   { price: 29,    days: 90,   monthly_rate: 9.67,  trial_days: 7 },
+        half_yearly: { price: 49,    days: 180,  monthly_rate: 8.17,  trial_days: 7 },
+        vip:         { price: 69,    days: 30,   monthly_rate: 69,    trial_days: 0 },
+        pro:         { price: 9,     days: 30,   monthly_rate: 9,     trial_days: 0 },
+        elite:       { price: 24,    days: 30,   monthly_rate: 24,    trial_days: 0 },
       }
       const cfg = PLAN_CATALOGUE[plan]
       if (!cfg) {
@@ -2220,9 +2220,11 @@ Respond with STRICT JSON in this schema:
         }
         const PRICES = {
           monthly:     process.env.PADDLE_PRICE_MONTHLY,
+          annual:      process.env.PADDLE_PRICE_ANNUAL,
+          lifetime:    process.env.PADDLE_PRICE_LIFETIME,
+          // legacy — kept in case old checkout links exist
           quarterly:   process.env.PADDLE_PRICE_QUARTERLY,
           half_yearly: process.env.PADDLE_PRICE_HALF_YEARLY,
-          lifetime:    process.env.PADDLE_PRICE_LIFETIME,
         }
         const priceId = PRICES[planKey]
         if (!priceId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
@@ -2314,9 +2316,11 @@ Respond with STRICT JSON in this schema:
 
       const VARIANTS = {
         monthly:     process.env.LS_VARIANT_MONTHLY,
+        annual:      process.env.LS_VARIANT_ANNUAL,
+        lifetime:    process.env.LS_VARIANT_LIFETIME,
+        // legacy — kept for backward compat
         quarterly:   process.env.LS_VARIANT_QUARTERLY,
         half_yearly: process.env.LS_VARIANT_HALF_YEARLY,
-        lifetime:    process.env.LS_VARIANT_LIFETIME,
       }
       const variantId = VARIANTS[planKey]
       if (!variantId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))

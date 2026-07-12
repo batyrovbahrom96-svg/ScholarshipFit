@@ -40,7 +40,7 @@ const ROWS = [
     sfNote:  'Deterministic fit scoring per your country, degree, GPA, funding needs.' },
   { dim: 'Cost predictability for students', gpt: false, sf: true,
     gptNote: '$20/mo — and you still have to research, compare, and remember everything.',
-    sfNote:  'From $8.17/mo effective. Founder pricing locked in for life if you reserve early.' },
+    sfNote:  'From $7.42/mo effective. Founder pricing locked in for life if you reserve early.' },
   { dim: 'Deep vertical training on scholarships', gpt: false, sf: true,
     gptNote: 'General model — 0.001% of its training was scholarship-specific.',
     sfNote:  'Every prompt template, guardrail, and dataset is tuned for international students.' },

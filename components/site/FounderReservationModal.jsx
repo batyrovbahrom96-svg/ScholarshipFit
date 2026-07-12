@@ -43,7 +43,7 @@ export default function FounderReservationModal({ plan, source = 'paywall', onCl
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: eff,
-          tier:  plan.key,             // 'monthly' | 'quarterly' | 'half_yearly' | 'lifetime'
+          tier:  plan.key,             // 'monthly' | 'annual' | 'lifetime'
           cycle: plan.key,
           founder_price_monthly: plan.display_price,
           founder_price_yearly:  plan.total_charge,

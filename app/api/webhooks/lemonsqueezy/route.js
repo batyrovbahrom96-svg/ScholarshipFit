@@ -57,9 +57,11 @@ function mapStatus(lsStatus) {
 // stamp price_usd / expires_at from the webhook if LS didn't include it).
 const PLAN_META = {
   monthly:     { price_usd: 14.99, days: 30 },
+  annual:      { price_usd: 89,    days: 365 },
+  lifetime:    { price_usd: 249,   days: null },
+  // legacy — decoded for any still-active subs from old catalogue
   quarterly:   { price_usd: 29,    days: 90 },
   half_yearly: { price_usd: 49,    days: 180 },
-  lifetime:    { price_usd: 79,    days: null },
 }
 
 export async function POST(request) {

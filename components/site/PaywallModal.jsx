@@ -27,7 +27,7 @@ const TRUST_BADGES = [
 // PaywallModal — 4-tier length-based pricing with 7-day free trial (card capture).
 // Backed by SUBSCRIPTION_PLANS in /lib/pricing-plans.js.
 // -----------------------------------------------------------------------------
-export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth = 0, initialPlan = 'quarterly' }) {
+export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth = 0, initialPlan = 'annual' }) {
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState(initialPlan)
   const [activatingKey, setActivatingKey] = useState('')

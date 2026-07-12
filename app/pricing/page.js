@@ -23,8 +23,8 @@ const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'preorder'
 const IS_PREORDER = PAYMENT_MODE !== 'live'
 
 /* ==========================================================================
-   /pricing — Length-based 4-tier pricing (2026-07 reset)
-   Monthly / Quarterly / Half-Yearly / Lifetime · 7-day free trial (card required)
+   /pricing — Length-based 3-tier pricing (2026 reset)
+   Monthly / Annual / Lifetime · 7-day free trial (card required, except lifetime)
    ========================================================================== */
 
 function accentClasses(accent) {
@@ -294,13 +294,13 @@ function Pricing() {
         <div className="container mx-auto max-w-5xl px-4 py-12">
           <h2 className="text-center text-3xl md:text-4xl font-semibold text-white">How the 7-day trial works</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-4">
-            <TrialStep n="1" title="Pick a plan" body="Choose Monthly, Quarterly, Half-Yearly or Lifetime. Bigger commitment = lower monthly rate."/>
+            <TrialStep n="1" title="Pick a plan" body="Choose Monthly, Annual, or Lifetime. Bigger commitment = lower effective rate."/>
             <TrialStep n="2" title="Add your card" body="Card is captured but NOT charged. Required to prevent trial abuse."/>
             <TrialStep n="3" title="7 days of full access" body="Every match, every AI report, every feature — unlocked instantly."/>
             <TrialStep n="4" title="First charge on day 7" body="Cancel before day 7 from your Command Center — you pay nothing."/>
           </div>
           <p className="mt-6 text-center text-xs text-white/50">
-            Lifetime VIP is a one-time $79 payment — instant activation, no trial, never renews.
+            Lifetime VIP is a one-time $249 payment — instant activation, no trial, never renews.
           </p>
         </div>
 
@@ -314,35 +314,33 @@ function Pricing() {
                 <tr className="text-left text-white/60 border-b border-white/10">
                   <th className="p-4 md:p-5 font-medium">Feature</th>
                   <th className="p-4 md:p-5 font-medium text-center">Monthly</th>
-                  <th className="p-4 md:p-5 font-medium text-center text-emerald-300">Quarterly</th>
-                  <th className="p-4 md:p-5 font-medium text-center text-[#D4AF37]">Half-Yearly</th>
+                  <th className="p-4 md:p-5 font-medium text-center text-[#D4AF37]">Annual</th>
                   <th className="p-4 md:p-5 font-medium text-center text-[#D4AF37]">Lifetime</th>
                 </tr>
               </thead>
               <tbody className="[&>tr]:border-t [&>tr]:border-white/5">
                 {[
-                  ['Unlock all 800+ hand-verified scholarships', '✓', '✓', '✓', '✓'],
-                  ['Unlimited AI Match reports',       '✓', '✓', '✓', '✓'],
-                  ['Application Readiness Score',      '✓', '✓', '✓', '✓'],
-                  ['Cabinet + Tracker + PDF export',   '✓', '✓', '✓', '✓'],
-                  ['Nova AI advisor · 24/7 chat',       '✓', '✓', '✓', '✓'],
-                  ['Deadline reminders (email)',       '✓', '✓', '✓', '✓'],
-                  ['New scholarships every week',      '✓', '✓', '✓', '✓'],
-                  ['Priority support',                 '✓', '✓', '✓', '✓'],
-                  ['Founding-member badge',            '—', '—', '—', '✓'],
-                  ['Direct DM to founding team',       '—', '—', '—', '✓'],
-                  ['48h early access to new listings', '—', '—', '—', '✓'],
-                  ['1 essay professionally reviewed / yr', '—', '—', '—', '✓'],
-                  ['30% refer-a-friend for life',      '—', '—', '—', '✓'],
-                  ['Locked-in price forever',          '—', '—', '—', '✓'],
-                  ['Effective $/month',                '$14.99', '$9.67', '$8.17', '$0 after payoff'],
-                ].map(([label, a, b, c, d], i) => (
+                  ['Unlock all 800+ hand-verified scholarships', '✓', '✓', '✓'],
+                  ['Unlimited AI Match reports',       '✓', '✓', '✓'],
+                  ['Application Readiness Score',      '✓', '✓', '✓'],
+                  ['Cabinet + Tracker + PDF export',   '✓', '✓', '✓'],
+                  ['Nova AI advisor · 24/7 chat',       '✓', '✓', '✓'],
+                  ['Deadline reminders (email)',       '✓', '✓', '✓'],
+                  ['New scholarships every week',      '✓', '✓', '✓'],
+                  ['Priority support',                 '✓', '✓', '✓'],
+                  ['Founding-member badge',            '—', '—', '✓'],
+                  ['Direct DM to founding team',       '—', '—', '✓'],
+                  ['48h early access to new listings', '—', '—', '✓'],
+                  ['1 essay professionally reviewed / yr', '—', '—', '✓'],
+                  ['30% refer-a-friend for life',      '—', '—', '✓'],
+                  ['Locked-in price forever',          '—', '—', '✓'],
+                  ['Effective $/month',                '$14.99', '$7.42', '$0 after payoff'],
+                ].map(([label, a, b, c], i) => (
                   <tr key={i} className="text-white/85">
                     <td className="p-4 md:p-5">{label}</td>
                     <td className="p-4 md:p-5 text-center">{a}</td>
-                    <td className="p-4 md:p-5 text-center bg-emerald-500/[0.04]">{b}</td>
-                    <td className="p-4 md:p-5 text-center bg-[#D4AF37]/[0.03]">{c}</td>
-                    <td className="p-4 md:p-5 text-center bg-[#D4AF37]/[0.05] text-[#D4AF37] font-medium">{d}</td>
+                    <td className="p-4 md:p-5 text-center bg-[#D4AF37]/[0.05]">{b}</td>
+                    <td className="p-4 md:p-5 text-center bg-[#D4AF37]/[0.08] text-[#D4AF37] font-medium">{c}</td>
                   </tr>
                 ))}
               </tbody>
@@ -357,12 +355,12 @@ function Pricing() {
             {[
               ['Am I charged during the 7-day trial?',
                'No. We collect your card to prevent trial abuse but you\u2019re not charged until day 7. Cancel any time before day 7 from your Command Center and you owe nothing.'],
-              ['Why is Lifetime cheaper per-month than every other plan?',
-               'Because Lifetime is a one-time launch offer for founding members. It exists to help us fund the platform in the early days. We\u2019ll remove it once we reach 500 sales.'],
+              ['Why is Lifetime the best long-term deal?',
+               'A one-time $249 payment pays for itself vs. Annual in ~2.8 years — and you never renew again. It also unlocks founder-only perks (badge, direct DM to team, 48h early access, 1 essay review/yr).'],
               ['Can I switch plans later?',
-               'Yes. You can upgrade to a longer plan (Monthly → Quarterly → Half-Yearly → Lifetime) any time from your account. Downgrades apply at the next billing cycle.'],
-              ['What happens after my Quarterly / Half-Yearly cycle ends?',
-               'Auto-renews at the same rate. Cancel any time — access continues until the paid period ends.'],
+               'Yes. You can upgrade Monthly → Annual → Lifetime any time from your Command Center. Downgrades apply at the next billing cycle.'],
+              ['What happens after my Annual cycle ends?',
+               'Auto-renews at the same $89/year rate. Cancel any time — access continues until the paid period ends.'],
               ['Which countries can pay?',
                'All 195+ countries supported by our payment processor. VAT/GST handled automatically. No hidden fees.'],
               ['What\u2019s the refund policy?',

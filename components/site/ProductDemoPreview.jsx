@@ -169,7 +169,7 @@ export default function ProductDemoPreview() {
 
               <div className="mt-auto rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/[0.05] p-3">
                 <div className="text-[10px] uppercase tracking-widest text-[#D4AF37]">Founder pricing</div>
-                <div className="mt-1 text-[12px] text-white/70 leading-relaxed">Lock in $8.17/mo forever — 68% off after launch.</div>
+                <div className="mt-1 text-[12px] text-white/70 leading-relaxed">Lock in $7.42/mo forever — 68% off after launch.</div>
               </div>
             </aside>
 

@@ -17,9 +17,11 @@ const IS_PREORDER = PAYMENT_MODE !== 'live'
 
 const PLAN_LABEL = {
   monthly:     'Monthly',
-  quarterly:   'Quarterly',
-  half_yearly: 'Half-Yearly',
+  annual:      'Annual',
   lifetime:    'Lifetime VIP',
+  // Legacy — kept so old subscribers still see a nice label in billing history
+  quarterly:   'Quarterly (legacy)',
+  half_yearly: 'Half-Yearly (legacy)',
   pro:         'Pro (legacy)',
   elite:       'Elite (legacy)',
 }
@@ -200,7 +202,7 @@ export default function BillingPage() {
                 <CardContent className="p-6 flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <div className="text-white font-medium">Want a longer commitment for a lower monthly rate?</div>
-                    <p className="mt-1 text-sm text-white/60">Upgrade to Half-Yearly ($8.17/mo) or Lifetime VIP ($79 one-time).</p>
+                    <p className="mt-1 text-sm text-white/60">Upgrade to Annual ($7.42/mo — save 51%) or Lifetime VIP ($249 one-time).</p>
                   </div>
                   <Link href="/pricing">
                     <Button className="btn-gold btn-pill h-11 px-6 font-semibold">Change plan <ArrowRight className="ml-2 h-4 w-4"/></Button>

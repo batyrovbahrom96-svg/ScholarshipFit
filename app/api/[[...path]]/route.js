@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { createRequire } from 'module'
 import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
 import { matchScholarships } from '@/lib/quiz-match'
-import { sendVerificationEmail } from '@/lib/mail/resend'
+import { sendVerificationEmail, sendPasswordResetEmail } from '@/lib/mail/resend'
 import { captureServerEvent } from '@/lib/posthog-server'
 
 const nodeRequire = createRequire(import.meta.url)
@@ -63,6 +63,14 @@ async function ensureSeed(db) {
     const ev = db.collection('email_verifications')
     await ev.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }).catch(() => {})
     await ev.createIndex({ email: 1 }, { unique: true }).catch(() => {})
+  } catch (_) { /* ignore */ }
+
+  // ---------- Password reset collection + TTL index ----------
+  try {
+    const pr = db.collection('password_resets')
+    await pr.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }).catch(() => {})
+    await pr.createIndex({ token_hash: 1 }, { unique: true }).catch(() => {})
+    await pr.createIndex({ email: 1 }).catch(() => {})
   } catch (_) { /* ignore */ }
 
   // ---------- Grandfather existing users (one-shot) ----------
@@ -1781,6 +1789,117 @@ Respond with STRICT JSON in this schema:
       captureServerEvent({ distinctId: record.user_id, event: 'otp_verified', properties: { purpose: record.purpose || 'signup' } }).catch(() => {})
       captureServerEvent({ distinctId: record.user_id, event: 'signup_verified', properties: { method: 'email_otp' } }).catch(() => {})
       const { _id, password_hash, ...clean } = user || {}
+      return withCORS(NextResponse.json({ ok: true, user: clean }))
+    }
+
+    // ============ Password reset flow ============
+    // /auth/forgot-password — user asks for reset link
+    if (route === '/auth/forgot-password' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Please enter a valid email' }, { status: 400 }))
+      }
+      // Always return a generic ok response — never reveal whether the email exists.
+      const GENERIC_OK = { ok: true, message: "If an account with that email exists, we've sent a reset link." }
+      const users = db.collection('users')
+      const user  = await users.findOne({ email })
+      if (!user || !user.password_hash) {
+        // No account, or Google-only user (they should use "Continue with Google" instead)
+        return withCORS(NextResponse.json(GENERIC_OK))
+      }
+
+      const now  = new Date()
+      const prCol = db.collection('password_resets')
+
+      // Rate-limit: 1 request per 60 seconds per email
+      const recent = await prCol.findOne({ email, created_at: { $gt: new Date(now.getTime() - 60 * 1000) } })
+      if (recent) {
+        // Still return the generic message so we don't leak that user exists via rate-limit response
+        return withCORS(NextResponse.json(GENERIC_OK))
+      }
+
+      // Cryptographically-strong URL-safe token (32 bytes → 43 chars base64url)
+      const token     = crypto.randomBytes(32).toString('base64url')
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+      const expiresAt = new Date(now.getTime() + 60 * 60 * 1000) // 60 min
+
+      await prCol.insertOne({
+        email,
+        user_id: user.id,
+        token_hash: tokenHash,
+        created_at: now,
+        expires_at: expiresAt,
+        used: false,
+        request_ip: request.headers.get('x-forwarded-for') || null,
+      })
+
+      const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://scholarshipfit.com'
+      const resetUrl = `${base.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`
+
+      const mailRes = await sendPasswordResetEmail({ to: email, resetUrl, name: user.name })
+      if (!mailRes.ok) {
+        console.error('[forgot-password] mail failed for', email, ':', mailRes.error)
+        // Still return generic — user retries or contacts support
+      } else {
+        captureServerEvent({ distinctId: user.id, event: 'password_reset_requested', properties: { email_domain: email.split('@')[1] } }).catch(() => {})
+      }
+
+      // Dev-only: expose token so testing agent can complete the flow
+      const dbg = (process.env.NODE_ENV !== 'production' && body?._test === true) ? { _debug_token: token, _debug_url: resetUrl } : {}
+      return withCORS(NextResponse.json({ ...GENERIC_OK, ...dbg }))
+    }
+
+    // /auth/reset-password — user submits new password with the token
+    if (route === '/auth/reset-password' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const token       = String(body.token       || '').trim()
+      const email       = String(body.email       || '').trim().toLowerCase()
+      const newPassword = String(body.new_password || body.password || '')
+
+      if (!token || !email) {
+        return withCORS(NextResponse.json({ error: 'Invalid reset link' }, { status: 400 }))
+      }
+      if (newPassword.length < 8) {
+        return withCORS(NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 }))
+      }
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+      const prCol = db.collection('password_resets')
+      const record = await prCol.findOne({ token_hash: tokenHash, email })
+      if (!record) {
+        return withCORS(NextResponse.json({ error: 'This reset link is invalid or expired. Please request a new one.' }, { status: 400 }))
+      }
+      if (record.used) {
+        return withCORS(NextResponse.json({ error: 'This reset link has already been used. Please request a new one.' }, { status: 400 }))
+      }
+      if (record.expires_at && new Date(record.expires_at) < new Date()) {
+        await prCol.deleteOne({ _id: record._id }).catch(() => {})
+        return withCORS(NextResponse.json({ error: 'This reset link has expired. Please request a new one.' }, { status: 400 }))
+      }
+
+      const password_hash = await bcrypt.hash(newPassword, 10)
+      const users = db.collection('users')
+      // Also mark email_verified true — if the user got this email, they own the inbox.
+      await users.updateOne(
+        { id: record.user_id },
+        { $set: {
+            password_hash,
+            email_verified: true,
+            email_verified_at: new Date(),
+            email_verified_source: record.email_verified_source || 'password_reset',
+            last_login: new Date(),
+          } },
+      )
+      // Mark this token used and invalidate all other outstanding reset tokens
+      // for this user so old links can't be replayed.
+      await prCol.updateOne({ _id: record._id }, { $set: { used: true, used_at: new Date() } }).catch(() => {})
+      await prCol.deleteMany({ email, _id: { $ne: record._id } }).catch(() => {})
+
+      // Log the user in immediately for a clean UX
+      await setSessionCookie(record.user_id)
+      const user = await users.findOne({ id: record.user_id })
+      captureServerEvent({ distinctId: record.user_id, event: 'password_reset_completed', properties: {} }).catch(() => {})
+      const { _id, password_hash: _ph, ...clean } = user || {}
       return withCORS(NextResponse.json({ ok: true, user: clean }))
     }
 

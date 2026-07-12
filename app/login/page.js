@@ -120,7 +120,17 @@ export function AuthForm({ mode = 'login' }) {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] uppercase tracking-widest text-white/50">Password</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] uppercase tracking-widest text-white/50">Password</label>
+                  {!isSignup && (
+                    <Link
+                      href="/forgot-password"
+                      className="text-[11px] text-[#D4AF37] hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  )}
+                </div>
                 <div className="relative mt-1">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40"/>
                   <Input type={showPw ? 'text' : 'password'} value={password} onChange={(e)=>setPassword(e.target.value)}

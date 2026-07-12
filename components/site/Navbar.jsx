@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button'
 
 const LINKS = [
   { href: '/quiz', label: 'Match Quiz' },
-  { href: '/database', label: 'Scholarships' },
+  { href: '/scholarships', label: 'Scholarships' },
+  { href: '/blog', label: 'Blog' },
   { href: '/#pricing', label: 'Pricing' },
-  { href: '/methodology', label: 'Resources' },
   { href: '/dashboard', label: 'My Cabinet' },
   { href: '/about', label: 'About' },
 ]

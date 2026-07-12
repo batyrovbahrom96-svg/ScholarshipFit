@@ -6,6 +6,7 @@ import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
 import BottomCTA from '@/components/site/BottomCTA'
 import FounderReservationModal from '@/components/site/FounderReservationModal'
+import UrgencyBanner from '@/components/site/UrgencyBanner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -127,6 +128,11 @@ function Pricing() {
               We&apos;re finalising our payment provider. Reserve any plan now and we&apos;ll email your locked-in founder checkout link the moment payments open. Free features (quiz, sample report, database) remain fully accessible while you wait.
             </div>
           )}
+
+          {/* Founder urgency: countdown + spots-remaining bar */}
+          <div className="mt-6 mx-auto max-w-2xl text-left">
+            <UrgencyBanner variant="card"/>
+          </div>
 
           {/* Feature strip */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">

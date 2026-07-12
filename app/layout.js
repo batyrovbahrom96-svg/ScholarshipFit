@@ -5,6 +5,7 @@ import CookieBanner from '@/components/site/CookieBanner'
 import PremiumEffects from '@/components/site/PremiumEffects'
 import ExitIntentModal from '@/components/site/ExitIntentModal'
 import PostHogPageView from '@/components/site/PostHogPageView'
+import UrgencyBanner from '@/components/site/UrgencyBanner'
 
 export const metadata = {
   title: 'ScholarshipFit — AI-powered, source-linked scholarship research',
@@ -33,6 +34,8 @@ export default function RootLayout({ children }) {
           <Suspense fallback={null}>
             <PostHogPageView />
           </Suspense>
+          {/* Site-wide founder-launch urgency strip (auto-hides when campaign ends) */}
+          <UrgencyBanner variant="strip"/>
           {children}
         </Providers>
         <PremiumEffects />

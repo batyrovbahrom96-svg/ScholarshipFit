@@ -9,6 +9,7 @@ import { SEED_SCHOLARSHIPS } from '@/lib/seed-scholarships'
 import { matchScholarships } from '@/lib/quiz-match'
 import { sendVerificationEmail, sendPasswordResetEmail } from '@/lib/mail/resend'
 import { captureServerEvent } from '@/lib/posthog-server'
+import { campaignSchedule, displaySpots } from '@/lib/urgency-config'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -2516,6 +2517,30 @@ Respond with STRICT JSON in this schema:
 
     // ============ Application Tracker (Kanban) ============
     const TRACKER_STATUSES = ['saved', 'preparing', 'submitted', 'waiting', 'result']
+
+    // ============ Founder urgency (public, no auth) ============
+    // Powers the countdown timer + spots-remaining bar on paywall/pricing.
+    // Cached at Edge would be ideal, but 30s server memoization is enough.
+    if (route === '/urgency' && method === 'GET') {
+      let realCount = 0
+      try {
+        realCount = await db.collection('preorders').countDocuments({})
+      } catch (_) { /* ignore */ }
+      const schedule = campaignSchedule()
+      const spots    = displaySpots(realCount)
+      // Never expose real_count to clients (only inflation-safe display value)
+      const { real_count: _rc, ...safeSpots } = spots
+      return withCORS(NextResponse.json({
+        countdown: {
+          end_iso: schedule.end_iso,
+          is_over: schedule.is_over,
+          seconds_left: schedule.seconds_left,
+          days: schedule.days, hours: schedule.hours, mins: schedule.mins, secs: schedule.secs,
+        },
+        spots: safeSpots,
+        server_time: new Date().toISOString(),
+      }))
+    }
 
     if (route === '/applications' && method === 'GET') {
       const user = await getSessionUser()

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { SUBSCRIPTION_PLANS } from '@/lib/pricing-plans'
 import { useRegionalPricing, REGION_SELECTOR } from '@/hooks/use-regional-pricing'
 import FounderReservationModal from './FounderReservationModal'
+import UrgencyBanner from './UrgencyBanner'
 import { track } from '@/lib/analytics'
 import {
   Check, Sparkles, Shield, Zap, Trophy, Lock, X,
@@ -124,6 +125,11 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
                 <>Try any plan free for <span className="text-white font-medium">7 days</span> — card required, cancel anytime before day 7 and you&apos;re not charged. Longer commitment = bigger discount. Lifetime VIP is a one-time payment.</>
               )}
             </p>
+          </div>
+
+          {/* Founder urgency: countdown + spots-remaining bar */}
+          <div className="mt-6">
+            <UrgencyBanner variant="card"/>
           </div>
 
           {/* Trust row */}

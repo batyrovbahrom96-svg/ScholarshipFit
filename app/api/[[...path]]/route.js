@@ -2515,6 +2515,73 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({ ok: true, reminders_pref: clean }))
     }
 
+    // ============ Testimonials submission ============
+    // Public endpoint — anyone can submit their success story. Goes into
+    // a moderation queue; only manually-verified entries end up in the
+    // /lib/testimonials.js source file (curated by the founder).
+    if (route === '/testimonials/submit' && method === 'POST') {
+      const b = await request.json().catch(() => ({}))
+      const name  = String(b.name || '').trim().slice(0, 120)
+      const email = String(b.email || '').trim().toLowerCase()
+      const ln    = String(b.linkedin_url || '').trim()
+      const quote = String(b.quote || '').trim().slice(0, 2000)
+      const scholarship = String(b.scholarship || '').trim().slice(0, 200)
+
+      if (!name || !email || !ln || !quote || !scholarship) {
+        return withCORS(NextResponse.json({ error: 'name, email, linkedin_url, scholarship and quote are required' }, { status: 400 }))
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return withCORS(NextResponse.json({ error: 'Invalid email' }, { status: 400 }))
+      }
+      if (!/^https?:\/\/(www\.)?linkedin\.com\//i.test(ln)) {
+        return withCORS(NextResponse.json({ error: 'LinkedIn URL must be a linkedin.com profile' }, { status: 400 }))
+      }
+
+      // Basic rate-limit: max 3 submissions per email per 24h (prevents spam)
+      const recent = await db.collection('testimonial_submissions').countDocuments({
+        email,
+        created_at: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      })
+      if (recent >= 3) {
+        return withCORS(NextResponse.json({ error: 'Too many submissions — please try again tomorrow.' }, { status: 429 }))
+      }
+
+      await db.collection('testimonial_submissions').insertOne({
+        id: uuidv4(),
+        name, email, linkedin_url: ln,
+        country:     String(b.country || '').trim().slice(0, 80),
+        university:  String(b.university || '').trim().slice(0, 200),
+        scholarship,
+        year:        Number(b.year) || null,
+        quote,
+        permission_granted: b.permission === true,
+        status: 'pending',
+        submitted_from_ip: request.headers.get('x-forwarded-for') || null,
+        created_at: new Date(),
+      })
+
+      captureServerEvent({
+        distinctId: email,
+        event: 'testimonial_submitted',
+        properties: { scholarship, country: b.country || '' },
+      }).catch(() => {})
+
+      return withCORS(NextResponse.json({ ok: true, message: 'Submission received. We will verify and reach out.' }))
+    }
+
+    // Admin view of pending submissions
+    if (route === '/admin/testimonials' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const status = new URL(request.url).searchParams.get('status') || 'pending'
+      const subs = await db.collection('testimonial_submissions')
+        .find({ status })
+        .sort({ created_at: -1 })
+        .project({ _id: 0 })
+        .limit(100)
+        .toArray()
+      return withCORS(NextResponse.json({ submissions: subs }))
+    }
+
     // ============ Application Tracker (Kanban) ============
     const TRACKER_STATUSES = ['saved', 'preparing', 'submitted', 'waiting', 'result']
 

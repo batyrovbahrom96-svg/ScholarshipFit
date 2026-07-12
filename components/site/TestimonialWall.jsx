@@ -1,221 +1,126 @@
 'use client'
-import { Star } from 'lucide-react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { Star, Linkedin, ShieldCheck, ExternalLink, Sparkles, ArrowRight, Quote as QuoteIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { getVerifiedTestimonials } from '@/lib/testimonials'
 
-// -----------------------------------------------------------------------------
-// TestimonialWall — Bento-style masonry grid of user testimonials.
-// Design goal: match the "most loved assistant" reference — 3 columns,
-// varied card heights (organic feel), gold star rating, quote body with
-// key phrases bolded in white, attribution "Name from Country".
-//
-// Content note: these are illustrative early-access user personas — see
-// small disclaimer at the bottom of the section for transparency.
-// -----------------------------------------------------------------------------
-
-const TESTIMONIALS = [
-  {
-    name: 'Adaora',
-    country: 'Nigeria',
-    stars: 5,
-    text: [
-      'I was drowning in browser tabs before ScholarshipFit. The 8-step quiz gave me a shortlist of ',
-      { b: '12 real scholarships in 3 minutes' },
-      ' — and one was DAAD EPOS which I had never even heard of. The fit score told me exactly ',
-      { b: 'why' },
-      ' each one matched.',
-    ],
-  },
-  {
-    name: 'Aditya',
-    country: 'India',
-    stars: 5,
-    text: [
-      'The ',
-      { b: '"Why NOT fit"' },
-      ' section is honestly what sold me. Every other tool just shows you 200 scholarships and wishes you good luck. ScholarshipFit told me exactly why 3 programs would waste my time — and I trusted it enough to skip them.',
-    ],
-  },
-  {
-    name: 'Sena',
-    country: 'Türkiye',
-    stars: 5,
-    text: [
-      'I paid ',
-      { b: '$8/mo with regional pricing' },
-      ' which was fair for a student budget. The source links let me verify every deadline directly on the university website. ',
-      { b: 'No fake dates. No dead links.' },
-    ],
-  },
-  {
-    name: 'Farhan',
-    country: 'Pakistan',
-    stars: 5,
-    text: [
-      'Nova helped me compare Vanier vs Fulbright for my PhD in machine learning. She was blunt: ',
-      { b: 'Vanier is more realistic given my publication count.' },
-      ' That kind of honesty is rare online — usually AI just tells you what you want to hear.',
-    ],
-  },
-  {
-    name: 'Nguyen',
-    country: 'Vietnam',
-    stars: 5,
-    text: [
-      'Signed up during the 7-day trial expecting the usual bait-and-switch. Actually got ',
-      { b: '24 real matches, applied to 4' },
-      ' — still waiting on results, but I already saved 20+ hours vs my previous manual search.',
-    ],
-  },
-  {
-    name: 'Camila',
-    country: 'Brazil',
-    stars: 5,
-    text: [
-      'The tracker is unexpectedly good. I have 6 MBA applications in progress with deadlines, essay drafts, and reference status all in one view. ',
-      { b: 'Feels like Notion built by someone who has actually applied' },
-      ' for scholarships before.',
-    ],
-  },
-  {
-    name: 'Amara',
-    country: 'Kenya',
-    stars: 5,
-    text: [
-      'What I like: ',
-      { b: 'the AI doesn\u2019t make things up.' },
-      ' Nova refused to give me a Commonwealth deadline unless she could point me to the official source. That gave me confidence in everything else she said.',
-    ],
-  },
-  {
-    name: 'Rahul',
-    country: 'Bangladesh',
-    stars: 5,
-    text: [
-      '$3.87/mo with regional pricing = one plate of biryani. Worth it 100x over. I filtered out around ',
-      { b: '40 scholarships that looked promising' },
-      ' but had citizenship restrictions I would have missed.',
-    ],
-  },
-  {
-    name: 'Layla',
-    country: 'Egypt',
-    stars: 5,
-    text: [
-      'I\u2019m applying for a PhD in political science. The eligibility filter caught that ',
-      { b: '6 of my initial "matches" don\u2019t accept international applicants' },
-      ' — which those scholarships bury in the fine print of their own websites.',
-    ],
-  },
-  {
-    name: 'Miguel',
-    country: 'Philippines',
-    stars: 5,
-    text: [
-      'The sample report convinced me to try it. Signed up, saw my top 15, and immediately noticed ',
-      { b: '3 deadlines I would have missed' },
-      ' if I kept searching manually. That alone paid for the trial.',
-    ],
-  },
-  {
-    name: 'Anastasia',
-    country: 'Ukraine',
-    stars: 5,
-    text: [
-      'Every scholarship I researched previously took me 4–6 hours to figure out if I qualified. ScholarshipFit did that ',
-      { b: 'in 3 minutes for all 800+ records' },
-      '. I no longer feel like I\u2019m gambling on essays.',
-    ],
-  },
-  {
-    name: 'Kwame',
-    country: 'Ghana',
-    stars: 5,
-    text: [
-      'Cancelled ChatGPT Plus after this. It hallucinates scholarships that don\u2019t exist. ScholarshipFit ',
-      { b: 'only cites real ones with source URLs I can verify' },
-      ' — every single time.',
-    ],
-  },
-  {
-    name: 'Asriel',
-    country: 'France',
-    stars: 5,
-    text: 'So easy to use. Quiz, shortlist, apply. No fluff.',
-  },
-  {
-    name: 'Tim',
-    country: 'United States',
-    stars: 5,
-    text: [
-      'I was a great student in high school, but college was a tough transition for me. ScholarshipFit has been a huge help. ',
-      { b: '10/10 recommend trying it out.' },
-    ],
-  },
-]
-
-function Stars({ n = 5 }) {
-  return (
-    <div className="flex gap-0.5" aria-label={`${n} out of 5 stars`}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          className={`h-3.5 w-3.5 ${i < n ? 'fill-[#D4AF37] text-[#D4AF37]' : 'text-white/20'}`}
-        />
-      ))}
-    </div>
-  )
-}
-
-function RichText({ nodes }) {
-  if (typeof nodes === 'string') return <>{nodes}</>
-  return (
-    <>
-      {nodes.map((n, i) =>
-        typeof n === 'string'
-          ? <span key={i}>{n}</span>
-          : <b key={i} className="text-white font-medium">{n.b}</b>
-      )}
-    </>
-  )
-}
-
-function Card({ t }) {
-  return (
-    <div className="mb-4 break-inside-avoid rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/20 transition p-5 md:p-6">
-      <Stars n={t.stars || 5}/>
-      <p className="mt-4 text-white/70 leading-relaxed text-[15px]">
-        <RichText nodes={t.text}/>
-      </p>
-      <div className="mt-5 text-sm text-white/50">
-        {t.name} <span className="text-white/35">from {t.country}</span>
-      </div>
-    </div>
-  )
-}
-
+/**
+ * TestimonialWall — the honest version.
+ *
+ * Renders ONLY entries from /lib/testimonials.js where verified === true
+ * and linkedin_url is present. If the list is empty, we show a
+ * transparent "we're a young company" section with a CTA for real
+ * users to submit their own success story.
+ *
+ * No made-up personas. No stock-photo attributions. No "Marcus D."
+ * Every visible testimonial links to a real LinkedIn profile that
+ * anyone can click and verify.
+ */
 export default function TestimonialWall() {
+  const items = getVerifiedTestimonials()
+
   return (
-    <section className="relative border-t border-white/5">
-      <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
-        <div className="max-w-3xl" data-reveal>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">Loved by students in 40+ countries</div>
-          <h2 className="mt-3 text-4xl md:text-6xl font-semibold tracking-[-0.03em] leading-[1] text-white">
-            Try the <span className="text-gold-hi">most loved</span>
-            <br className="hidden md:block"/> scholarship assistant.
+    <section className="relative py-24 md:py-32 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#D4AF37]/[0.03] to-transparent pointer-events-none"/>
+      <div className="container mx-auto max-w-6xl px-4 relative">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-1 text-[11px] uppercase tracking-widest text-emerald-300">
+            <ShieldCheck className="h-3.5 w-3.5"/> Verified stories only
+          </div>
+          <h2 className="mt-4 text-3xl md:text-4xl font-semibold text-white">
+            {items.length > 0
+              ? 'Real students. Real LinkedIn profiles. Real scholarships.'
+              : "We're a young company. We won't fake the numbers."}
           </h2>
+          <p className="mt-3 text-white/60 leading-relaxed">
+            {items.length > 0
+              ? 'Every quote below is from a verified user — click the LinkedIn icon on any card to check the profile yourself. No pseudonyms, no stock photos, no invented reviews.'
+              : "Rather than paste fake testimonials that would insult your intelligence, we're waiting until our first cohort receives their scholarship results. If you've won a scholarship using ScholarshipFit — even in part — we'd love to feature your story."}
+          </p>
         </div>
 
-        {/* Masonry grid via CSS columns — creates the organic, varied-height
-            layout you see on the reference site. Cards use break-inside-avoid
-            so each testimonial stays on one card. */}
-        <div className="mt-10 columns-1 md:columns-2 lg:columns-3 gap-4" data-reveal data-reveal-delay="200">
-          {TESTIMONIALS.map((t, i) => <Card key={i} t={t}/>)}
-        </div>
+        {items.length > 0 ? (
+          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {items.map((t) => (
+              <TestimonialCard key={t.id} t={t}/>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-12 mx-auto max-w-3xl grid gap-6 md:grid-cols-2">
+            {/* Honest empty state — two side-by-side calls to action */}
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-6 md:p-7">
+              <Sparkles className="h-6 w-6 text-[#D4AF37]"/>
+              <h3 className="mt-3 text-lg font-semibold text-white">What we do share honestly</h3>
+              <ul className="mt-3 space-y-2 text-sm text-white/70 leading-relaxed">
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Our full methodology — see <Link href="/methodology" className="text-[#D4AF37] hover:underline">/methodology</Link></li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> A sample match report — see <Link href="/sample-report" className="text-[#D4AF37] hover:underline">/sample-report</Link></li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Which scholarships each match came from — every card links to the official source URL</li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Fit-score gaps you need to close — never inflated</li>
+              </ul>
+            </div>
 
-        <p className="mt-8 text-xs text-white/40 max-w-2xl">
-          Illustrative feedback from early-access users — names shown with consent, countries preserved.
-          Individual results vary. ScholarshipFit provides scholarship research only and does not guarantee admission, visas, or funding.
-        </p>
+            <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#D4AF37]/[0.05] p-6 md:p-7">
+              <QuoteIcon className="h-6 w-6 text-[#D4AF37]"/>
+              <h3 className="mt-3 text-lg font-semibold text-white">Won a scholarship using us?</h3>
+              <p className="mt-3 text-sm text-white/75 leading-relaxed">
+                Tell us your story and we&apos;ll feature you here (with your LinkedIn profile linked). We manually verify every entry — no bots, no stock personas.
+              </p>
+              <Link href="/share-your-story" className="mt-4 inline-block">
+                <Button className="btn-gold btn-pill h-10 px-5">
+                  Share your story <ArrowRight className="ml-2 h-4 w-4"/>
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </section>
+  )
+}
+
+function TestimonialCard({ t }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/40 p-6 hover:border-[#D4AF37]/40 transition-colors">
+      <div className="flex items-center justify-between">
+        <div className="flex text-[#D4AF37]">
+          {Array.from({ length: t.stars || 5 }).map((_, i) => (
+            <Star key={i} className="h-4 w-4 fill-current"/>
+          ))}
+        </div>
+        <a
+          href={t.linkedin_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-[11px] text-white/50 hover:text-[#0A66C2] transition-colors"
+          aria-label={`Verify ${t.name} on LinkedIn`}
+        >
+          <Linkedin className="h-3.5 w-3.5"/> Verify <ExternalLink className="h-3 w-3"/>
+        </a>
+      </div>
+
+      <blockquote className="mt-4 text-sm text-white/80 leading-relaxed">
+        &ldquo;{t.quote}&rdquo;
+      </blockquote>
+
+      <div className="mt-5 flex items-center gap-3 border-t border-white/5 pt-4">
+        {t.photo_url ? (
+          <div className="h-10 w-10 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
+            <Image src={t.photo_url} alt={t.name} width={40} height={40}/>
+          </div>
+        ) : (
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] font-semibold text-sm">
+            {t.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-white truncate">{t.name}</div>
+          <div className="text-xs text-white/50 truncate">
+            {t.scholarship}{t.year ? ` · ${t.year}` : ''}
+            {t.university ? ` · ${t.university}` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

@@ -14,7 +14,6 @@ import {
 import UniversityMarquee from '@/components/site/UniversityMarquee'
 import Hero3DObjects from '@/components/site/Hero3DObjects'
 import HeroSearch from '@/components/site/HeroSearch'
-import WinnerTicker from '@/components/site/WinnerTicker'
 import BottomCTA from '@/components/site/BottomCTA'
 import PricingPreview from '@/components/site/PricingPreview'
 import TestimonialWall from '@/components/site/TestimonialWall'
@@ -411,7 +410,6 @@ function Home() {
       {/* ================ FOUNDER WELCOME VIDEO ================ */}
       <FounderVideo />
       <BottomCTA />
-      <WinnerTicker />
       <Footer />
     </div>
   )

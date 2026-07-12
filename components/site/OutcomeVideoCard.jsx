@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
-import { Play, Pause, GraduationCap, MapPin, Award, ShieldCheck } from 'lucide-react'
+import { Play, Pause, GraduationCap, MapPin, Award, ShieldCheck, Linkedin } from 'lucide-react'
 
 // -----------------------------------------------------------------------------
 // OutcomeVideoCard — reusable video-testimonial card.
@@ -55,7 +55,21 @@ export default function OutcomeVideoCard({ o, compact = false }) {
             </div>
             <div className="relative z-10 text-center px-4">
               <div className="text-sm md:text-base font-semibold text-white">{o.name}</div>
-              <div className="text-[11px] uppercase tracking-widest text-[#D4AF37] mt-1">{o.university_short}</div>
+              <div className="text-[11px] uppercase tracking-widest text-[#D4AF37] mt-1 inline-flex items-center gap-2">
+                {o.university_short}
+                {o.linkedin_url && (
+                  <a
+                    href={o.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 rounded-full border border-[#0A66C2]/40 bg-[#0A66C2]/10 px-1.5 py-0.5 text-[9px] text-[#0A66C2] hover:bg-[#0A66C2]/20"
+                    aria-label={`Verify ${o.name} on LinkedIn`}
+                  >
+                    <Linkedin className="h-2.5 w-2.5"/> Verify
+                  </a>
+                )}
+              </div>
               <div className="text-[10px] text-white/45 mt-1">{o.duration_hint}</div>
             </div>
           </button>

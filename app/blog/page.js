@@ -71,7 +71,7 @@ export default function BlogIndex() {
       {/* Bottom CTA */}
       <section className="container mx-auto max-w-3xl px-4 py-16 text-center">
         <h2 className="text-2xl md:text-3xl font-semibold text-white">Reading is step 1. Applying is step 2.</h2>
-        <p className="mt-3 text-white/60">Once you know the strategy, run the quiz — we’ll rank all 800+ scholarships against your profile in seconds.</p>
+        <p className="mt-3 text-white/60">Once you know the strategy, run the quiz — we&rsquo;ll rank all 800+ hand-verified scholarships against your profile in seconds.</p>
         <div className="mt-6">
           <Link href="/quiz"><Button className="btn-gold btn-pill h-12 px-8 font-semibold">
             Get my matches — free <ArrowRight className="ml-2 h-4 w-4"/>

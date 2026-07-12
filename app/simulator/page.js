@@ -191,7 +191,7 @@ export default function SimulatorPage() {
               What if you had a <span className="text-gold-hi">stronger profile</span>?
             </h1>
             <p className="mt-3 text-white/70 max-w-2xl mx-auto">
-              Drag any slider and watch all 800+ scholarships instantly re-rank against your new profile. Answer the one question no other platform can: <span className="text-white">&ldquo;Is improving my IELTS actually worth it?&rdquo;</span>
+              Drag any slider and watch all 800+ hand-verified scholarships instantly re-rank against your new profile. Answer the one question no other platform can: <span className="text-white">&ldquo;Is improving my IELTS actually worth it?&rdquo;</span>
             </p>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function SimulatorPage() {
 
               <div className="mt-5 pt-4 border-t border-white/5 text-[11px] text-white/40 flex items-start gap-1.5 leading-relaxed">
                 <Info className="mt-0.5 h-3 w-3 shrink-0"/>
-                Recomputed instantly across all 800+ records using our deterministic fit engine. No AI, no invented programs.
+                Recomputed instantly across all 800+ hand-verified records using our deterministic fit engine. No AI, no invented programs, no dead links.
               </div>
             </CardContent>
           </Card>

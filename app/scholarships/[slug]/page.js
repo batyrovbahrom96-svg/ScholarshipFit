@@ -148,7 +148,7 @@ export default async function Page({ params }) {
               <p className="text-white/60">
                 We're growing this category — check back next week, or {' '}
                 <Link href="/quiz" className="text-[#D4AF37] hover:underline">run the quiz</Link>
-                {' '}for personalised matches across all 800+ programs.
+                {' '}for personalised matches across all 800+ hand-verified programs.
               </p>
             </CardContent>
           </Card>
@@ -223,7 +223,7 @@ export default async function Page({ params }) {
       <section className="container mx-auto max-w-3xl px-4 py-16 text-center">
         <h2 className="text-2xl md:text-3xl font-semibold text-white">Stop scrolling. Get your personalised shortlist.</h2>
         <p className="mt-3 text-white/60">
-          Answer 8 quick questions and we'll rank all 800+ scholarships against your profile — showing exactly what you qualify for, what you're borderline on, and what to skip.
+          Answer 8 quick questions and we&apos;ll rank all 800+ hand-verified scholarships against your profile — showing exactly what you qualify for, what you&apos;re borderline on, and what to skip.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Link href="/quiz"><Button className="btn-gold btn-pill h-12 px-8 font-semibold">

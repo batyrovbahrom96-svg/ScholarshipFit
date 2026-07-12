@@ -94,7 +94,7 @@ export default async function Page({ params }) {
           <CardContent className="p-6 md:p-8">
             <div className="text-[11px] uppercase tracking-widest text-[#D4AF37]">Next step</div>
             <h3 className="mt-2 text-xl font-semibold text-white">Get your personalised shortlist in 3 minutes.</h3>
-            <p className="mt-2 text-sm text-white/70">Answer 8 quick questions. We rank all 800+ verified scholarships against your profile — highlighting the ones you’re a fit for, borderline on, or should skip.</p>
+            <p className="mt-2 text-sm text-white/70">Answer 8 quick questions. We rank all 800+ hand-verified scholarships against your profile — highlighting the ones you&rsquo;re a fit for, borderline on, or should skip.</p>
             <div className="mt-4">
               <Link href="/quiz"><Button className="btn-gold btn-pill h-11 px-6 font-semibold">
                 Start the match quiz <ArrowRight className="ml-2 h-4 w-4"/>

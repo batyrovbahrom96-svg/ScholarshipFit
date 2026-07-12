@@ -96,7 +96,7 @@ function Dashboard() {
   const nextBestAction = useMemo(() => {
     if (!profile) return {
       title: 'Take the 8-step quiz',
-      body: 'Get your personalised shortlist ranked from 800+ real, source-linked scholarships.',
+      body: 'Get your personalised shortlist ranked from 800+ hand-verified, premium scholarships.',
       cta: 'Start quiz', href: '/quiz', icon: Rocket, tone: 'gold',
     }
     if (matches.length === 0) return {
@@ -171,7 +171,7 @@ function Dashboard() {
             </div>
             <div className="flex-1">
               <div className="text-lg font-semibold text-white">Membership activated!</div>
-              <div className="text-sm text-white/70">You now have full access to all 800+ real scholarships, AI Match reports, Cabinet documents, and the Application Tracker. Welcome to ScholarshipFit.</div>
+              <div className="text-sm text-white/70">You now have full access to all 800+ hand-verified, premium scholarships, AI Match reports, Cabinet documents, and the Application Tracker. Welcome to ScholarshipFit.</div>
             </div>
             <button onClick={() => setActivatedCelebration(false)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
           </div>

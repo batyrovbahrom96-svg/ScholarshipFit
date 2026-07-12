@@ -200,7 +200,7 @@ function Advisor() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0 flex-1">
               <Badge variant="outline" className="border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#F5D67B]">
-                <Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5 · Grounded in 800+ records
+                <Sparkles className="mr-1 h-3 w-3"/>Nova · Claude Sonnet 4.5 · Grounded in 800+ hand-verified records
               </Badge>
               <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-white tracking-tight">
                 AI Scholarship Command

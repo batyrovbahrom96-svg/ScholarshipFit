@@ -31,12 +31,12 @@ export default function TestimonialWall() {
           <h2 className="mt-4 text-3xl md:text-4xl font-semibold text-white">
             {items.length > 0
               ? 'Real students. Real LinkedIn profiles. Real scholarships.'
-              : "Won a scholarship using ScholarshipFit? We want to feature you."}
+              : "We only publish testimonials with verified identities."}
           </h2>
           <p className="mt-3 text-white/60 leading-relaxed">
             {items.length > 0
               ? 'Every quote below is from a verified user — click the LinkedIn icon on any card to check the profile yourself. No pseudonyms, no stock photos, no invented reviews.'
-              : "The stories above are illustrative composites of the typical ScholarshipFit journey. This section is reserved for our verified winners — with LinkedIn-confirmed identities, real profile photos, and a link to the scholarship they won. Be the first name on the wall."}
+              : "No stock photos. No fake reviews. No invented winners. Every testimonial that appears on this wall is manually verified against a real LinkedIn profile and a real scholarship offer letter. As our first cohort receives their results, this space fills up — one honest story at a time."}
           </p>
         </div>
 
@@ -51,24 +51,24 @@ export default function TestimonialWall() {
             {/* Honest empty state — two side-by-side calls to action */}
             <div className="rounded-2xl border border-white/10 bg-black/30 p-6 md:p-7">
               <Sparkles className="h-6 w-6 text-[#D4AF37]"/>
-              <h3 className="mt-3 text-lg font-semibold text-white">What we do share honestly</h3>
+              <h3 className="mt-3 text-lg font-semibold text-white">Our verification standard</h3>
               <ul className="mt-3 space-y-2 text-sm text-white/70 leading-relaxed">
-                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Our full methodology — see <Link href="/methodology" className="text-[#D4AF37] hover:underline">/methodology</Link></li>
-                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> A sample match report — see <Link href="/sample-report" className="text-[#D4AF37] hover:underline">/sample-report</Link></li>
-                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Which scholarships each match came from — every card links to the official source URL</li>
-                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Fit-score gaps you need to close — never inflated</li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Every testimonial links to a public LinkedIn profile you can inspect</li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Every &quot;$ won&quot; figure references the official scholarship award letter</li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> No pseudonyms, no stock photos, no AI-generated personas on this wall</li>
+                <li className="flex items-start gap-2"><span className="text-[#D4AF37]">✓</span> Full <Link href="/methodology" className="text-[#D4AF37] hover:underline">methodology</Link> published publicly</li>
               </ul>
             </div>
 
             <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#D4AF37]/[0.05] p-6 md:p-7">
               <QuoteIcon className="h-6 w-6 text-[#D4AF37]"/>
-              <h3 className="mt-3 text-lg font-semibold text-white">Won a scholarship using us?</h3>
+              <h3 className="mt-3 text-lg font-semibold text-white">Won something using ScholarshipFit?</h3>
               <p className="mt-3 text-sm text-white/75 leading-relaxed">
-                Tell us your story and we&apos;ll feature you here (with your LinkedIn profile linked). We manually verify every entry — no bots, no stock personas.
+                Share your story and we&apos;ll feature it here after LinkedIn verification. We&apos;d rather show 3 real winners than 30 fake ones.
               </p>
               <Link href="/share-your-story" className="mt-4 inline-block">
                 <Button className="btn-gold btn-pill h-10 px-5">
-                  Share your story <ArrowRight className="ml-2 h-4 w-4"/>
+                  Share your verified story <ArrowRight className="ml-2 h-4 w-4"/>
                 </Button>
               </Link>
             </div>

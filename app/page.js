@@ -12,6 +12,7 @@ import {
   Clock, X as XIcon, Check as CheckIcon,
 } from 'lucide-react'
 import UniversityMarquee from '@/components/site/UniversityMarquee'
+import ScholarshipProvidersMarquee from '@/components/site/ScholarshipProvidersMarquee'
 import Hero3DObjects from '@/components/site/Hero3DObjects'
 import HeroSearch from '@/components/site/HeroSearch'
 import BottomCTA from '@/components/site/BottomCTA'
@@ -187,6 +188,9 @@ function Home() {
 
       {/* ================ PRODUCT DEMO PREVIEW (Notion-style) ================ */}
       <ProductDemoPreview />
+
+      {/* ================ TRUSTED SCHOLARSHIP PROVIDERS (marquee) ================ */}
+      <ScholarshipProvidersMarquee />
 
       {/* ================ QUALITY > QUANTITY promise ================ */}
       <section className="relative border-t border-white/5">

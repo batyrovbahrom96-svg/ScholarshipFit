@@ -36,7 +36,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      'The Nova AI advisor rewrote my SOP draft point-by-point. I had never been told I was burying the lede — that single change pushed my Erasmus Mundus app across the line.',
+      'The Nova AI research assistant rewrote my SOP draft point-by-point. I had never been told I was burying the lede — that single change pushed my Erasmus Mundus app across the line.',
     name: 'Karim H.',
     country: '🇪🇬 Egypt → 🇧🇪 Belgium',
     won: 'Won $46,000 · Erasmus Mundus',

@@ -412,7 +412,7 @@ function Home() {
                   'Fit score, requirements met, gaps to close — before you write a single essay',
                   'Deadlines and eligibility validated against official source URLs',
                   'Application tracker + document checklist auto-generated from your matches',
-                  'Nova AI advisor — Claude Sonnet 4.5, grounded in our source-linked library',
+                  'Nova AI research assistant — Claude Sonnet 4.5, grounded in our source-linked library',
                   '"Why NOT fit" warnings on every match — stop wasting time on reaches',
                 ].map((t, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-white/85">

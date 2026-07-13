@@ -23,7 +23,7 @@ export default function BottomCTA() {
               <span className="text-gold-hi"> Let’s get you in that group.</span>
             </h2>
             <p className="mt-4 text-base md:text-lg text-white/60 max-w-2xl mx-auto">
-              Build your profile once. Our AI matches you to source-linked scholarships you can actually win — no fake promises, no wasted applications.
+              Build your profile once. Our AI surfaces scholarships that match your profile filters to source-linked scholarships you can actually win — no fake promises, no wasted applications.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/onboarding">

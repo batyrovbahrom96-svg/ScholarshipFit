@@ -143,8 +143,9 @@ export default function EssayGeneratorPage() {
             <span className="bg-gradient-to-b from-white via-[#F0D77A] to-[#D4AF37] bg-clip-text text-transparent">Generator.</span>
           </h1>
           <p className="mt-3 max-w-2xl text-white/60 leading-relaxed">
-            Give us your profile + a scholarship. We&apos;ll draft a first-person essay that opens with a specific moment,
-            weaves in your real achievements, and closes with a clear career vision. Ready to polish, not generic AI slop.
+            Give us your profile + a scholarship. We&apos;ll draft a first-person essay outline that opens with a specific moment,
+            weaves in your real achievements, and closes with a clear career vision. <span className="text-white/80">You review, edit, and submit it yourself</span> through the scholarship provider&apos;s official application page.{' '}
+            <Link href="/how-our-ai-works" className="text-[#F0D77A] underline decoration-white/20 hover:decoration-white/60">How our AI works →</Link>
           </p>
         </div>
 

@@ -64,6 +64,7 @@ export default function Footer() {
             <ul className="mt-3 space-y-2 text-sm text-white/80">
               <li><Link className="hover:text-[#D4AF37]" href="/terms">Terms of Service</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/privacy">Privacy Policy</Link></li>
+              <li><Link className="hover:text-[#D4AF37]" href="/how-our-ai-works">How our AI works</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/refunds">Refund Policy</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/dpa">Data Processing</Link></li>
               <li><Link className="hover:text-[#D4AF37]" href="/dmca">DMCA &amp; Abuse</Link></li>

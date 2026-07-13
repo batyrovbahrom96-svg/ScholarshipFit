@@ -324,7 +324,7 @@ function Pricing() {
                   ['Unlimited AI Match reports',       '✓', '✓', '✓'],
                   ['Application Readiness Score',      '✓', '✓', '✓'],
                   ['Cabinet + Tracker + PDF export',   '✓', '✓', '✓'],
-                  ['Nova AI advisor · 24/7 chat',       '✓', '✓', '✓'],
+                  ['Nova AI research assistant · 24/7 chat',       '✓', '✓', '✓'],
                   ['Deadline reminders (email)',       '✓', '✓', '✓'],
                   ['New scholarships every week',      '✓', '✓', '✓'],
                   ['Priority support',                 '✓', '✓', '✓'],

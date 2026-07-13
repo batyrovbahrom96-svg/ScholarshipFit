@@ -16,7 +16,7 @@ import {
   Scenes:
     1. Take the 8-step Quiz
     2. See ranked matches with fit scores
-    3. Chat with Nova AI advisor
+    3. Chat with Nova AI research assistant
     4. Track applications (Kanban)
 
   Every ~6s the scene advances. User can click a tab to jump.

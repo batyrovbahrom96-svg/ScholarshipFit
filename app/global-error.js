@@ -10,6 +10,11 @@ import { useEffect } from 'react'
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
     console.error('[ScholarshipFit] global error boundary caught:', error)
+    if (typeof window !== 'undefined') {
+      import('@sentry/nextjs').then(Sentry => {
+        try { Sentry.captureException(error) } catch (_) { /* ignore */ }
+      }).catch(() => { /* Sentry not installed */ })
+    }
     if (typeof window !== 'undefined' && window.posthog?.captureException) {
       try { window.posthog.captureException(error) } catch (_) { /* swallow */ }
     }

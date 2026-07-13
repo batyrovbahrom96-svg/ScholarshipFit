@@ -8,6 +8,12 @@ export default function Error({ error, reset }) {
   useEffect(() => {
     // Log the error so it's visible in browser devtools + shows up in PostHog if wired
     console.error('[ScholarshipFit] client error boundary caught:', error)
+    // Sentry capture — automatic if sentry.client.config.js is loaded
+    if (typeof window !== 'undefined') {
+      import('@sentry/nextjs').then(Sentry => {
+        try { Sentry.captureException(error) } catch (_) { /* ignore */ }
+      }).catch(() => { /* Sentry not installed */ })
+    }
     // PostHog exception capture — safe even if PH is not loaded yet
     if (typeof window !== 'undefined' && window.posthog?.captureException) {
       try { window.posthog.captureException(error) } catch (_) { /* swallow */ }

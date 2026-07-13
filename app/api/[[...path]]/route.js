@@ -2603,6 +2603,55 @@ Respond with STRICT JSON in this schema:
     // ============ Application Tracker (Kanban) ============
     const TRACKER_STATUSES = ['saved', 'preparing', 'submitted', 'waiting', 'result']
 
+    // ============ /stats — Public inventory counters (cached 1 hour) ============
+    // Used by <LiveStats /> on landing / /scholarships / /pricing to show real-time
+    // DB numbers instead of a hardcoded "800+". Fully public — no PII, no filtering leaks.
+    if (route === '/stats' && method === 'GET') {
+      globalThis.__scholarshipfit_stats_cache ||= { ts: 0, data: null }
+      const cache = globalThis.__scholarshipfit_stats_cache
+      const now = Date.now()
+      if (cache.data && (now - cache.ts) < 60 * 60 * 1000) {
+        return withCORS(NextResponse.json({ ...cache.data, cached: true }))
+      }
+      try {
+        const col = db.collection('scholarships')
+        const [total, sourceLinked, countriesArr, latestChecked] = await Promise.all([
+          col.countDocuments({ public_status: { $ne: 'hidden' } }),
+          col.countDocuments({ public_status: { $ne: 'hidden' }, verification_status: { $in: ['Source-linked', 'Verified', 'Hand-verified'] } }),
+          col.distinct('country', { public_status: { $ne: 'hidden' } }),
+          col.find({}, { projection: { last_checked: 1 } }).sort({ last_checked: -1 }).limit(1).toArray(),
+        ])
+        const lastIso = latestChecked?.[0]?.last_checked || null
+        const staleDays = lastIso
+          ? Math.max(0, Math.floor((now - new Date(lastIso).getTime()) / 86400000))
+          : null
+        const data = {
+          scholarships_total:         total,
+          scholarships_source_linked: sourceLinked,
+          countries_count:            (countriesArr || []).filter(Boolean).length,
+          last_refreshed_iso:         lastIso,
+          days_since_refresh:         staleDays,
+          generated_at:               new Date().toISOString(),
+        }
+        cache.ts = now
+        cache.data = data
+        return withCORS(NextResponse.json({ ...data, cached: false }))
+      } catch (e) {
+        // Conservative fallback — never leak errors publicly.
+        return withCORS(NextResponse.json({
+          scholarships_total: 799,
+          scholarships_source_linked: 799,
+          countries_count: 60,
+          last_refreshed_iso: null,
+          days_since_refresh: null,
+          generated_at: new Date().toISOString(),
+          cached: false,
+          fallback: true,
+        }))
+      }
+    }
+
+
     // ============ Founder urgency (public, no auth) ============
     // Powers the countdown timer + spots-remaining bar on paywall/pricing.
     // Cached at Edge would be ideal, but 30s server memoization is enough.

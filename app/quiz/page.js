@@ -213,7 +213,7 @@ export default function QuizPage() {
     setLoading(true); setError('')
     try {
       // Kick off the API call and enforce a minimum loader duration so the
-      // "AI is analyzing 800+ scholarships" experience feels grounded.
+      // "AI is analyzing 800 scholarships" experience feels grounded.
       const started = Date.now()
       const apiCall = fetch('/api/scholarships/quiz-match', {
         method: 'POST',
@@ -754,7 +754,7 @@ function QuizResults({ results, answers, onReset, userName }) {
 
               <div className="mt-6 grid gap-2 sm:grid-cols-2 max-w-3xl">
                 {[
-                  ['Unlock all 800+ hand-verified scholarships', 'Deadlines + application links'],
+                  ['Unlock all 800 hand-verified scholarships', 'Deadlines + application links'],
                   ['Unlimited AI Match reports', 'Claude Sonnet 4.5 personalised'],
                   ['Application Readiness Score', 'PDF/DOCX upload + gap analysis'],
                   ['Cabinet + Application Tracker', 'Kanban board · deadline reminders'],
@@ -822,7 +822,7 @@ function QuizResults({ results, answers, onReset, userName }) {
         {/* Trust footer */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 text-center border-t border-white/5 pt-8">
           {[
-            ["800+", "Hand-verified scholarships"],
+            ["800", "Hand-verified scholarships"],
             ['60', 'Countries covered'],
             ['100%', 'Source-linked'],
             ['0', 'Fake data'],
@@ -966,7 +966,7 @@ function QuizAnalyzingLoader({ userName }) {
   const STEPS = [
     { label: 'Reading your profile',                     detail: 'Parsing 8 answers · normalising GPA + language scores' },
     { label: 'Applying eligibility filters',             detail: 'Nationality · degree level · field of study' },
-    { label: 'Scoring against 800+ hand-verified scholarships',    detail: 'Fit engine · deterministic · no hallucinations · no dead links' },
+    { label: 'Scoring against 800 hand-verified scholarships',    detail: 'Fit engine · deterministic · no hallucinations · no dead links' },
     { label: 'Ranking your top matches',                 detail: 'Sorting by fit score · surfacing risks + gaps' },
   ]
   const [i, setI] = useState(0)

@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button'
 
 export const metadata = {
   title: 'Scholarship Directory · Browse by Country, Field, and Degree — ScholarshipFit',
-  description: '800+ hand-verified international scholarships. No dead links. No aggregator spam. Browse by nationality, destination country, degree level, and field of study — every listing sourced from the official provider.',
+  description: '800 hand-verified international scholarships. No dead links. No aggregator spam. Browse by nationality, destination country, degree level, and field of study — every listing sourced from the official provider.',
   alternates: { canonical: 'https://scholarshipfit.com/scholarships' },
   openGraph: {
     type: 'website',
     title: 'Scholarship Directory — ScholarshipFit',
-    description: '800+ hand-verified international scholarships. No dead links. No aggregator spam.',
+    description: '800 hand-verified international scholarships. No dead links. No aggregator spam.',
     url: 'https://scholarshipfit.com/scholarships',
   },
 }
@@ -38,7 +38,7 @@ export default function ScholarshipsHub() {
       <section className="container mx-auto max-w-6xl px-4 pt-14 pb-6 md:pt-20">
         <div className="text-[11px] uppercase tracking-widest text-[#D4AF37]">Scholarship Directory</div>
         <h1 className="mt-3 text-3xl md:text-5xl font-semibold text-white leading-tight">
-          Browse 800+ hand-verified scholarships
+          Browse 800 hand-verified scholarships
         </h1>
         <p className="mt-4 text-white/70 text-base md:text-lg max-w-3xl">
           Every scholarship in our database is <span className="text-white font-medium">hand-verified</span> and source-linked to the official provider — <span className="text-white">no dead links, no aggregator spam, no middlemen</span>.

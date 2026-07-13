@@ -103,7 +103,7 @@ export default function RejectionDebugger() {
             Rejection is <span className="text-gold-hi">data</span>, not a verdict.
           </h1>
           <p className="mt-4 text-white/70 max-w-2xl mx-auto">
-            Paste your rejection letter. Nova extracts the real signals, names your profile gaps, and lines up <span className="text-white">verified alternatives</span> that actually fit you — from our hand-verified, source-linked database of 800+ premium scholarships. No dead links. No aggregator spam.
+            Paste your rejection letter. Nova extracts the real signals, names your profile gaps, and lines up <span className="text-white">verified alternatives</span> that actually fit you — from our hand-verified, source-linked database of 800 premium scholarships. No dead links. No aggregator spam.
           </p>
           <div className="mt-4 flex items-center justify-center gap-3 text-[11px] text-white/40">
             <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3"/> Letters are never stored in plaintext</span>
@@ -385,7 +385,7 @@ export default function RejectionDebugger() {
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                 <div className="font-medium text-white">🔁 Real alternatives</div>
-                <div className="mt-1 text-xs text-white/60">Runs your profile through the 800+ hand-verified premium DB and returns 3-5 scholarships that address the gaps — never invented.</div>
+                <div className="mt-1 text-xs text-white/60">Runs your profile through the 800 hand-verified premium DB and returns 3-5 scholarships that address the gaps — never invented.</div>
               </div>
             </div>
           </CardContent>

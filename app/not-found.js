@@ -3,14 +3,14 @@ import { GraduationCap, Search, Trophy, BookOpen, Bot, ArrowRight, Home } from '
 
 export const metadata = {
   title: 'Page not found · ScholarshipFit',
-  description: "The scholarship or page you're looking for doesn't exist — but 800+ hand-verified scholarships still do.",
+  description: "The scholarship or page you're looking for doesn't exist — but 800 hand-verified scholarships still do.",
 }
 
 const QUICK_LINKS = [
-  { href: '/quiz',          icon: GraduationCap, title: 'Take the 8-step Match Quiz',       body: 'Answer 8 quick questions — we rank 800+ hand-verified scholarships against your profile.' },
+  { href: '/quiz',          icon: GraduationCap, title: 'Take the 8-step Match Quiz',       body: 'Answer 8 quick questions — we rank 800 hand-verified scholarships against your profile.' },
   { href: '/scholarships',  icon: Search,        title: 'Browse the full directory',        body: 'Filter by country, degree level, and field of study across 60+ destinations.' },
   { href: '/blog',          icon: BookOpen,      title: 'Read scholarship strategy',        body: '10 in-depth guides — from writing a winning SOP to nailing the Fulbright interview.' },
-  { href: '/advisor',       icon: Bot,           title: 'Chat with Nova AI',                body: '24/7 AI advisor grounded in 800+ hand-verified records.' },
+  { href: '/advisor',       icon: Bot,           title: 'Chat with Nova AI',                body: '24/7 AI advisor grounded in 800 hand-verified records.' },
 ]
 
 export default function NotFound() {
@@ -38,7 +38,7 @@ export default function NotFound() {
           </h1>
           <p className="mt-5 max-w-xl text-base md:text-lg text-white/60 leading-relaxed">
             The page you&apos;re looking for doesn&apos;t exist — but{' '}
-            <span className="text-white">800+ hand-verified scholarships</span> still do.
+            <span className="text-white">800 hand-verified scholarships</span> still do.
             Pick a path below and get back on track.
           </p>
 

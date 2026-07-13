@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
-export const alt = 'ScholarshipFit — 800+ hand-verified scholarships, ranked by fit'
+export const alt = 'ScholarshipFit — 800 hand-verified scholarships, ranked by fit'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -103,7 +103,7 @@ export default async function Image() {
             marginTop: 26, fontSize: 30, color: 'rgba(255,255,255,0.68)',
             fontWeight: 400, lineHeight: 1.35, maxWidth: 900, display: 'flex',
           }}>
-            800+ hand-verified premium scholarships. No dead links. No aggregator spam.
+            800 hand-verified premium scholarships. No dead links. No aggregator spam.
           </div>
         </div>
 
@@ -113,7 +113,7 @@ export default async function Image() {
           fontSize: 20, color: 'rgba(255,255,255,0.75)',
           alignItems: 'center', flexWrap: 'wrap',
         }}>
-          {['800+ hand-verified', 'Ranked by fit', 'AI-assisted', '7-day free trial'].map((t, i) => (
+          {['800 hand-verified', 'Ranked by fit', 'AI-assisted', '7-day free trial'].map((t, i) => (
             <div key={i} style={{
               padding: '8px 16px',
               border: '1px solid rgba(255,255,255,0.14)',

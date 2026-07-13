@@ -8,19 +8,19 @@ import PostHogPageView from '@/components/site/PostHogPageView'
 import UrgencyBanner from '@/components/site/UrgencyBanner'
 
 export const metadata = {
-  title: 'ScholarshipFit — 800+ hand-verified scholarships, ranked by fit',
-  description: '800+ hand-verified, premium scholarships. No dead links. No aggregator spam. Turn your academic profile into an AI-powered, source-linked shortlist ranked by fit — every listing sourced from the official provider.',
+  title: 'ScholarshipFit — 800 hand-verified scholarships, ranked by fit',
+  description: '800 hand-verified, premium scholarships. No dead links. No aggregator spam. Turn your academic profile into an AI-powered, source-linked shortlist ranked by fit — every listing sourced from the official provider.',
   metadataBase: new URL('https://scholarshipfit.com'),
   openGraph: {
-    title: 'ScholarshipFit — 800+ hand-verified scholarships, ranked by fit',
-    description: '800+ hand-verified premium scholarships. No dead links. No aggregator spam. Every listing sourced from the official provider.',
+    title: 'ScholarshipFit — 800 hand-verified scholarships, ranked by fit',
+    description: '800 hand-verified premium scholarships. No dead links. No aggregator spam. Every listing sourced from the official provider.',
     images: ['/brand-logo-full.png'],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'ScholarshipFit',
-    description: '800+ hand-verified premium scholarships for international students. No dead links. No aggregator spam.',
+    description: '800 hand-verified premium scholarships for international students. No dead links. No aggregator spam.',
     images: ['/brand-logo-full.png'],
   },
   // icons auto-discovered from app/icon.png, app/apple-icon.png, app/favicon.ico

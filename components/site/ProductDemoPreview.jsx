@@ -306,7 +306,7 @@ function SceneMatches() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-[#D4AF37]">Your matches · Ranked by fit</div>
-          <h3 className="mt-1 text-xl md:text-2xl font-semibold text-white">42 matches from 800+ hand-verified scholarships</h3>
+          <h3 className="mt-1 text-xl md:text-2xl font-semibold text-white">42 matches from 800 hand-verified scholarships</h3>
         </div>
         <div className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[11px] text-emerald-300">
           <Flame className="h-3 w-3"/> 12 close deadlines
@@ -406,7 +406,7 @@ function SceneNova() {
           </div>
           <div>
             <div className="text-sm font-medium text-white">Nova · AI Advisor</div>
-            <div className="text-[10px] text-white/50">Claude Sonnet 4.5 · Grounded in 800+ hand-verified records</div>
+            <div className="text-[10px] text-white/50">Claude Sonnet 4.5 · Grounded in 800 hand-verified records</div>
           </div>
         </div>
         <div className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] text-emerald-300">

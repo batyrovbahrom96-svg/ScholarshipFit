@@ -150,7 +150,7 @@ export default function ExitIntentModal() {
               Wait — grab the <span className="text-[#D4AF37]">2026 Scholarship Deadline Calendar</span>
             </h2>
             <p className="mt-3 text-sm md:text-[15px] text-white/70 leading-relaxed">
-              Every one of our <span className="text-white font-medium">800+ hand-verified, source-linked scholarships</span> — sorted by deadline. Printable. Share-worthy. Yours in 10 seconds. No dead links. No aggregator spam.
+              Every one of our <span className="text-white font-medium">800 hand-verified, source-linked scholarships</span> — sorted by deadline. Printable. Share-worthy. Yours in 10 seconds. No dead links. No aggregator spam.
             </p>
 
             <ul className="mt-4 space-y-2 text-sm text-white/80">

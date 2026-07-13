@@ -22,6 +22,7 @@ import OutcomesPreview from '@/components/site/OutcomesPreview'
 import FounderVideo from '@/components/site/FounderVideo'
 import ProofStats from '@/components/site/ProofStats'
 import ProductDemoPreview from '@/components/site/ProductDemoPreview'
+import LiveStats from '@/components/site/LiveStats'
 
 /* ============ decorative info card (floating around hero) ============ */
 function OrnamentCard({ icon, title, subtitle, className='', style }) {
@@ -142,16 +143,11 @@ function Home() {
                 <br className="hidden md:block"/> fit your profile.
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-base md:text-lg text-white/70 leading-relaxed">
-                ScholarshipFit uses AI-assisted research to organize <b className="text-white">800+ hand-verified, premium scholarships</b> by <b className="text-white">fit</b>, <b className="text-white">funding</b>, <b className="text-white">deadlines</b>, and <b className="text-white">missing requirements</b> — so you stop wasting hours on the wrong ones.
+                ScholarshipFit uses AI-assisted research to organize <b className="text-white">800 hand-verified, premium scholarships</b> by <b className="text-white">fit</b>, <b className="text-white">funding</b>, <b className="text-white">deadlines</b>, and <b className="text-white">missing requirements</b> — so you stop wasting hours on the wrong ones.
               </p>
 
-              {/* Quality-over-quantity pill */}
-              <div className="mx-auto mt-5 flex flex-wrap items-center justify-center gap-2 text-[12px] text-white/70">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/> Hand-verified</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1">No dead links</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1">No aggregator spam</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-3 py-1 text-[#E7C766]">Every listing sourced from the official provider</span>
-              </div>
+              {/* Live inventory pill row — hydrates real count from /api/stats */}
+              <LiveStats variant="hero" />
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Link href="/quiz">
@@ -199,7 +195,7 @@ function Home() {
             <div className="text-xs uppercase tracking-widest text-[#D4AF37]">Quality over quantity</div>
             <h2 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight text-white">
               Not <span className="text-white/40 line-through">40,000 scholarships</span>. <br className="hidden md:block"/>
-              <span className="text-gold-hi">800+ ones worth applying to.</span>
+              <span className="text-gold-hi">799 that are worth applying to.</span>
             </h2>
             <p className="mt-4 text-white/60 leading-relaxed">
               Aggregators brag about size. We brag about signal. Every scholarship on ScholarshipFit is <span className="text-white font-medium">hand-verified against the official provider website</span> — with real deadlines, real funding, and a working URL.
@@ -226,7 +222,7 @@ function Home() {
                 ScholarshipFit
               </div>
               <ul className="space-y-3 text-sm text-white/85">
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0"/> 800+ hand-verified premium scholarships — every one worth applying to</li>
+                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0"/> 800 hand-verified premium scholarships — every one worth applying to</li>
                 <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0"/> Every listing sourced from the <span className="text-white">official provider</span> URL</li>
                 <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0"/> No dead links, no aggregator middlemen, no application fees</li>
                 <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0"/> Deterministic fit engine ranks them against <span className="text-white">your</span> profile</li>
@@ -280,7 +276,7 @@ function Home() {
       <FeatureBlock
         kicker="Match"
         title="Ranked shortlist with fit reasoning."
-        body="Answer 8 quick questions — education level, field, nationality, destinations, GPA, English scores, work experience, timeline, and funding preference. We instantly rank 800+ hand-verified, premium scholarships against your profile and show fit score, matched requirements, gaps, warnings, and the official source URL. No dead links, no aggregator spam."
+        body="Answer 8 quick questions — education level, field, nationality, destinations, GPA, English scores, work experience, timeline, and funding preference. We instantly rank 800 hand-verified, premium scholarships against your profile and show fit score, matched requirements, gaps, warnings, and the official source URL. No dead links, no aggregator spam."
         ctaLabel="Start matching"
         ctaHref="/quiz"
       >
@@ -353,7 +349,7 @@ function Home() {
             <div className="md:col-span-7" data-reveal data-reveal-delay="200">
               <div className="grid grid-cols-2 gap-4">
                 <StatTile big="20h" small="Avg time saved per cycle" tone="gold"/>
-                <StatTile big="800+" small="Hand-verified premium scholarships" tone="cyan"/>
+                <StatTile big="799" small="Hand-verified premium scholarships" tone="cyan"/>
                 <StatTile big="3 min" small="From profile to shortlist" tone="emerald"/>
                 <StatTile big="60 countries" small="Where our scholarships come from" tone="gold"/>
               </div>

@@ -169,7 +169,7 @@ function SampleReport() {
             <div className="mt-4 grid gap-3 md:grid-cols-4">
               <StepCell n="1" icon={User}         title="Profile intake"    body="Parses 8 answers from the quiz — degree, field, nationality, GPA, language, funding preference, timeline, financial need."/>
               <StepCell n="2" icon={Filter}       title="Eligibility gate"  body="Hard-filters programs by nationality + degree level — ineligible matches are removed before scoring."/>
-              <StepCell n="3" icon={Database}     title="Deterministic scoring" body="Rules-based fit engine ranks 800+ hand-verified, source-linked records — no dead links, no aggregator spam, no hallucinated data."/>
+              <StepCell n="3" icon={Database}     title="Deterministic scoring" body="Rules-based fit engine ranks 800 hand-verified, source-linked records — no dead links, no aggregator spam, no hallucinated data."/>
               <StepCell n="4" icon={Trophy}       title="Top matches + risks" body="Best-fit scholarships surface with source URLs, funding, deadlines, gaps and application-waste warnings."/>
             </div>
           </div>
@@ -252,7 +252,7 @@ function SampleReport() {
                   Build your own report — from your real profile
                 </h2>
                 <p className="mt-2 text-white/70 max-w-2xl">
-                  Answer 8 quick questions. We rank 800+ hand-verified, premium scholarships against your profile in seconds. No dead links. No aggregator spam.
+                  Answer 8 quick questions. We rank 800 hand-verified, premium scholarships against your profile in seconds. No dead links. No aggregator spam.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 shrink-0">

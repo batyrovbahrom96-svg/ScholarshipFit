@@ -3501,3 +3501,23 @@ agent_communication:
         - Frontend UI testing blocked by login failure
         - Server instability may have contributed to test failures
         - Screenshots saved: test2_referral_dashboard.png, test3_pricing_with_code.png
+
+## SESSION 2026-06 — FRONTEND VERIFICATION (post-OOM-fix)
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Root cause of previous frontend testing failures identified: dev-server
+        `NODE_OPTIONS=--max-old-space-size=512` was too tight for the current
+        codebase (3400-line API + Sentry + Turnstile). Server was hitting memory
+        threshold every 30-90s and cascading restarts, causing 502s during
+        automated testing. Bumped to 2048 (safe headroom on preview pod).
+
+        Manual re-verification via Playwright screenshot tool:
+          ✓ /?ref=SFTEST01 → localStorage.sf_ref=SFTEST01, POST /api/referrals/track-click fired (200)
+          ✓ Login as admin@scholarshipfit.com succeeds → lands on /dashboard
+          ✓ /dashboard/referrals renders full UI: unique link (SFECAEC5), 4 stat cards (Clicks:3, Signups:0, Paid:0, Days:0), share buttons (Twitter/WhatsApp/Email/More), 4 copy-paste posts, progress bar, "3 more to unlock" milestone.
+          ✓ "Refer & Earn" link visible in dashboard sidebar.
+          ✓ No console errors on referral flow.
+        Production build passes cleanly with new memory config (Done in 47s).
+        Marketing Revenue Engine is FULLY OPERATIONAL.

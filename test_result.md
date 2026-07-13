@@ -3157,6 +3157,19 @@ backend:
           comment: |
             Added a full marketing revenue stack. All endpoints are inside the
             monolithic /api/[[...path]] router (search for "Marketing:" comment).
+        - working: true
+          agent: "testing"
+          date: "2026-07-13"
+          comment: |
+            ✅ BACKEND DISCOUNT API VALIDATED (1/1 test passed)
+            
+            Tested: POST /api/discounts/validate with code "LAUNCH50"
+            Result: {"valid": true, "code": "LAUNCH50", "percent_off": 50, "description": "50% off — launch week", "remaining": 199}
+            
+            ✓ Discount validation API working correctly
+            ✓ Returns proper validation response with percent_off and remaining uses
+            
+            Backend discount endpoints are functional.
 
             New endpoints:
               GET  /api/referrals/me                    → auth-required; auto-creates user's referral row (code, share_url, prewritten payload, stats). Returns 401 for guests.
@@ -3270,17 +3283,103 @@ backend:
 frontend:
   - task: "Referral dashboard + discount code UI in Paywall & Pricing + ?ref= capture"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/app/dashboard/referrals/page.js, /app/components/site/ReferralCapture.jsx, /app/components/site/PaywallModal.jsx, /app/app/pricing/page.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false   # do not auto-test — main agent will ask user first
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
           comment: |
             Frontend built but NOT auto-tested. Waiting for user permission to run
             frontend testing agent.
+        - working: false
+          agent: "testing"
+          date: "2026-07-13"
+          comment: |
+            ❌ MARKETING REVENUE ENGINE UI TESTING - CRITICAL ISSUES FOUND (3/6 tests failed)
+            
+            **ENVIRONMENT ISSUE:**
+            ⚠️ Next.js server experiencing memory issues during testing:
+            - Server logs show: "⚠ Server is approaching the used memory threshold, restarting..."
+            - This caused intermittent 502 Bad Gateway errors during testing
+            - Some tests failed due to server instability, not code issues
+            
+            **TEST RESULTS:**
+            
+            ❌ TEST 1 FAILED: Referral capture from URL (guest, no login)
+            - Visited /?ref=SFTEST01
+            - localStorage.getItem('sf_ref') returned None (expected: "SFTEST01")
+            - ReferralCapture component is mounted in providers.js but NOT setting localStorage
+            - CRITICAL BUG: Referral tracking completely broken
+            
+            ❌ TEST 2 FAILED: Referral dashboard (authed)
+            - Login with admin@scholarshipfit.com failed
+            - User stayed on /login page instead of redirecting to /dashboard
+            - Could not access /dashboard/referrals to test the UI
+            - Screenshots show stuck loading screen: "00" with "PREPARING YOUR COMMAND CENTER"
+            - CRITICAL BUG: Authentication/login flow broken
+            
+            ✅ TEST 3 PASSED: Discount code auto-apply from URL (preorder mode)
+            - Visited /pricing?code=LAUNCH50
+            - "Have a code?" input correctly HIDDEN in PREORDER mode ✓
+            - API validation working: POST /api/discounts/validate returns {"valid":true, "code":"LAUNCH50", "percent_off":50, "remaining":199} ✓
+            - Discount code backend working correctly
+            
+            ⚠️ TEST 4 SKIPPED: Paywall modal opens and tracks event
+            - Could not test due to login failure
+            - No paywall triggers found on dashboard (expected for Lifetime VIP user)
+            
+            ❌ TEST 5 FAILED: Sign up flow with referral (light test)
+            - Visited /?ref=SFABCTEST
+            - localStorage.getItem('sf_ref') returned None (expected: "SFABCTEST")
+            - Same referral capture bug as TEST 1
+            - Signup form is accessible but referral code not being captured
+            
+            ⚠️ TEST 6 PARTIAL: Console + JS errors check
+            - Homepage showed 502 Bad Gateway error during one test run
+            - Login page timeout when trying to re-login
+            - Server instability causing test failures
+            
+            **CRITICAL BUGS IDENTIFIED:**
+            
+            1. 🔴 REFERRAL CAPTURE BROKEN (HIGH PRIORITY)
+               - ReferralCapture.jsx component is mounted but NOT working
+               - localStorage.setItem('sf_ref', code) is NOT being called
+               - Possible causes:
+                 * useEffect not firing
+                 * URLSearchParams not reading query params correctly
+                 * Client-side hydration issue
+                 * Component mounting after URL params are cleared
+               - Impact: ALL referral tracking is broken - no clicks, no signups will be attributed
+            
+            2. 🔴 LOGIN/AUTH FLOW BROKEN (HIGH PRIORITY)
+               - Login with valid credentials (admin@scholarshipfit.com / ScholarshipFitOwner2026!) fails
+               - User stays on /login page instead of redirecting
+               - Loading screen gets stuck at "00" with "PREPARING YOUR COMMAND CENTER"
+               - Impact: Cannot access protected pages like /dashboard/referrals
+            
+            3. 🟡 SERVER MEMORY ISSUES (MEDIUM PRIORITY)
+               - Next.js server restarting due to memory threshold
+               - Causing intermittent 502 errors
+               - May be related to the stuck loading screens
+            
+            **WHAT'S WORKING:**
+            ✅ Discount code validation API (/api/discounts/validate)
+            ✅ Discount code UI correctly hidden in PREORDER mode
+            ✅ /pricing page loads and renders correctly
+            ✅ Signup form is accessible
+            
+            **SCREENSHOTS:**
+            - test2_referral_dashboard.png: Shows stuck loading screen "00"
+            - test3_pricing_with_code.png: Shows /pricing page (working correctly)
+            
+            **NEXT STEPS FOR MAIN AGENT:**
+            1. 🔴 FIX REFERRAL CAPTURE: Debug ReferralCapture.jsx - why is localStorage not being set?
+            2. 🔴 FIX LOGIN FLOW: Debug why login redirects to /login? instead of /dashboard
+            3. 🟡 INVESTIGATE MEMORY ISSUES: Check why Next.js server is hitting memory threshold
+            4. After fixes, re-test all 6 test cases
 
 metadata:
   created_by: "main_agent"
@@ -3290,8 +3389,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Referral program endpoints + discount codes + paywall tracking"
-  stuck_tasks: []
+    - "Referral dashboard + discount code UI in Paywall & Pricing + ?ref= capture"
+  stuck_tasks:
+    - "Referral dashboard + discount code UI in Paywall & Pricing + ?ref= capture"
   test_all: false
   test_priority: "high_first"
 
@@ -3347,3 +3447,57 @@ agent_communication:
         
         Test script: /app/backend_test_marketing.py
         Full test output available in test execution logs.
+
+
+    - agent: "testing"
+      date: "2026-07-13"
+      message: |
+        ❌ MARKETING REVENUE ENGINE UI TESTING COMPLETE - CRITICAL ISSUES FOUND
+        
+        **SUMMARY:**
+        ✅ Discount code validation API: WORKING
+        ✅ Discount code UI (PREORDER mode): WORKING (correctly hidden)
+        ❌ Referral capture from URL: BROKEN (localStorage not being set)
+        ❌ Login/Auth flow: BROKEN (stuck on /login page)
+        ⚠️ Referral dashboard: UNTESTABLE (due to login failure)
+        ⚠️ Paywall modal: UNTESTABLE (due to login failure)
+        
+        **CRITICAL BUGS:**
+        
+        1. 🔴 REFERRAL CAPTURE BROKEN (HIGH PRIORITY)
+           - ReferralCapture.jsx is mounted in providers.js but NOT working
+           - Visiting /?ref=SFTEST01 does NOT set localStorage.getItem('sf_ref')
+           - Returns None instead of "SFTEST01"
+           - ALL referral tracking is broken - no attribution possible
+           - Needs immediate fix
+        
+        2. 🔴 LOGIN FLOW BROKEN (HIGH PRIORITY)
+           - Login with admin@scholarshipfit.com / ScholarshipFitOwner2026! fails
+           - User stays on /login page with "?" query param
+           - Loading screen stuck at "00" with "PREPARING YOUR COMMAND CENTER"
+           - Cannot access /dashboard/referrals or any protected pages
+           - Needs immediate fix
+        
+        3. 🟡 SERVER MEMORY ISSUES (MEDIUM PRIORITY)
+           - Next.js server logs: "⚠ Server is approaching the used memory threshold, restarting..."
+           - Causing intermittent 502 Bad Gateway errors
+           - May be contributing to stuck loading screens
+        
+        **WHAT'S WORKING:**
+        ✅ POST /api/discounts/validate - Returns correct validation response
+        ✅ /pricing page loads and renders correctly
+        ✅ Discount code UI correctly hidden in PREORDER mode
+        ✅ Signup form is accessible
+        
+        **ACTION ITEMS FOR MAIN AGENT:**
+        1. 🔴 DEBUG ReferralCapture.jsx - Why is localStorage.setItem not being called?
+        2. 🔴 DEBUG login flow - Why does login redirect to /login? instead of /dashboard?
+        3. 🔴 DEBUG loading screen - Why is it stuck at "00"?
+        4. 🟡 INVESTIGATE memory issues - Why is Next.js hitting memory threshold?
+        5. After fixes, request re-testing of all 6 test cases
+        
+        **TESTING NOTES:**
+        - Backend discount API was tested and is working (24/24 tests passed in previous session)
+        - Frontend UI testing blocked by login failure
+        - Server instability may have contributed to test failures
+        - Screenshots saved: test2_referral_dashboard.png, test3_pricing_with_code.png

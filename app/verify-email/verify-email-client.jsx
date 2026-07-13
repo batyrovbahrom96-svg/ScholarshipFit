@@ -108,11 +108,17 @@ export default function VerifyEmailClient() {
     setErr('')
     setBusy(true)
     try {
+      // Referral code passthrough — persisted in localStorage on landing
+      let refCode = null
+      try {
+        refCode = typeof window !== 'undefined' ? localStorage.getItem('sf_ref') : null
+        if (refCode) refCode = String(refCode).toUpperCase().slice(0, 20)
+      } catch { /* ignore */ }
       const r = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: theCode }),
+        body: JSON.stringify({ email, code: theCode, ref: refCode || undefined }),
       })
       const data = await r.json()
       if (!r.ok) {

@@ -27,6 +27,7 @@ const SIDEBAR = [
   { key:'matches', label:'Matches', icon:<LayoutDashboard className="h-4 w-4"/> },
   { key:'tracker', label:'Tracker', icon:<Kanban className="h-4 w-4"/>, href:'/dashboard/tracker' },
   { key:'saved', label:'Saved', icon:<Bookmark className="h-4 w-4"/>, href:'/dashboard/deadlines' },
+  { key:'referrals', label:'Refer & Earn', icon:<Sparkles className="h-4 w-4"/>, href:'/dashboard/referrals' },
   { key:'ignored', label:'Ignored', icon:<Ban className="h-4 w-4"/> },
   { key:'documents', label:'Documents', icon:<FileText className="h-4 w-4"/> },
   { key:'profile', label:'Profile', icon:<User className="h-4 w-4"/> },

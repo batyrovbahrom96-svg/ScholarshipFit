@@ -109,6 +109,30 @@ async function ensureSeed(db) {
       { $set: { email_verified: true, email_verified_at: new Date(), email_verified_source: 'grandfathered' } },
     )
   } catch (_) { /* ignore */ }
+
+  // ---------- Marketing infra: referrals, discount codes, paywall events ----------
+  try {
+    const refs = db.collection('referrals')
+    await refs.createIndex({ code: 1 }, { unique: true }).catch(() => {})
+    await refs.createIndex({ user_id: 1 }, { unique: true, sparse: true }).catch(() => {})
+
+    const dcs = db.collection('discount_codes')
+    await dcs.createIndex({ code: 1 }, { unique: true }).catch(() => {})
+    // Seed launch codes once
+    const seedCodes = [
+      { code: 'LAUNCH50',  percent_off: 50, description: '50% off — launch week',      max_uses: 200, uses: 0, active: true, expires_at: new Date(Date.now() + 30*24*3600*1000) },
+      { code: 'STUDENT20', percent_off: 20, description: '20% off for verified students', max_uses: 500, uses: 0, active: true, expires_at: new Date(Date.now() + 365*24*3600*1000) },
+      { code: 'EARLYBIRD', percent_off: 30, description: '30% off Lifetime — early adopters', max_uses: 100, uses: 0, active: true, expires_at: new Date(Date.now() + 90*24*3600*1000) },
+    ]
+    for (const c of seedCodes) {
+      await dcs.updateOne({ code: c.code }, { $setOnInsert: { id: uuidv4(), created_at: new Date(), ...c } }, { upsert: true }).catch(() => {})
+    }
+
+    const pv = db.collection('paywall_events')
+    await pv.createIndex({ user_id: 1, created_at: -1 }).catch(() => {})
+    await pv.createIndex({ email: 1, created_at: -1 }).catch(() => {})
+    await pv.createIndex({ abandoned_email_sent: 1, created_at: 1 }).catch(() => {})
+  } catch (_) { /* ignore */ }
 }
 
 // ---------- CORS ----------
@@ -1657,6 +1681,17 @@ Respond with STRICT JSON in this schema:
 
       // If somehow already verified (Google user setting password), issue session immediately
       if (userDoc.email_verified === true) {
+        // Referral capture for Google user completing password (only if new)
+        try {
+          const refCode = String(body.ref || '').trim().toUpperCase().slice(0, 20)
+          if (refCode && !existing) {
+            await db.collection('referrals').updateOne(
+              { code: refCode },
+              { $inc: { signups: 1 }, $addToSet: { referred_user_ids: userDoc.id }, $set: { last_signup_at: new Date() } },
+            )
+            await users.updateOne({ id: userDoc.id }, { $set: { referred_by_code: refCode } })
+          }
+        } catch (_) { /* non-fatal */ }
         await setSessionCookie(userDoc.id)
         const { _id, password_hash: _p, ...clean } = userDoc
         return withCORS(NextResponse.json({ user: clean, ok: true, verified: true }))
@@ -1815,6 +1850,20 @@ Respond with STRICT JSON in this schema:
         { id: record.user_id },
         { $set: { email_verified: true, email_verified_at: new Date(), email_verified_source: 'otp' } },
       )
+      // Referral capture — if the register call included ref, apply it here on verification
+      try {
+        const refCode = String(body.ref || '').trim().toUpperCase().slice(0, 20)
+        if (refCode) {
+          const userNow = await users.findOne({ id: record.user_id })
+          if (userNow && !userNow.referred_by_code) {
+            await db.collection('referrals').updateOne(
+              { code: refCode },
+              { $inc: { signups: 1 }, $addToSet: { referred_user_ids: record.user_id }, $set: { last_signup_at: new Date() } },
+            )
+            await users.updateOne({ id: record.user_id }, { $set: { referred_by_code: refCode } })
+          }
+        }
+      } catch (_) { /* non-fatal */ }
       await evCol.deleteOne({ email }).catch(() => {})
       await setSessionCookie(record.user_id)
       const user = await users.findOne({ id: record.user_id })
@@ -2249,6 +2298,18 @@ Respond with STRICT JSON in this schema:
         ? Math.max(100, Math.round(body.custom_price_cents))
         : null
 
+      // ------- Discount code (LAUNCH50, STUDENT20, EARLYBIRD, custom) -------
+      // Validates a promo code and either records it in custom_data (Paddle side)
+      // or applies it inline to the LemonSqueezy checkout URL.
+      let discountApplied = null
+      const discountCodeRaw = String(body.discount_code || '').trim().toUpperCase().slice(0, 20)
+      if (discountCodeRaw) {
+        const dc = await db.collection('discount_codes').findOne({ code: discountCodeRaw, active: true })
+        if (dc && (!dc.expires_at || new Date(dc.expires_at) > new Date()) && (!dc.max_uses || (dc.uses || 0) < dc.max_uses)) {
+          discountApplied = { code: dc.code, percent_off: dc.percent_off || 0 }
+        }
+      }
+
       const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
 
       // -------- Paddle Billing (default) --------
@@ -2299,13 +2360,24 @@ Respond with STRICT JSON in this schema:
             base_price: String(body.base_price ?? ''),
             region_country: String(body.region_country || ''),
             discount_pct: String(body.discount_pct || 0),
+            discount_code: discountApplied?.code || '',
+            discount_code_pct: String(discountApplied?.percent_off || 0),
           },
           ...(redirectOverride ? { checkout: { url: redirectOverride } } : {}),
         }
         // Regional PPP price override (Paddle allows unit_price override per item)
-        if (customPriceCents) {
+        // If a promo code stacks on top of regional pricing, it applies to the
+        // already-adjusted amount (compounded discount).
+        let effectiveCents = customPriceCents
+        if (discountApplied?.percent_off) {
+          const baseCents = customPriceCents || Math.round(Number(body.base_price || 0) * 100)
+          if (baseCents > 0) {
+            effectiveCents = Math.max(100, Math.round(baseCents * (100 - discountApplied.percent_off) / 100))
+          }
+        }
+        if (effectiveCents) {
           payload.items[0].price_override = {
-            unit_price: { amount: String(customPriceCents), currency_code: 'USD' },
+            unit_price: { amount: String(effectiveCents), currency_code: 'USD' },
           }
         }
 
@@ -2337,10 +2409,20 @@ Respond with STRICT JSON in this schema:
             processor: 'paddle',
             plan_key: planKey, price_id: String(priceId),
             custom_price_cents: customPriceCents,
+            effective_price_cents: effectiveCents,
+            discount_code: discountApplied?.code || null,
+            discount_percent_off: discountApplied?.percent_off || 0,
             paddle_transaction_id: pJson.data.id,
             created_at: new Date(),
           }).catch(() => {})
-          return withCORS(NextResponse.json({ ok: true, url, transaction_id: pJson.data.id, processor: 'paddle' }))
+          // Bump discount usage counter (best-effort; final commit happens on webhook confirmation too)
+          if (discountApplied?.code) {
+            await db.collection('discount_codes').updateOne(
+              { code: discountApplied.code },
+              { $inc: { uses: 1 }, $set: { last_used_at: new Date() } },
+            ).catch(() => {})
+          }
+          return withCORS(NextResponse.json({ ok: true, url, transaction_id: pJson.data.id, processor: 'paddle', discount: discountApplied || null }))
         } catch (e) {
           return withCORS(NextResponse.json({ error: 'Paddle request failed', detail: String(e?.message || e) }, { status: 502 }))
         }
@@ -3261,7 +3343,161 @@ Return valid JSON only — no markdown, no code fences.`
       return withCORS(NextResponse.json({ ok: true, cabinet: { favorites: mergedFavs, recent_searches: mergedSearches, profile: mergedProfile } }))
     }
 
-    // ------- Waitlist -------
+    // ------- Marketing: Referrals, Discount Codes, Paywall tracking -------
+    //
+    // Referral program: every logged-in user gets a unique code (their user_id short-hash).
+    // When a friend signs up with ?ref=CODE, the referrer's stats are incremented.
+    // "3 paid referrals = 1 month of Pro credit" — credits are tracked here and
+    // redeemed manually from admin (until Paddle credit-issuance API is wired).
+    //
+    // Discount codes: LAUNCH50, STUDENT20, EARLYBIRD are seeded automatically.
+    // Admins can add more via POST /admin/discounts.
+    //
+    // Paywall tracking: PaywallModal pings /paywall/track when opened; the
+    // /cron/abandoned-checkout endpoint scans these events and fires a recovery
+    // email 1 hour later if no purchase happened.
+
+    // ---- Generate stable short code from user id ----
+    const shortCodeFor = (userId) => {
+      const s = String(userId || '').replace(/-/g, '').toUpperCase()
+      return ('SF' + s.slice(0, 6)).slice(0, 10)
+    }
+
+    if (route === '/referrals/me' && method === 'GET') {
+      const user = await getSessionUser()
+      if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
+      const refs = db.collection('referrals')
+      let rec = await refs.findOne({ user_id: user.id })
+      if (!rec) {
+        const code = shortCodeFor(user.id)
+        const doc = {
+          id: uuidv4(),
+          user_id: user.id,
+          user_email: user.email,
+          code,
+          clicks: 0,
+          signups: 0,
+          paid: 0,
+          credits_earned_days: 0,
+          referred_user_ids: [],
+          created_at: new Date(),
+        }
+        try { await refs.insertOne(doc); rec = doc }
+        catch (_) { rec = await refs.findOne({ user_id: user.id }) } // race guard
+      }
+      const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+      const shareUrl = `${baseUrl}/?ref=${rec.code}`
+      const { _id, ...clean } = rec
+      return withCORS(NextResponse.json({
+        ...clean,
+        share_url: shareUrl,
+        commission_pct: 20,
+        credit_per_paid_referral_days: 30,
+        payload: {
+          twitter: `I've been using @ScholarshipFit — matched me with dozens of real scholarships in minutes. Get 20% off with my link: ${shareUrl}`,
+          whatsapp: `Hey! I'm using ScholarshipFit — an AI tool that matched me with real scholarships worth $$$. Use my link and you get 20% off: ${shareUrl}`,
+          email_subject: 'This scholarship tool actually works',
+          email_body: `Hi,\n\nI've been quietly using ScholarshipFit — it's an AI matcher that found me dozens of real, source-verified scholarships in minutes (no aggregator spam). \n\nHere's my referral link with 20% off:\n${shareUrl}\n\nWorth 10 minutes to try.`,
+        },
+      }))
+    }
+
+    // Public — track a referral link click (before signup)
+    if (route === '/referrals/track-click' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const code = String(body.code || '').trim().toUpperCase().slice(0, 20)
+      if (!code) return withCORS(NextResponse.json({ ok: true, skipped: true }))
+      await db.collection('referrals').updateOne(
+        { code },
+        { $inc: { clicks: 1 }, $set: { last_click_at: new Date() } },
+      ).catch(() => {})
+      return withCORS(NextResponse.json({ ok: true }))
+    }
+
+    // Admin — list all referral rows
+    if (route === '/admin/referrals' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const items = await db.collection('referrals').find({}).sort({ paid: -1, signups: -1 }).limit(500).toArray()
+      return withCORS(NextResponse.json({ items: items.map(({ _id, ...i }) => i) }))
+    }
+
+    // ------- Discount codes -------
+    if (route === '/discounts/validate' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const code = String(body.code || '').trim().toUpperCase().slice(0, 20)
+      if (!code) return withCORS(NextResponse.json({ valid: false, error: 'Empty code' }, { status: 400 }))
+      const dc = await db.collection('discount_codes').findOne({ code, active: true })
+      if (!dc) return withCORS(NextResponse.json({ valid: false, error: 'Code not found or inactive' }))
+      if (dc.expires_at && new Date(dc.expires_at) < new Date()) {
+        return withCORS(NextResponse.json({ valid: false, error: 'Code has expired' }))
+      }
+      if (dc.max_uses && (dc.uses || 0) >= dc.max_uses) {
+        return withCORS(NextResponse.json({ valid: false, error: 'Code fully redeemed' }))
+      }
+      return withCORS(NextResponse.json({
+        valid: true,
+        code: dc.code,
+        percent_off: dc.percent_off,
+        description: dc.description || '',
+        remaining: dc.max_uses ? Math.max(0, dc.max_uses - (dc.uses || 0)) : null,
+      }))
+    }
+
+    if (route === '/admin/discounts' && method === 'GET') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const items = await db.collection('discount_codes').find({}).sort({ created_at: -1 }).toArray()
+      return withCORS(NextResponse.json({ items: items.map(({ _id, ...i }) => i) }))
+    }
+
+    if (route === '/admin/discounts' && method === 'POST') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const code = String(body.code || '').trim().toUpperCase().slice(0, 20)
+      const percent_off = Math.min(100, Math.max(1, Number(body.percent_off) || 0))
+      if (!code || !percent_off) return withCORS(NextResponse.json({ error: 'code + percent_off required' }, { status: 400 }))
+      const doc = {
+        id: uuidv4(),
+        code,
+        percent_off,
+        description: String(body.description || '').slice(0, 200),
+        max_uses: Number(body.max_uses) || null,
+        uses: 0,
+        active: body.active !== false,
+        expires_at: body.expires_at ? new Date(body.expires_at) : null,
+        created_at: new Date(),
+      }
+      try {
+        await db.collection('discount_codes').insertOne(doc)
+        return withCORS(NextResponse.json({ ok: true, item: doc }))
+      } catch (e) {
+        return withCORS(NextResponse.json({ error: 'Code already exists' }, { status: 409 }))
+      }
+    }
+
+    // ------- Paywall event tracking (for abandoned-checkout email) -------
+    if (route === '/paywall/track' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      let email = String(body.email || '').trim().toLowerCase()
+      let user_id = null
+      const user = await getSessionUser().catch(() => null)
+      if (user) { user_id = user.id; email = user.email }
+      if (!email) return withCORS(NextResponse.json({ ok: true, skipped: 'no email' }))
+      await db.collection('paywall_events').insertOne({
+        id: uuidv4(),
+        user_id,
+        email,
+        plan: String(body.plan || '').slice(0, 40),
+        match_count: Number(body.match_count) || 0,
+        total_worth: Number(body.total_worth) || 0,
+        source: String(body.source || 'paywall').slice(0, 40),
+        abandoned_email_sent: false,
+        purchased: false,
+        created_at: new Date(),
+      }).catch(() => {})
+      return withCORS(NextResponse.json({ ok: true }))
+    }
+
+
     if (route === '/waitlist' && method === 'POST') {
       const body = await request.json().catch(() => ({}))
       const email = String(body.email || '').trim().toLowerCase()

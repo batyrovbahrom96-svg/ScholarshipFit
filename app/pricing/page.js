@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
@@ -43,6 +43,7 @@ function accentClasses(accent) {
 
 function Pricing() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
   const { region, setOverride, priceFor } = useRegionalPricing()
   const [activatingKey, setActivatingKey] = useState('')
@@ -50,6 +51,42 @@ function Pricing() {
   const [error, setError] = useState('')
   const discountPct = region?.discount_pct || 0
   const hasRegionalDiscount = discountPct > 0
+
+  // Discount / promo code state (matches PaywallModal implementation)
+  const [discountCode, setDiscountCode] = useState('')
+  const [discountValidating, setDiscountValidating] = useState(false)
+  const [discountResult, setDiscountResult] = useState(null)
+
+  const validateDiscount = async (codeArg) => {
+    const code = String(codeArg ?? discountCode).trim().toUpperCase()
+    if (!code) return
+    setDiscountValidating(true)
+    setDiscountResult(null)
+    try {
+      const r = await fetch('/api/discounts/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      const j = await r.json().catch(() => ({}))
+      setDiscountResult(j)
+      if (j?.valid) setDiscountCode(j.code)
+    } catch (e) {
+      setDiscountResult({ valid: false, error: 'Could not validate — try again' })
+    } finally {
+      setDiscountValidating(false)
+    }
+  }
+
+  // Auto-apply ?code=CODE from URL (works for abandoned-checkout emails, ads, etc.)
+  useEffect(() => {
+    const urlCode = (searchParams.get('code') || '').toUpperCase().slice(0, 20)
+    if (urlCode) {
+      setDiscountCode(urlCode)
+      validateDiscount(urlCode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const activate = async (planObj) => {
     setError('')
@@ -84,6 +121,7 @@ function Pricing() {
           custom_price_cents: hasRegionalDiscount ? Math.round(adjustedTotal * 100) : undefined,
           region_country: region?.detected_country || '',
           discount_pct:   discountPct || 0,
+          discount_code:  discountResult?.valid ? discountResult.code : undefined,
         }),
       })
       const j = await res.json().catch(() => ({}))
@@ -176,6 +214,40 @@ function Pricing() {
             </div>
           )}
         </div>
+
+        {/* Discount / promo code — auto-populated from ?code= URL param */}
+        {!IS_PREORDER && (
+          <div className="container mx-auto max-w-3xl px-4">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 flex flex-wrap items-center gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-white/50">Have a code?</div>
+              <input
+                type="text"
+                value={discountCode}
+                onChange={(e) => { setDiscountCode(e.target.value.toUpperCase()); setDiscountResult(null) }}
+                placeholder="LAUNCH50"
+                className="flex-1 min-w-[140px] rounded-md border border-white/15 bg-black/40 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-[#D4AF37] focus:outline-none uppercase tracking-wider"
+                maxLength={20}
+              />
+              <button
+                type="button"
+                onClick={() => validateDiscount()}
+                disabled={discountValidating || !discountCode.trim()}
+                className="rounded-md bg-[#D4AF37] px-3 py-1.5 text-xs font-semibold text-black hover:bg-[#c9a530] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {discountValidating ? 'Checking…' : 'Apply'}
+              </button>
+              {discountResult && (
+                <div className="w-full text-xs mt-1">
+                  {discountResult.valid ? (
+                    <span className="text-emerald-300">✓ <strong>{discountResult.code}</strong> — {discountResult.percent_off}% off will apply at checkout{discountResult.description ? ` · ${discountResult.description}` : ''}</span>
+                  ) : (
+                    <span className="text-red-300">{discountResult.error || 'Invalid code'}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* PLAN CARDS — 4-column length-based grid */}
         <div className="container mx-auto max-w-7xl px-4 py-12">
@@ -408,4 +480,10 @@ function TrialStep({ n, title, body }) {
   )
 }
 
-export default Pricing
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<div className="dark-bg min-h-screen"/>}>
+      <Pricing />
+    </Suspense>
+  )
+}

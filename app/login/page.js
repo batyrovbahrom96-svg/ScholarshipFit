@@ -38,6 +38,14 @@ export function AuthForm({ mode = 'login' }) {
     if (isSignup && !turnstileToken) return setErr('Please complete the security check to continue')
     setBusy(true)
     try {
+      // Referral code — captured from ?ref=CODE on landing / signup URL and
+      // persisted in localStorage. Passed through on signup so backend can
+      // credit the referrer once the account is email-verified.
+      let refCode = null
+      try {
+        refCode = searchParams.get('ref') || (typeof window !== 'undefined' ? localStorage.getItem('sf_ref') : null)
+        if (refCode) refCode = String(refCode).toUpperCase().slice(0, 20)
+      } catch { /* ignore */ }
       const url = mode === 'signup' ? '/api/auth/register' : '/api/auth/login'
       const r = await fetch(url, {
         method: 'POST',
@@ -46,7 +54,7 @@ export function AuthForm({ mode = 'login' }) {
         body: JSON.stringify({
           email,
           password,
-          ...(mode === 'signup' ? { name, turnstile_token: turnstileToken } : {}),
+          ...(mode === 'signup' ? { name, turnstile_token: turnstileToken, ref: refCode || undefined } : {}),
         }),
       })
       const data = await r.json()

@@ -2603,6 +2603,242 @@ Respond with STRICT JSON in this schema:
     // ============ Application Tracker (Kanban) ============
     const TRACKER_STATUSES = ['saved', 'preparing', 'submitted', 'waiting', 'result']
 
+    // ============================================================================
+    // /essays/generate — Essay/SOP Generator (paid feature, biggest conversion lever)
+    // ============================================================================
+    // Given a user profile + a specific scholarship + an essay type + prompts,
+    // produces a tailored, first-person, human-sounding essay draft using Claude.
+    //
+    // Access model:
+    //   • Anonymous: 1 free short preview (~250 words, no save)
+    //   • Signed-in free: 3 full essays / 30 days
+    //   • Paid subscriber (trialing/active/lifetime): UNLIMITED
+    //
+    // Storage: paid users' essays are persisted to `essays` collection.
+    // ============================================================================
+    if (route === '/essays/generate' && method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const {
+        essay_type = 'sop',
+        scholarship = {},
+        profile = {},
+        prompts = [],
+        word_count = 700,
+        tone = 'confident',
+      } = body
+
+      // ---- Access check ----
+      const currentUser = await getSessionUser()
+      const isPaid = !!(currentUser?.subscription && (
+        currentUser.subscription.plan === 'lifetime' ||
+        currentUser.subscription.status === 'active' ||
+        currentUser.subscription.status === 'trialing'
+      ))
+      const isOwner = currentUser?.role === 'owner'
+      const unlimited = isPaid || isOwner
+
+      // ---- Rate limit ----
+      let effectiveWordCount = Math.max(150, Math.min(1500, Number(word_count) || 700))
+      if (!currentUser) {
+        // Anonymous — preview only (short, no save)
+        effectiveWordCount = 250
+      } else if (!unlimited) {
+        // Signed-in free tier — 3 essays / 30 days
+        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const used = await db.collection('essays').countDocuments({
+          user_id: currentUser.id,
+          created_at: { $gte: cutoff },
+        })
+        if (used >= 3) {
+          return withCORS(NextResponse.json({
+            error: 'FREE_LIMIT_REACHED',
+            message: "You've used all 3 free essays this month. Upgrade for unlimited access.",
+            used, limit: 3, resets_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          }, { status: 402 }))
+        }
+      }
+
+      // ---- Guard against missing critical inputs ----
+      if (!profile.name && !profile.background) {
+        return withCORS(NextResponse.json({
+          error: 'PROFILE_REQUIRED',
+          message: 'Please provide at least your name and background before generating an essay.',
+        }, { status: 400 }))
+      }
+
+      // ---- System prompt (world-class scholarship essay coach) ----
+      const ESSAY_SYSTEM = `You are a top-tier scholarship essay coach who has helped 200+ students win Chevening, Fulbright, DAAD, Rhodes, and Gates Cambridge. You are NOT a generic AI writing assistant — you are a coach who has read thousands of successful and rejected essays and knows exactly what works.
+
+Your job: draft a first-person essay for the specific scholarship + student below.
+
+HARD RULES:
+1. Write in FIRST PERSON as the student. Never write "you" instructing them — you ARE them.
+2. NO clichés: never open with "I have always been passionate about..." or "Ever since I was a child..." or similar tropes.
+3. Open with a SPECIFIC MOMENT, DATASET, or CONCRETE OBSERVATION. Not a generalization.
+4. Weave the student's real achievements throughout — don't list them, embed them in narrative.
+5. Explicitly connect the student's background → why THIS scholarship (not just any scholarship) → what they'll return to their country/field with.
+6. Reference the scholarship's actual mission or values if provided.
+7. Use active voice. Short punchy sentences alongside longer reflective ones.
+8. NO em-dashes with spaces (—). Use commas or periods.
+9. NO buzzwords: "impactful", "leverage", "synergy", "passionate about making a difference", "cutting-edge".
+10. Every paragraph must earn its place. If a sentence could apply to any student, cut it.
+11. Word count: aim within ±10% of the target. Prefer slightly under than over.
+12. Structure: hook → personal story → professional evidence → specific fit with THIS scholarship → future vision → close.
+
+Return valid JSON only:
+{
+  "essay": "The full essay text with paragraph breaks preserved via \\n\\n between paragraphs.",
+  "word_count": <actual number>,
+  "opening_hook": "One-sentence explanation of the opening choice.",
+  "key_points_woven": ["3-5 bullets on what personal details you used"],
+  "next_iteration_suggestions": ["2-3 concrete suggestions for the student's next revision"]
+}`
+
+      // ---- Build the user message ----
+      const ESSAY_TYPES = {
+        sop:                 'Statement of Purpose (SOP)',
+        personal_statement:  'Personal Statement',
+        motivation_letter:   'Motivation Letter',
+        cover_letter:        'Cover Letter',
+        research_proposal:   'Research Proposal Introduction',
+      }
+      const typeName = ESSAY_TYPES[essay_type] || 'Statement of Purpose'
+      const promptsBlock = Array.isArray(prompts) && prompts.length > 0
+        ? prompts.map((p, i) => `${i + 1}. ${p}`).join('\n')
+        : '(No specific prompts provided — write a general statement following best practices.)'
+
+      const userMessage = `ESSAY TYPE: ${typeName}
+TARGET WORD COUNT: ${effectiveWordCount}
+TONE: ${tone}
+
+SCHOLARSHIP CONTEXT:
+- Name: ${scholarship.name || 'Not specified'}
+- Provider: ${scholarship.provider || 'Not specified'}
+- Country: ${scholarship.country || 'Not specified'}
+- Field / Program: ${scholarship.field || 'Not specified'}
+- Provider's mission (if known): ${scholarship.mission || 'Not specified'}
+
+STUDENT PROFILE:
+- Name: ${profile.name || 'Not specified'}
+- Nationality: ${profile.nationality || 'Not specified'}
+- Current role / occupation: ${profile.current_role || 'Not specified'}
+- Degree(s) & academic background: ${profile.background || 'Not specified'}
+- Target program: ${profile.target_program || 'Not specified'}
+- Career goals (post-scholarship): ${profile.career_goals || 'Not specified'}
+- Concrete achievements: ${(profile.achievements || []).join('; ') || 'Not specified'}
+- Why THIS scholarship (in student's own words): ${profile.why_this_scholarship || 'Not specified'}
+- Personal detail / unique angle: ${profile.personal_angle || 'Not specified'}
+
+ESSAY PROMPTS TO ADDRESS (if any):
+${promptsBlock}
+
+Return valid JSON only — no markdown, no code fences.`
+
+      // ---- Call Claude ----
+      let raw = ''
+      try {
+        raw = await callClaude({
+          system: ESSAY_SYSTEM,
+          messages: [{ role: 'user', content: userMessage }],
+          maxTokens: 4096,
+          temperature: 0.75,   // higher for creative prose, still grounded
+          jsonMode: true,
+        })
+      } catch (e) {
+        return withCORS(NextResponse.json({
+          error: 'LLM_ERROR',
+          message: 'The essay engine is temporarily unavailable. Please try again in a moment.',
+          detail: String(e?.message || e).slice(0, 200),
+        }, { status: 502 }))
+      }
+
+      const parsed = safeParseJSON(raw)
+      if (!parsed || typeof parsed.essay !== 'string') {
+        return withCORS(NextResponse.json({
+          error: 'PARSE_ERROR',
+          message: 'AI returned an unreadable response. Please try again.',
+          detail: raw.slice(0, 300),
+        }, { status: 502 }))
+      }
+
+      // ---- Persist for signed-in users ----
+      let saved = null
+      if (currentUser) {
+        try {
+          saved = {
+            id:                uuidv4(),
+            user_id:           currentUser.id,
+            essay_type,
+            scholarship_name:  scholarship.name || null,
+            scholarship_provider: scholarship.provider || null,
+            content:           parsed.essay,
+            word_count:        parsed.word_count || parsed.essay.split(/\s+/).filter(Boolean).length,
+            opening_hook:      parsed.opening_hook || null,
+            key_points_woven:  Array.isArray(parsed.key_points_woven) ? parsed.key_points_woven : [],
+            suggestions:       Array.isArray(parsed.next_iteration_suggestions) ? parsed.next_iteration_suggestions : [],
+            tone,
+            version:           1,
+            created_at:        new Date().toISOString(),
+            updated_at:        new Date().toISOString(),
+          }
+          await db.collection('essays').insertOne(saved)
+        } catch (e) {
+          // Non-fatal — still return the essay to the user
+          console.error('[essays] save failed:', e?.message)
+        }
+      }
+
+      // ---- Response ----
+      return withCORS(NextResponse.json({
+        ok:                true,
+        essay:             parsed.essay,
+        word_count:        parsed.word_count || parsed.essay.split(/\s+/).filter(Boolean).length,
+        opening_hook:      parsed.opening_hook || null,
+        key_points_woven:  parsed.key_points_woven || [],
+        suggestions:       parsed.next_iteration_suggestions || [],
+        essay_id:          saved?.id || null,
+        preview_only:      !currentUser,
+        limited_by_tier:   !unlimited && !!currentUser,
+        essays_used_month: !unlimited && currentUser
+          ? await db.collection('essays').countDocuments({ user_id: currentUser.id, created_at: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } })
+          : null,
+        essays_limit_month: !unlimited && currentUser ? 3 : null,
+      }))
+    }
+
+    // ============ /essays/list — list a user's saved essays ============
+    if (route === '/essays/list' && method === 'GET') {
+      const currentUser = await getSessionUser()
+      if (!currentUser) return withCORS(NextResponse.json({ error: 'AUTH_REQUIRED' }, { status: 401 }))
+      const items = await db.collection('essays')
+        .find({ user_id: currentUser.id })
+        .sort({ created_at: -1 })
+        .limit(50)
+        .toArray()
+      return withCORS(NextResponse.json({
+        essays: items.map(({ _id, ...rest }) => rest),
+      }))
+    }
+
+    // ============ /essays/[id] — fetch or delete a single essay ============
+    const essayMatch = route.match(/^\/essays\/([a-f0-9-]{36})$/)
+    if (essayMatch) {
+      const currentUser = await getSessionUser()
+      if (!currentUser) return withCORS(NextResponse.json({ error: 'AUTH_REQUIRED' }, { status: 401 }))
+      const essayId = essayMatch[1]
+      if (method === 'GET') {
+        const doc = await db.collection('essays').findOne({ id: essayId, user_id: currentUser.id })
+        if (!doc) return withCORS(NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 }))
+        const { _id, ...rest } = doc
+        return withCORS(NextResponse.json(rest))
+      }
+      if (method === 'DELETE') {
+        await db.collection('essays').deleteOne({ id: essayId, user_id: currentUser.id })
+        return withCORS(NextResponse.json({ ok: true }))
+      }
+    }
+
+
     // ============ /stats — Public inventory counters (cached 1 hour) ============
     // Used by <LiveStats /> on landing / /scholarships / /pricing to show real-time
     // DB numbers instead of a hardcoded "800+". Fully public — no PII, no filtering leaks.

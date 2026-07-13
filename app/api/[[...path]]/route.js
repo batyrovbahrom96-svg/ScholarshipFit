@@ -1820,6 +1820,34 @@ Respond with STRICT JSON in this schema:
       const user = await users.findOne({ id: record.user_id })
       captureServerEvent({ distinctId: record.user_id, event: 'otp_verified', properties: { purpose: record.purpose || 'signup' } }).catch(() => {})
       captureServerEvent({ distinctId: record.user_id, event: 'signup_verified', properties: { method: 'email_otp' } }).catch(() => {})
+
+      // Fire the Day-0 welcome email immediately (fire-and-forget so it never blocks verification).
+      // The cron endpoint handles all later stages (D+1, D+3, D+7, D+14).
+      if (user && !(user.onboarding_sent || []).some(s => s?.stage === 'welcome')) {
+        (async () => {
+          try {
+            const { sendDripEmail } = await import('@/lib/mail/onboarding-drip')
+            const crypto = await import('crypto')
+            const uu = db.collection('unsubscribe_tokens')
+            let tokenRec = await uu.findOne({ user_id: user.id })
+            if (!tokenRec) {
+              const token = crypto.randomBytes(24).toString('base64url')
+              await uu.insertOne({ id: uuidv4(), user_id: user.id, token, created_at: new Date().toISOString() })
+              tokenRec = { token }
+            }
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://scholarshipfit.com'
+            const unsubscribeUrl = `${baseUrl}/api/unsubscribe/${tokenRec.token}?scope=drip`
+            await sendDripEmail({ stage: 'welcome', to: user.email, name: user.name || '', unsubscribeUrl })
+            await users.updateOne(
+              { id: user.id },
+              { $push: { onboarding_sent: { stage: 'welcome', sent_at: new Date().toISOString() } } }
+            )
+          } catch (e) {
+            console.error('[drip] welcome send failed:', e?.message)
+          }
+        })()
+      }
+
       const { _id, password_hash, ...clean } = user || {}
       return withCORS(NextResponse.json({ ok: true, user: clean }))
     }
@@ -3049,15 +3077,27 @@ Return valid JSON only — no markdown, no code fences.`
           { status: 400, headers: { 'Content-Type': 'text/html' } },
         )
       }
-      await db.collection('users').updateOne(
-        { id: rec.user_id },
-        { $set: { reminders_pref: 'off', updated_at: new Date() } },
-      )
+      // Support scope-specific unsubscribes:
+      //   ?scope=drip      → onboarding drip only
+      //   ?scope=reminders → deadline reminders only (default for legacy links)
+      //   ?scope=all       → both
+      const scope = new URL(request.url).searchParams.get('scope') || 'reminders'
+      const patch = { updated_at: new Date() }
+      if (scope === 'drip' || scope === 'all') patch.drip_unsubscribed = true
+      if (scope === 'reminders' || scope === 'all') patch.reminders_pref = 'off'
+      await db.collection('users').updateOne({ id: rec.user_id }, { $set: patch })
+
+      const label = scope === 'drip'
+        ? "won't send you any more onboarding tips or drip emails"
+        : scope === 'all'
+          ? "won't send you any more emails (deadline reminders and onboarding are both off)"
+          : "won't send you any more deadline reminder emails"
+
       return new NextResponse(
         `<!doctype html><html><body style="font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;padding:60px 20px;text-align:center;">
           <div style="font-size:22px;font-weight:700;color:#D4AF37;">ScholarshipFit<span style="color:#fff">.com</span></div>
           <h1 style="margin-top:24px;font-size:26px;">You're unsubscribed</h1>
-          <p style="color:rgba(255,255,255,0.65);max-width:480px;margin:16px auto;line-height:1.5;">We won't send you any more deadline reminder emails. You can turn them back on any time from your <a style="color:#D4AF37" href="/dashboard">dashboard settings</a>.</p>
+          <p style="color:rgba(255,255,255,0.65);max-width:480px;margin:16px auto;line-height:1.5;">We ${label}. You can re-enable them any time from your <a style="color:#D4AF37" href="/dashboard">dashboard settings</a>.</p>
         </body></html>`,
         { status: 200, headers: { 'Content-Type': 'text/html' } },
       )

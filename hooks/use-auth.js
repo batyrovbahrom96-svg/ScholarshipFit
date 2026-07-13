@@ -56,6 +56,25 @@ export function AuthProvider({ children }) {
     try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }) } catch { /* ignore */ }
     try { trackEvent('logout') } catch { /* ignore */ }
     try { resetAnalytics() } catch { /* ignore */ }
+    // SECURITY: purge all cached cabinet/profile/match data so the next visitor
+    // on this browser does NOT see the previous user's data on /dashboard etc.
+    // Referral capture (sf_ref) is preserved so users completing signup after a
+    // logout can still credit their referrer.
+    if (typeof window !== 'undefined') {
+      try {
+        const preserve = new Set(['sf_ref', 'sf_ref_at', 'sf_boot_seen', 'sf.cookieConsent'])
+        const kill = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i)
+          if (!k) continue
+          if (k.startsWith('sf.') && !preserve.has(k)) kill.push(k)
+          if (k === 'match_run' || k === 'match_result' || k === 'onboarding_profile') kill.push(k)
+        }
+        kill.forEach(k => localStorage.removeItem(k))
+        // Also clear the boot splash so next fresh visit shows the intro
+        sessionStorage.removeItem('sf_boot_seen')
+      } catch { /* storage may be blocked */ }
+    }
     setUser(null)
     if (typeof window !== 'undefined') window.location.href = '/'
   }, [])

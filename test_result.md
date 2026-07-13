@@ -3521,3 +3521,51 @@ agent_communication:
           ✓ No console errors on referral flow.
         Production build passes cleanly with new memory config (Done in 47s).
         Marketing Revenue Engine is FULLY OPERATIONAL.
+
+## SESSION 2026-06 — Data-Leak Fix + Auth Gates on Logged-in Routes
+
+backend:
+  - task: "No backend changes — this is a pure frontend auth-guard patch"
+    implemented: true
+    working: true
+    file: "n/a"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Server-side gates were already correct (paid features check subscription.status; cabinet returns 401 for unauth). The bug was purely client-side leak."
+
+frontend:
+  - task: "Auth-guard + localStorage purge on logout"
+    implemented: true
+    working: true
+    file: "/app/hooks/use-auth.js, /app/components/site/RequireAuth.jsx, /app/app/dashboard/layout.js, /app/app/{advisor,ai-advisor,essay-generator,rejection-debugger,simulator,onboarding}/layout.js, /app/app/dashboard/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: |
+            BUG: /dashboard was reading user profile from localStorage
+            (store.getProfile()) and rendering "Welcome, <name>" even after signout.
+            Same-browser previous-user data leak.
+            
+            FIXES:
+            1. useAuth.signOut now purges all sf.* localStorage keys + match_run + match_result + onboarding_profile. Preserves sf_ref (referral), sf.cookieConsent.
+            2. New RequireAuth component redirects guests to /login?return=<path>.
+            3. New /app/app/dashboard/layout.js wraps all /dashboard/* with RequireAuth.
+            4. Added layout.js RequireAuth wrappers to /advisor, /ai-advisor, /essay-generator, /rejection-debugger, /simulator, /onboarding.
+            5. Dashboard header "Welcome, X" now uses server-authenticated user.name FIRST, only falls back to localStorage profile.
+            
+            Verified via Playwright (guest session):
+              /dashboard → /login?return=%2Fdashboard ✓
+              /essay-generator → /login?return=%2Fessay-generator ✓
+              /dashboard/referrals → /login?return=%2Fdashboard%2Freferrals ✓
+            Production build passes (46.9s).
+
+metadata:
+  version: "1.7"
+  test_sequence: 7

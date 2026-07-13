@@ -13,6 +13,7 @@ import ScholarshipCard from '@/components/site/ScholarshipCard'
 import MyDocuments from '@/components/site/MyDocuments'
 import MatchReportButton from '@/components/site/MatchReportButton'
 import { useAuth } from '@/hooks/use-auth'
+import RequireAuth from '@/components/site/RequireAuth'
 import { toast } from 'sonner'
 import {
   LayoutDashboard, Sparkles, Bookmark, ClipboardList, CheckCircle2, XCircle, Trophy, Ban,
@@ -197,7 +198,7 @@ function Dashboard() {
                 <Command className="h-3.5 w-3.5"/> Your Scholarship Command Center
               </div>
               <h1 className="mt-2 text-3xl md:text-4xl font-semibold tracking-tight text-white">
-                Welcome, {profile?.full_name || user?.name?.split(' ')?.[0] || 'Explorer'}
+                Welcome, {user?.name?.split(' ')?.[0] || profile?.full_name || 'Explorer'}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {user?.subscription_active ? (
@@ -505,4 +506,10 @@ function tabLabel(t) {
   return m[t] || t
 }
 
-export default Dashboard
+export default function DashboardPage() {
+  return (
+    <RequireAuth>
+      <Dashboard />
+    </RequireAuth>
+  )
+}

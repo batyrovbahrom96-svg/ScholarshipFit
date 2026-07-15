@@ -61,12 +61,18 @@ function Pricing() {
       return
     }
     // ---- Live payment mode (post-gateway approval) ----
-    // Opens LemonSqueezy hosted checkout. Any regional PPP discount is passed
-    // through as `custom_price_cents` so the customer sees the discounted price.
+    // Opens Dodo Payments hosted checkout. Regional PPP is passed through as
+    // custom_price_cents so a country-specific discount is applied server-side.
     const planKey = planObj.key
     setActivatingKey(planKey)
+
+    // Hard 20s timeout — better UX than "Activating..." spinning forever if the
+    // API endpoint hangs (usually indicates missing env vars in production).
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), 20000)
+
     try {
-      const meRes = await fetch('/api/auth/me', { credentials: 'include' })
+      const meRes = await fetch('/api/auth/me', { credentials: 'include', signal: abortController.signal })
       const me = await meRes.json()
       if (!me?.user) {
         const next = encodeURIComponent(`/checkout?plan=${planKey}`)
@@ -78,6 +84,7 @@ function Pricing() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: abortController.signal,
         body: JSON.stringify({
           plan: planKey,
           base_price: planObj.total_charge,
@@ -87,11 +94,21 @@ function Pricing() {
         }),
       })
       const j = await res.json().catch(() => ({}))
-      if (!res.ok || !j.url) throw new Error(j.error || `HTTP ${res.status}`)
-      window.location.href = j.url // hand off to LemonSqueezy
+      if (!res.ok || !j.url) {
+        const msg = j.detail || j.error || `Checkout endpoint returned HTTP ${res.status}. If this persists, please contact support@scholarshipfit.com.`
+        throw new Error(msg)
+      }
+      window.location.href = j.url // hand off to Dodo Payments
     } catch (e) {
-      setError(e?.message || 'Checkout failed. Please try again.')
+      if (e?.name === 'AbortError') {
+        setError('Checkout is taking longer than expected. Please refresh and try again — if it keeps happening, email support@scholarshipfit.com.')
+      } else {
+        setError(e?.message || 'Checkout failed. Please try again.')
+      }
+      // eslint-disable-next-line no-console
+      console.error('[Pricing] Checkout activation failed:', e)
     } finally {
+      clearTimeout(timeoutId)
       setActivatingKey('')
     }
   }

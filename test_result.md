@@ -3569,3 +3569,58 @@ frontend:
 metadata:
   version: "1.7"
   test_sequence: 7
+
+## SESSION 2026-07 — DODO PAYMENTS LIVE INTEGRATION
+
+backend:
+  - task: "Dodo Payments — checkout + webhook + dynamic discount minting"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js (checkout branch), /app/app/api/webhooks/dodo/route.js, /app/.env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: |
+            Live-tested Dodo Payments integration end-to-end.
+            Verified in preview environment:
+              ✓ POST /api/checkout/create-session {plan:'monthly'} returns real Dodo checkout URL (cks_...)
+              ✓ POST /api/checkout/create-session {plan:'monthly', discount_code:'LAUNCH50'} returns URL with 50% off applied
+              ✓ POST /api/checkout/create-session {plan:'annual', discount_code:'STUDENT20'} — 20% off applied
+              ✓ POST /api/checkout/create-session {plan:'lifetime'} — one-time $249 URL
+              ✓ POST /api/checkout/create-session {plan:'annual', custom_price_cents:4900, region_country:'NG'} — dynamic PPP discount minted server-side, ~45% off
+              ✓ GET /api/webhooks/dodo returns 200 sanity (POST accepts Dodo signed events)
+              ✓ Real Dodo checkout page loaded successfully — showed $14.99 → $7.50 with "You're saving 50%" banner + MoR disclosure
+              ✓ Guest checkout → 401 as expected
+              ✓ Production build passes cleanly (46.4s)
+
+            Dynamic discount strategy: since Dodo keeps its own discount table
+            (separate from our MongoDB), we mint a single-use percentage-off
+            code in Dodo via `client.discounts.create()` for BOTH:
+              1) User-entered promo codes (LAUNCH50/STUDENT20/EARLYBIRD from our DB)
+              2) Regional PPP discounts (calculated from custom_price_cents)
+            No dashboard-side maintenance required.
+
+            Webhook handles (Standard Webhooks / Svix signature verification):
+              payment.succeeded → upgradeUser
+              subscription.active|created|renewed → upgradeUser
+              subscription.on_hold|failed → past_due
+              subscription.cancelled → cancelled (access retained until period end)
+              subscription.expired → revoked
+            Referral credit hooks into upgradeUser: if user has referred_by_code,
+            increment referrer's paid count + 30 days of Pro credit.
+
+            Env vars added to /app/.env:
+              PAYMENT_PROCESSOR=dodo
+              PAYMENT_MODE=live
+              NEXT_PUBLIC_PAYMENT_MODE=live
+              DODO_MODE=live
+              DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_WEBHOOK_SECRET
+              DODO_PRODUCT_ID_MONTHLY, DODO_PRODUCT_ID_ANNUAL, DODO_PRODUCT_ID_LIFETIME
+            Package: dodopayments@2.42.2 installed.
+
+metadata:
+  version: "1.8"
+  test_sequence: 8

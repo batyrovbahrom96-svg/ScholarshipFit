@@ -2312,6 +2312,147 @@ Respond with STRICT JSON in this schema:
 
       const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
 
+      // -------- Dodo Payments (current live processor) --------
+      // Uses the official `dodopayments` SDK. Creates a hosted checkout session
+      // with metadata linking back to our user_id + plan_key so the webhook can
+      // upgrade the user on payment.success. Regional PPP pricing is applied by
+      // dynamically minting a percentage-off discount code (Dodo doesn't allow
+      // arbitrary unit_price overrides on standard products), then stacking any
+      // user-entered promo code (LAUNCH50 etc.) alongside it.
+      if (processor === 'dodo') {
+        const DODO_KEY = process.env.DODO_PAYMENTS_API_KEY
+        if (!DODO_KEY) {
+          return withCORS(NextResponse.json({
+            error: 'Payments not yet configured',
+            detail: 'DODO_PAYMENTS_API_KEY not set. Site is still in preorder mode.',
+          }, { status: 503 }))
+        }
+        const PRODUCT_IDS = {
+          monthly:  process.env.DODO_PRODUCT_ID_MONTHLY,
+          annual:   process.env.DODO_PRODUCT_ID_ANNUAL,
+          lifetime: process.env.DODO_PRODUCT_ID_LIFETIME,
+        }
+        const productId = PRODUCT_IDS[planKey]
+        if (!productId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
+
+        try {
+          // Lazy import so preview cold-start doesn't pay the cost when payments
+          // aren't in use.
+          const DodoModule = await import('dodopayments')
+          const DodoPayments = DodoModule.default || DodoModule
+          const isLive = (process.env.DODO_MODE || 'live').toLowerCase() === 'live'
+          const dodo = new DodoPayments({
+            bearerToken: DODO_KEY,
+            environment: isLive ? 'live_mode' : 'test_mode',
+          })
+
+          // Standard USD price map — used to compute PPP discount basis points
+          const STANDARD_CENTS = { monthly: 1499, annual: 8900, lifetime: 24900 }
+          const stdCents = STANDARD_CENTS[planKey] || 0
+
+          const discountCodes = []
+          // 1) User-entered promo — mint a dynamic percentage discount in Dodo
+          //    for it (we keep discount codes in our own DB, not in Dodo's
+          //    dashboard, so we synthesise a single-use code per checkout).
+          if (discountApplied?.code && discountApplied.percent_off > 0) {
+            try {
+              const promoBp = Math.min(9500, Math.max(100, Math.round(discountApplied.percent_off * 100)))
+              const dynPromo = await dodo.discounts.create({
+                type: 'percentage',
+                amount: promoBp,
+                usage_limit: 1,
+                name: `PROMO-${discountApplied.code}-${planKey}`.slice(0, 50),
+                restricted_to: [productId],
+              })
+              if (dynPromo?.code) discountCodes.push(dynPromo.code)
+            } catch (e) {
+              console.warn('Dodo promo mint failed (continuing without discount):', e?.message)
+            }
+          }
+
+          // 2) Regional PPP — mint a single-use discount if the effective price
+          //    (custom_price_cents) is lower than standard.
+          if (customPriceCents && stdCents && customPriceCents < stdCents) {
+            const finalCents = Math.max(100, customPriceCents)
+            const basisPoints = Math.min(9500, Math.max(0, Math.round(((stdCents - finalCents) / stdCents) * 10000)))
+            if (basisPoints >= 100) { // only mint if >= 1% off
+              try {
+                const dyn = await dodo.discounts.create({
+                  type: 'percentage',
+                  amount: basisPoints,
+                  usage_limit: 1,
+                  name: `PPP-${(body.region_country || 'XX').toUpperCase()}-${planKey}`.slice(0, 50),
+                  restricted_to: [productId],
+                })
+                if (dyn?.code) discountCodes.push(dyn.code)
+              } catch (e) {
+                console.warn('Dodo PPP discount mint failed (continuing without):', e?.message)
+              }
+            }
+          }
+
+          // Build return URL (success page uses ?processor=dodo&session_id to poll)
+          const returnUrl = `${baseUrl}/dashboard?payment=success&plan=${encodeURIComponent(planKey)}`
+
+          const session = await dodo.checkoutSessions.create({
+            product_cart: [{ product_id: productId, quantity: 1 }],
+            discount_code: discountCodes.length ? discountCodes[0] : undefined,
+            customer: { email: user.email, name: user.name || user.email.split('@')[0] },
+            metadata: {
+              user_id: user.id,
+              user_email: user.email,
+              plan_key: planKey,
+              discount_code: discountApplied?.code || '',
+              region_country: String(body.region_country || ''),
+            },
+            return_url: returnUrl,
+          })
+
+          const url = session?.checkout_url || session?.payment_link || session?.url
+          if (!url) {
+            console.error('Dodo returned no checkout URL:', session)
+            return withCORS(NextResponse.json({ error: 'Checkout session created but no URL returned' }, { status: 502 }))
+          }
+
+          // Persist checkout intent for reconciliation
+          await db.collection('checkout_intents').insertOne({
+            id: uuidv4(),
+            user_id: user.id, user_email: user.email,
+            processor: 'dodo',
+            plan_key: planKey, product_id: productId,
+            custom_price_cents: customPriceCents,
+            discount_code: discountApplied?.code || null,
+            discount_percent_off: discountApplied?.percent_off || 0,
+            dodo_session_id: session?.session_id || session?.id || null,
+            dodo_payment_id: session?.payment_id || null,
+            checkout_url: url,
+            created_at: new Date(),
+          }).catch(() => {})
+
+          if (discountApplied?.code) {
+            await db.collection('discount_codes').updateOne(
+              { code: discountApplied.code },
+              { $inc: { uses: 1 }, $set: { last_used_at: new Date() } },
+            ).catch(() => {})
+          }
+
+          return withCORS(NextResponse.json({
+            ok: true,
+            url,
+            processor: 'dodo',
+            session_id: session?.session_id || session?.id || null,
+            discount: discountApplied || null,
+          }))
+        } catch (e) {
+          console.error('Dodo checkout error:', e)
+          try { Sentry?.captureException?.(e) } catch {}
+          return withCORS(NextResponse.json({
+            error: 'Dodo checkout failed',
+            detail: e?.message || 'Unknown Dodo error',
+          }, { status: 502 }))
+        }
+      }
+
       // -------- Paddle Billing (default) --------
       if (processor === 'paddle') {
         const PADDLE_KEY = process.env.PADDLE_API_KEY

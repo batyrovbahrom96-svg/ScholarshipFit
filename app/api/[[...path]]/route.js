@@ -806,7 +806,7 @@ async function handleRoute(request, { params }) {
       ))
       const isOwner = currentUser?.role === 'owner'
       // Grant unlimited if paid OR owner OR admin-flagged
-      const unlimited = isPaid || isOwner
+      const unlimited = isPaid
 
       let usageKey, dailyLimit
       if (currentUser) {
@@ -1050,7 +1050,7 @@ DATABASE:\n${dbBlock}`
         currentUser.subscription.status === 'trialing'
       ))
       const isOwner = currentUser?.role === 'owner'
-      const unlimited = isPaid || isOwner
+      const unlimited = isPaid
 
       let usageKey, dailyLimit
       if (currentUser) { usageKey = `user:${currentUser.id}`; dailyLimit = 5 }
@@ -1202,7 +1202,7 @@ STRICT RULES:
         currentUser.subscription.status === 'trialing'
       ))
       const isOwner = currentUser?.role === 'owner'
-      const unlimited = isPaid || isOwner
+      const unlimited = isPaid
       let usageKey, dailyLimit
       if (currentUser) { usageKey = `user:${currentUser.id}`; dailyLimit = 10 }
       else {
@@ -1546,19 +1546,9 @@ Respond with STRICT JSON in this schema:
       }
       const password_hash = await bcrypt.hash(password, 10)
       const now = new Date()
-      const lifetimeSub = {
-        plan: 'lifetime',
-        status: 'active',
-        provider: 'admin-seed',
-        price_usd: 79,
-        billing_cycle_days: null,
-        activated_at: now,
-        trial_end: null,
-        trial_used: true,
-        expires_at: null,
-        monthly_rate_usd: 0,
-        updated_at: now,
-      }
+      // Owner role is retained for /admin/* endpoints, but NO free
+      // subscription is granted — owners must pay via Dodo like any user.
+      // This matches the "no free perks for anyone" policy.
 
       const existing = await db.collection('users').findOne({ email })
       let userId
@@ -1571,10 +1561,11 @@ Respond with STRICT JSON in this schema:
               password_hash,
               name: existing.name || 'Bakhrom Batyrov (Owner)',
               role: 'owner',
-              entitlement: 'founder',
-              subscription: lifetimeSub,
+              entitlement: 'staff',
               updated_at: now,
             },
+            // Do NOT touch existing subscription — if the owner has paid via
+            // Dodo the webhook already wrote it. If they haven't, they must.
           },
         )
       } else {
@@ -1585,8 +1576,7 @@ Respond with STRICT JSON in this schema:
           name: 'Bakhrom Batyrov (Owner)',
           password_hash,
           role: 'owner',
-          entitlement: 'founder',
-          subscription: lifetimeSub,
+          entitlement: 'staff',
           cabinet: { favorites: [], recent_searches: [], profile: {} },
           created_at: now,
           updated_at: now,
@@ -1596,8 +1586,8 @@ Respond with STRICT JSON in this schema:
       return withCORS(NextResponse.json({
         ok: true,
         action: existing ? 'updated' : 'created',
-        user: { id: userId, email, role: 'owner', subscription: { plan: 'lifetime', status: 'active' } },
-        message: `Owner account ${existing ? 'reset' : 'created'}. Sign in at /login with email "${email}".`,
+        user: { id: userId, email, role: 'owner' },
+        message: `Owner account ${existing ? 'reset' : 'created'}. Sign in at /login with email "${email}". Note: owner role is preserved but no free subscription — upgrade at /pricing to use cabinet features.`,
       }))
     }
 
@@ -2146,6 +2136,21 @@ Respond with STRICT JSON in this schema:
     // active. When Stripe/LemonSqueezy is wired, this remains the internal
     // handler and the webhook simply calls it with a verified signature.
     if (route === '/subscription/activate' && method === 'POST') {
+      // -----------------------------------------------------------------
+      // LEGACY endpoint — used pre-Dodo to grant a free 7-day trial
+      // subscription on signup. In live mode this bypassed real payment.
+      // Now that Dodo Payments is the source of truth (webhook writes
+      // subscription docs), we hard-disable this route. Frontend must call
+      // /api/checkout/create-session instead.
+      // -----------------------------------------------------------------
+      const paymentMode = (process.env.PAYMENT_MODE || 'preorder').toLowerCase()
+      if (paymentMode === 'live') {
+        return withCORS(NextResponse.json({
+          error: 'This endpoint is disabled in live payment mode.',
+          detail: 'Use POST /api/checkout/create-session to start a paid subscription. Access is granted automatically via the Dodo Payments webhook after successful payment.',
+        }, { status: 410 }))
+      }
+      // Preorder-mode fallback below (kept for backward compatibility only)
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
       const body = await request.json().catch(() => ({}))
@@ -2884,7 +2889,7 @@ Respond with STRICT JSON in this schema:
         currentUser.subscription.status === 'trialing'
       ))
       const isOwner = currentUser?.role === 'owner'
-      const unlimited = isPaid || isOwner
+      const unlimited = isPaid
 
       // ---- Rate limit ----
       let effectiveWordCount = Math.max(150, Math.min(1500, Number(word_count) || 700))

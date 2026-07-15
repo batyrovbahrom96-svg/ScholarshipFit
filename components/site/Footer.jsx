@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Logo from './Logo'
-import { Mail, ExternalLink } from 'lucide-react'
+import { Mail, ExternalLink, Instagram } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -30,6 +30,23 @@ export default function Footer() {
                 >
                   scholarshipfit.com
                   <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* Social links */}
+            <div className="mt-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 mb-3">Follow us</p>
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://www.instagram.com/scholarshipfitcom"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="ScholarshipFit on Instagram"
+                  className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3 py-1.5 text-xs text-white/70 hover:text-white hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/[0.06] transition-colors"
+                >
+                  <Instagram className="h-3.5 w-3.5 text-[#D4AF37] group-hover:scale-110 transition-transform" />
+                  @scholarshipfitcom
                 </a>
               </div>
             </div>

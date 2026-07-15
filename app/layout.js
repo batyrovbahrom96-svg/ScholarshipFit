@@ -27,14 +27,34 @@ export const metadata = {
 }
 
 export default function RootLayout({ children }) {
+  // Organization JSON-LD — tells Google (and other search engines) that this
+  // Instagram handle is the official social profile of ScholarshipFit. Also
+  // strengthens the Knowledge Panel with proper contact + branding info.
+  const orgJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'ScholarshipFit',
+    alternateName: 'ScholarshipFit.com',
+    url: 'https://scholarshipfit.com',
+    logo: 'https://scholarshipfit.com/brand-logo-full.png',
+    email: 'support@scholarshipfit.com',
+    description: 'AI-powered, source-linked scholarship research platform for international students. 800+ hand-verified scholarships, ranked by fit.',
+    sameAs: [
+      'https://www.instagram.com/scholarshipfitcom',
+    ],
+  }
   return (
     <html lang="en" className="dark">
       <body className="dark-bg text-white antialiased selection:bg-cyan-500/30 selection:text-white">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+        />
         <Providers>
           <Suspense fallback={null}>
             <PostHogPageView />
           </Suspense>
-          {/* Site-wide founder-launch urgency strip (auto-hides when campaign ends) */}
+          {/* Site-wide guarantee strip (30-day money-back — premium positioning) */}
           <UrgencyBanner variant="strip"/>
           {children}
         </Providers>

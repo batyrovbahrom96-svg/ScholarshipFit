@@ -43,7 +43,6 @@ function accentClasses(accent) {
 
 function Pricing() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { user } = useAuth()
   const { region, setOverride, priceFor } = useRegionalPricing()
   const [activatingKey, setActivatingKey] = useState('')
@@ -51,42 +50,6 @@ function Pricing() {
   const [error, setError] = useState('')
   const discountPct = region?.discount_pct || 0
   const hasRegionalDiscount = discountPct > 0
-
-  // Discount / promo code state (matches PaywallModal implementation)
-  const [discountCode, setDiscountCode] = useState('')
-  const [discountValidating, setDiscountValidating] = useState(false)
-  const [discountResult, setDiscountResult] = useState(null)
-
-  const validateDiscount = async (codeArg) => {
-    const code = String(codeArg ?? discountCode).trim().toUpperCase()
-    if (!code) return
-    setDiscountValidating(true)
-    setDiscountResult(null)
-    try {
-      const r = await fetch('/api/discounts/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      })
-      const j = await r.json().catch(() => ({}))
-      setDiscountResult(j)
-      if (j?.valid) setDiscountCode(j.code)
-    } catch (e) {
-      setDiscountResult({ valid: false, error: 'Could not validate — try again' })
-    } finally {
-      setDiscountValidating(false)
-    }
-  }
-
-  // Auto-apply ?code=CODE from URL (works for abandoned-checkout emails, ads, etc.)
-  useEffect(() => {
-    const urlCode = (searchParams.get('code') || '').toUpperCase().slice(0, 20)
-    if (urlCode) {
-      setDiscountCode(urlCode)
-      validateDiscount(urlCode)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const activate = async (planObj) => {
     setError('')
@@ -121,7 +84,6 @@ function Pricing() {
           custom_price_cents: hasRegionalDiscount ? Math.round(adjustedTotal * 100) : undefined,
           region_country: region?.detected_country || '',
           discount_pct:   discountPct || 0,
-          discount_code:  discountResult?.valid ? discountResult.code : undefined,
         }),
       })
       const j = await res.json().catch(() => ({}))
@@ -148,8 +110,8 @@ function Pricing() {
               ? 'border-[#D4AF37]/40 bg-black/60 text-[#D4AF37]'
               : 'border-[#D4AF37]/30 bg-black/60 text-[#D4AF37]'}`}>
             {IS_PREORDER
-              ? <><Clock className="h-3.5 w-3.5"/> Payments launching soon · Reserve founder pricing today</>
-              : <><Clock className="h-3.5 w-3.5"/> 7-day free trial · Card required · Cancel anytime</>}
+              ? <><Clock className="h-3.5 w-3.5"/> Payments launching soon · Reserve your spot today</>
+              : <><ShieldCheck className="h-3.5 w-3.5"/> 30-day money-back guarantee · Cancel anytime</>}
           </div>
 
           <h1 className="mt-5 text-5xl md:text-6xl font-semibold tracking-tight text-white">
@@ -164,18 +126,18 @@ function Pricing() {
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[#D4AF37] mb-1">
                 <Lock className="h-3.5 w-3.5"/> Pre-launch — no charges today
               </div>
-              We&apos;re finalising our payment provider. Reserve any plan now and we&apos;ll email your locked-in founder checkout link the moment payments open. Free features (quiz, sample report, database) remain fully accessible while you wait.
+              We&apos;re finalising our payment provider. Reserve any plan now and we&apos;ll email your checkout link the moment payments open. Free features (quiz, sample report, database) remain fully accessible while you wait.
             </div>
           )}
 
-          {/* Founder urgency: countdown + spots-remaining bar */}
+          {/* Guarantee bar (replaces the previous urgency countdown) */}
           <div className="mt-6 mx-auto max-w-2xl text-left">
             <UrgencyBanner variant="card"/>
           </div>
 
           {/* Feature strip */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
-            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400"/> 7-day money-back</span>
+            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 30-day money-back guarantee</span>
             <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-[#D4AF37]"/> Instant access</span>
             <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-[#D4AF37]"/> Cancel anytime</span>
             <span className="inline-flex items-center gap-1.5"><Trophy className="h-4 w-4 text-[#D4AF37]"/> 800 hand-verified premium scholarships</span>
@@ -215,40 +177,6 @@ function Pricing() {
           )}
         </div>
 
-        {/* Discount / promo code — auto-populated from ?code= URL param */}
-        {!IS_PREORDER && (
-          <div className="container mx-auto max-w-3xl px-4">
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 flex flex-wrap items-center gap-2">
-              <div className="text-[11px] uppercase tracking-widest text-white/50">Have a code?</div>
-              <input
-                type="text"
-                value={discountCode}
-                onChange={(e) => { setDiscountCode(e.target.value.toUpperCase()); setDiscountResult(null) }}
-                placeholder="LAUNCH50"
-                className="flex-1 min-w-[140px] rounded-md border border-white/15 bg-black/40 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-[#D4AF37] focus:outline-none uppercase tracking-wider"
-                maxLength={20}
-              />
-              <button
-                type="button"
-                onClick={() => validateDiscount()}
-                disabled={discountValidating || !discountCode.trim()}
-                className="rounded-md bg-[#D4AF37] px-3 py-1.5 text-xs font-semibold text-black hover:bg-[#c9a530] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {discountValidating ? 'Checking…' : 'Apply'}
-              </button>
-              {discountResult && (
-                <div className="w-full text-xs mt-1">
-                  {discountResult.valid ? (
-                    <span className="text-emerald-300">✓ <strong>{discountResult.code}</strong> — {discountResult.percent_off}% off will apply at checkout{discountResult.description ? ` · ${discountResult.description}` : ''}</span>
-                  ) : (
-                    <span className="text-red-300">{discountResult.error || 'Invalid code'}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* PLAN CARDS — 4-column length-based grid */}
         <div className="container mx-auto max-w-7xl px-4 py-12">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -267,7 +195,7 @@ function Pricing() {
               const trialNote = isLifetime
                 ? p.trial_note
                 : (hasRegionalDiscount
-                    ? `7 days free · then $${adjustedTotal} every ${p.days} days · cancel anytime`
+                    ? `$${adjustedTotal} every ${p.days} days · 30-day money-back guarantee · cancel anytime`
                     : p.trial_note)
               return (
                 <div
@@ -315,7 +243,7 @@ function Pricing() {
                     {isActivating ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Activating…</>
                     ) : IS_PREORDER ? (
-                      isLifetime ? <>Reserve founder spot</> : <>Reserve founder pricing</>
+                      isLifetime ? <>Reserve your spot</> : <>Reserve your plan</>
                     ) : (
                       <>{p.cta}</>
                     )}
@@ -355,24 +283,24 @@ function Pricing() {
           {/* Trust row */}
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70">
-              <span className="inline-flex items-center gap-1.5"><Lock className="h-4 w-4 text-[#D4AF37]"/> Card required to start trial — never charged before day 7</span>
-              <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400"/> 7-day money-back guarantee — no questions asked</span>
-              <span className="inline-flex items-center gap-1.5"><CreditCard className="h-4 w-4 text-[#D4AF37]"/> All major cards · secure processor</span>
+              <span className="inline-flex items-center gap-1.5"><Lock className="h-4 w-4 text-[#D4AF37]"/> Instant access on payment · no waiting period</span>
+              <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 30-day money-back guarantee — no questions asked</span>
+              <span className="inline-flex items-center gap-1.5"><CreditCard className="h-4 w-4 text-[#D4AF37]"/> All major cards · Dodo Payments (Merchant of Record)</span>
             </div>
           </div>
         </div>
 
         {/* HOW BILLING WORKS */}
         <div className="container mx-auto max-w-5xl px-4 py-12">
-          <h2 className="text-center text-3xl md:text-4xl font-semibold text-white">How the 7-day trial works</h2>
+          <h2 className="text-center text-3xl md:text-4xl font-semibold text-white">How activation works</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-4">
             <TrialStep n="1" title="Pick a plan" body="Choose Monthly, Annual, or Lifetime. Bigger commitment = lower effective rate."/>
-            <TrialStep n="2" title="Add your card" body="Card is captured but NOT charged. Required to prevent trial abuse."/>
-            <TrialStep n="3" title="7 days of full access" body="Every match, every AI report, every feature — unlocked instantly."/>
-            <TrialStep n="4" title="First charge on day 7" body="Cancel before day 7 from your Command Center — you pay nothing."/>
+            <TrialStep n="2" title="Secure checkout" body="Complete payment via Dodo Payments — our Merchant of Record. Instant activation."/>
+            <TrialStep n="3" title="Full access, immediately" body="Every match, every AI report, every feature unlocks the moment your payment clears."/>
+            <TrialStep n="4" title="30-day guarantee" body="Not satisfied? Reply to any email within 30 days for a full refund. No questions asked."/>
           </div>
           <p className="mt-6 text-center text-xs text-white/50">
-            Lifetime VIP is a one-time $249 payment — instant activation, no trial, never renews.
+            Lifetime VIP is a one-time $249 payment — instant activation, never renews.
           </p>
         </div>
 
@@ -425,18 +353,18 @@ function Pricing() {
           <h2 className="text-center text-3xl md:text-4xl font-semibold text-white">Frequently asked</h2>
           <div className="mt-10 space-y-3">
             {[
-              ['Am I charged during the 7-day trial?',
-               'No. We collect your card to prevent trial abuse but you\u2019re not charged until day 7. Cancel any time before day 7 from your Command Center and you owe nothing.'],
+              ['How does activation work?',
+               'Pay via secure checkout (Dodo Payments is our Merchant of Record). Your account is upgraded instantly — no waiting period. Every feature unlocks the moment your payment clears.'],
               ['Why is Lifetime the best long-term deal?',
-               'A one-time $249 payment pays for itself vs. Annual in ~2.8 years — and you never renew again. It also unlocks founder-only perks (badge, direct DM to team, 48h early access, 1 essay review/yr).'],
+               'A one-time $249 payment pays for itself vs. Annual in ~2.8 years — and you never renew again. It also unlocks premium perks (badge, direct DM to team, 48h early access, 1 essay review/yr).'],
               ['Can I switch plans later?',
                'Yes. You can upgrade Monthly → Annual → Lifetime any time from your Command Center. Downgrades apply at the next billing cycle.'],
               ['What happens after my Annual cycle ends?',
                'Auto-renews at the same $89/year rate. Cancel any time — access continues until the paid period ends.'],
               ['Which countries can pay?',
-               'All 195+ countries supported by our payment processor. VAT/GST handled automatically. No hidden fees.'],
+               'All 195+ countries supported by Dodo Payments. VAT/GST handled automatically. No hidden fees.'],
               ['What\u2019s the refund policy?',
-               'Full refund within 14 days of your first paid charge — no interrogation. Just email support@scholarshipfit.com. See our full Refund Policy page for details.'],
+               '30-day money-back guarantee — no questions asked. Reply to any email or contact support@scholarshipfit.com within 30 days of your first paid charge for a full refund.'],
               ['Do you offer regional pricing?',
                'Yes. We automatically detect your country and apply a Purchasing Power Parity (PPP) discount — up to 60% off in eligible regions. You can also override the region from the selector at the top of this page.'],
             ].map(([q, a], i) => (

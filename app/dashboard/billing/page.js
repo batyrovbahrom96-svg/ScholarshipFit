@@ -130,13 +130,13 @@ export default function BillingPage() {
                   <div className="text-white font-semibold text-lg">No active subscription</div>
                   <p className="mt-1 text-sm text-white/60 max-w-xl">
                     You&apos;re using the free tier. {IS_PREORDER
-                      ? 'Payments are launching soon — reserve founder pricing to lock in the lowest rate for life.'
+                      ? 'Payments are launching soon — upgrade to Pro to lock in the lowest rate for life.'
                       : 'Pick a plan to unlock 800 hand-verified premium scholarships, unlimited AI reports, and Nova AI research assistant.'}
                   </p>
                 </div>
                 <Link href="/pricing">
                   <Button className="btn-gold btn-pill h-11 px-6 font-semibold">
-                    {IS_PREORDER ? 'Reserve founder pricing' : 'View plans'} <ArrowRight className="ml-2 h-4 w-4"/>
+                    {IS_PREORDER ? 'Upgrade to Pro' : 'View plans'} <ArrowRight className="ml-2 h-4 w-4"/>
                   </Button>
                 </Link>
               </div>

@@ -118,15 +118,13 @@ async function ensureSeed(db) {
 
     const dcs = db.collection('discount_codes')
     await dcs.createIndex({ code: 1 }, { unique: true }).catch(() => {})
-    // Seed launch codes once
-    const seedCodes = [
-      { code: 'LAUNCH50',  percent_off: 50, description: '50% off — launch week',      max_uses: 200, uses: 0, active: true, expires_at: new Date(Date.now() + 30*24*3600*1000) },
-      { code: 'STUDENT20', percent_off: 20, description: '20% off for verified students', max_uses: 500, uses: 0, active: true, expires_at: new Date(Date.now() + 365*24*3600*1000) },
-      { code: 'EARLYBIRD', percent_off: 30, description: '30% off Lifetime — early adopters', max_uses: 100, uses: 0, active: true, expires_at: new Date(Date.now() + 90*24*3600*1000) },
-    ]
-    for (const c of seedCodes) {
-      await dcs.updateOne({ code: c.code }, { $setOnInsert: { id: uuidv4(), created_at: new Date(), ...c } }, { upsert: true }).catch(() => {})
-    }
+    // Deactivate ALL seeded discount codes — premium positioning, no scammy
+    // percent-off inputs. Guarantee-based selling instead. Codes stay in the
+    // DB for archive/reactivation, but /discounts/validate will reject them.
+    await dcs.updateMany(
+      { code: { $in: ['LAUNCH50', 'STUDENT20', 'EARLYBIRD'] } },
+      { $set: { active: false, deactivated_reason: 'premium_positioning', deactivated_at: new Date() } },
+    ).catch(() => {})
 
     const pv = db.collection('paywall_events')
     await pv.createIndex({ user_id: 1, created_at: -1 }).catch(() => {})
@@ -3535,10 +3533,10 @@ Return valid JSON only — no markdown, no code fences.`
         commission_pct: 20,
         credit_per_paid_referral_days: 30,
         payload: {
-          twitter: `I've been using @ScholarshipFit — matched me with dozens of real scholarships in minutes. Get 20% off with my link: ${shareUrl}`,
-          whatsapp: `Hey! I'm using ScholarshipFit — an AI tool that matched me with real scholarships worth $$$. Use my link and you get 20% off: ${shareUrl}`,
-          email_subject: 'This scholarship tool actually works',
-          email_body: `Hi,\n\nI've been quietly using ScholarshipFit — it's an AI matcher that found me dozens of real, source-verified scholarships in minutes (no aggregator spam). \n\nHere's my referral link with 20% off:\n${shareUrl}\n\nWorth 10 minutes to try.`,
+          twitter: `I've been quietly using @ScholarshipFit — it's the closest thing to a personal scholarship strategist I've seen. Source-verified matches, real deadlines, no aggregator spam. Worth 10 minutes: ${shareUrl}`,
+          whatsapp: `Sharing this in case it helps — ScholarshipFit matched me to dozens of real scholarships I actually qualify for. Backed by a 30-day money-back guarantee. Take a look: ${shareUrl}`,
+          email_subject: 'A scholarship tool worth 10 minutes',
+          email_body: `Hi,\n\nI've been using ScholarshipFit — an AI matcher for international students. It filtered hundreds of scholarships down to the ones I actually qualify for in about a minute (no aggregator spam, every listing has a verified source URL).\n\nThey back it with a 30-day money-back guarantee, so there's zero risk in trying it:\n${shareUrl}\n\nWorth 10 minutes.`,
         },
       }))
     }

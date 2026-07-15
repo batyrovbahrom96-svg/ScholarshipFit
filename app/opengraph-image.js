@@ -113,7 +113,7 @@ export default async function Image() {
           fontSize: 20, color: 'rgba(255,255,255,0.75)',
           alignItems: 'center', flexWrap: 'wrap',
         }}>
-          {['800 hand-verified', 'Ranked by fit', 'AI-assisted', '7-day free trial'].map((t, i) => (
+          {['800 hand-verified', 'Ranked by fit', 'AI-assisted', '30-day money-back guarantee'].map((t, i) => (
             <div key={i} style={{
               padding: '8px 16px',
               border: '1px solid rgba(255,255,255,0.14)',

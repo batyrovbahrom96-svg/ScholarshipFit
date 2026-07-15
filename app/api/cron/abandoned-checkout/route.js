@@ -87,8 +87,6 @@ export async function GET(request) {
         name: user?.name,
         plan: ev.plan,
         matchCount: ev.match_count,
-        discountCode: 'LAUNCH50',
-        percentOff: 50,
       })
       if (mailRes?.ok) {
         sent++

@@ -205,7 +205,7 @@ export default function RejectionDebugger() {
                 {gate.require === 'signup' ? (
                   <Link href="/signup"><Button className="btn-gold btn-pill font-semibold h-11 px-6">Create free account</Button></Link>
                 ) : (
-                  <Link href="/pricing"><Button className="btn-gold btn-pill font-semibold h-11 px-6">Reserve founder pricing</Button></Link>
+                  <Link href="/pricing"><Button className="btn-gold btn-pill font-semibold h-11 px-6">Upgrade to Pro</Button></Link>
                 )}
                 <Button onClick={reset} variant="outline" className="h-11 px-5 border-white/15 bg-transparent text-white hover:bg-white/5">Start over</Button>
               </div>
@@ -354,7 +354,7 @@ export default function RejectionDebugger() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Link href="/pricing">
-                  <Button className="h-10 px-4 btn-gold btn-pill text-sm font-semibold">Reserve founder pricing</Button>
+                  <Button className="h-10 px-4 btn-gold btn-pill text-sm font-semibold">Upgrade to Pro</Button>
                 </Link>
                 <Button onClick={reset} variant="outline" className="h-10 px-4 border-white/15 bg-transparent text-white hover:bg-white/5">
                   <RotateCcw className="mr-2 h-3.5 w-3.5"/>Debug another

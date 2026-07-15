@@ -61,30 +61,6 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
     }
   }, [open, matchCount, totalWorth, initialPlan])
 
-  // Discount / promo code state (validates against /api/discounts/validate)
-  const [discountCode, setDiscountCode] = useState('')
-  const [discountValidating, setDiscountValidating] = useState(false)
-  const [discountResult, setDiscountResult] = useState(null) // { valid, percent_off, code } | { valid: false, error }
-  const applyDiscount = async () => {
-    const code = discountCode.trim().toUpperCase()
-    if (!code) return
-    setDiscountValidating(true)
-    setDiscountResult(null)
-    try {
-      const r = await fetch('/api/discounts/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      })
-      const j = await r.json().catch(() => ({}))
-      setDiscountResult(j)
-    } catch (e) {
-      setDiscountResult({ valid: false, error: 'Could not validate — try again' })
-    } finally {
-      setDiscountValidating(false)
-    }
-  }
-
   const activate = async (planObj) => {
     setError('')
     // Track intent regardless of preorder/live mode
@@ -124,7 +100,6 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
           custom_price_cents: hasRegionalDiscount ? Math.round(adjustedTotal * 100) : undefined,
           region_country: region?.detected_country || '',
           discount_pct:   discountPct || 0,
-          discount_code:  discountResult?.valid ? discountResult.code : undefined,
         }),
       })
       const j = await res.json().catch(() => ({}))
@@ -213,38 +188,6 @@ export default function PaywallModal({ open, onClose, matchCount = 0, totalWorth
                   ))}
                 </select>
               </div>
-            </div>
-          )}
-
-          {/* Discount / promo code entry — only shown when payments are live */}
-          {!IS_PREORDER && (
-            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 flex flex-wrap items-center gap-2">
-              <div className="text-[11px] uppercase tracking-widest text-white/50">Have a code?</div>
-              <input
-                type="text"
-                value={discountCode}
-                onChange={(e) => { setDiscountCode(e.target.value.toUpperCase()); setDiscountResult(null) }}
-                placeholder="LAUNCH50"
-                className="flex-1 min-w-[140px] rounded-md border border-white/15 bg-black/40 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-[#D4AF37] focus:outline-none uppercase tracking-wider"
-                maxLength={20}
-              />
-              <button
-                type="button"
-                onClick={applyDiscount}
-                disabled={discountValidating || !discountCode.trim()}
-                className="rounded-md bg-[#D4AF37] px-3 py-1.5 text-xs font-semibold text-black hover:bg-[#c9a530] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {discountValidating ? 'Checking…' : 'Apply'}
-              </button>
-              {discountResult && (
-                <div className="w-full text-xs mt-1">
-                  {discountResult.valid ? (
-                    <span className="text-emerald-300">✓ <strong>{discountResult.code}</strong> — {discountResult.percent_off}% off applied at checkout{discountResult.description ? ` · ${discountResult.description}` : ''}</span>
-                  ) : (
-                    <span className="text-red-300">{discountResult.error || 'Invalid code'}</span>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>

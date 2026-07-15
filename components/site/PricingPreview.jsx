@@ -20,7 +20,7 @@ export default function PricingPreview() {
         {/* Section heading */}
         <div className="text-center" data-reveal>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-black/60 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.22em] text-[#D4AF37] backdrop-blur">
-            <Clock className="h-3.5 w-3.5"/> 7-day free trial · Cancel anytime
+            <ShieldCheck className="h-3.5 w-3.5"/> 30-day money-back guarantee · Cancel anytime
           </div>
           <h2 className="mt-5 text-4xl md:text-5xl font-semibold tracking-tight text-white">
             Pricing that <span className="text-gold-hi">rewards commitment</span>
@@ -96,7 +96,7 @@ export default function PricingPreview() {
                   onClick={() => router.push(`/pricing?plan=${p.key}`)}
                   className={`mt-5 h-10 w-full rounded-full font-semibold text-sm ${accent.btn}`}
                 >
-                  {isLifetime ? 'Claim lifetime' : 'Start free trial'}
+                  {isLifetime ? 'Claim lifetime' : 'Get started'}
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5"/>
                 </Button>
               </div>
@@ -106,7 +106,7 @@ export default function PricingPreview() {
 
         {/* Trust + full-pricing link */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/60">
-          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 7-day free trial · card required</span>
+          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#D4AF37]"/> 30-day money-back guarantee</span>
           <span className="inline-flex items-center gap-1.5">Cancel anytime</span>
           <Link href="/pricing" className="text-[#D4AF37] hover:underline">See full comparison →</Link>
         </div>

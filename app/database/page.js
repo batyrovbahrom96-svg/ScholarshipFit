@@ -324,7 +324,7 @@ function DatabaseInner() {
                     </div>
                     <div className="mt-3 text-sm font-semibold text-white">Locked scholarship</div>
                     <div className="mt-1 text-[11px] text-white/60 max-w-[220px]">
-                      Reserve founder pricing to unlock all {filtered.length} matches.
+                      Upgrade to Pro to unlock all {filtered.length} matches.
                     </div>
                     <Link href="/pricing" className="mt-3">
                       <Button className="btn-gold btn-pill h-9 px-4 text-xs font-semibold">

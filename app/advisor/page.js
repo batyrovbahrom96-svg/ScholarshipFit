@@ -132,8 +132,8 @@ function Advisor() {
       setGate({
         require: usage.signed_in ? 'paywall' : 'signup',
         message: usage.signed_in
-          ? `You\u2019ve used all ${usage.daily_limit} of your free daily Nova replies. Reserve founder pricing to unlock unlimited AI advising.`
-          : `You\u2019ve used all ${usage.daily_limit} anonymous replies today. Create a free account for 10/day, or reserve founder pricing for unlimited.`,
+          ? `You\u2019ve used all ${usage.daily_limit} of your free daily Nova replies. Upgrade to Pro to unlock unlimited AI advising.`
+          : `You\u2019ve used all ${usage.daily_limit} anonymous replies today. Create a free account for 10/day, or upgrade to Pro for unlimited.`,
       })
       return
     }
@@ -486,13 +486,13 @@ function Advisor() {
                     <Button className="w-full h-11 btn-gold btn-pill font-semibold">Create free account · 10 replies/day</Button>
                   </Link>
                   <Link href="/pricing">
-                    <Button variant="outline" className="w-full h-11 border-white/15 bg-transparent text-white hover:bg-white/5">Reserve founder pricing · unlimited</Button>
+                    <Button variant="outline" className="w-full h-11 border-white/15 bg-transparent text-white hover:bg-white/5">Upgrade to Pro · unlimited</Button>
                   </Link>
                 </>
               ) : (
                 <>
                   <Link href="/pricing">
-                    <Button className="w-full h-11 btn-gold btn-pill font-semibold">Reserve founder pricing · unlimited Nova</Button>
+                    <Button className="w-full h-11 btn-gold btn-pill font-semibold">Upgrade to Pro · unlimited Nova</Button>
                   </Link>
                   <button onClick={() => setGate(null)} className="text-xs text-white/50 hover:text-white mt-1">Maybe tomorrow — I&apos;ll come back</button>
                 </>

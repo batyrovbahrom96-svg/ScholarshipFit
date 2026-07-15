@@ -183,7 +183,7 @@ function Dashboard() {
             <div className="h-10 w-10 rounded-full bg-[#D4AF37]/20 flex items-center justify-center shrink-0 text-[#D4AF37]">🔒</div>
             <div className="flex-1">
               <div className="text-lg font-semibold text-white">Unlock the full Command Center</div>
-              <div className="text-sm text-white/70">Activate your membership to see all scholarships, AI Match reports, deadline reminders, and PDF export. 7-day free trial, from $7.42/mo.</div>
+              <div className="text-sm text-white/70">Activate your membership to see all scholarships, AI Match reports, deadline reminders, and PDF export. from $7.42/mo · 30-day money-back guarantee.</div>
             </div>
             <Link href="/quiz"><Button className="btn-gold btn-pill">Activate now</Button></Link>
           </div>

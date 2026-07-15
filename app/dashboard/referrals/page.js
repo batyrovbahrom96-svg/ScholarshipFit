@@ -87,11 +87,11 @@ export default function ReferralsPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="text-xs uppercase tracking-widest text-[#D4AF37] mb-2 flex items-center gap-2">
-            <Gift className="h-4 w-4" /> Referral program
+            <Gift className="h-4 w-4" /> Invite friends
           </div>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Share ScholarshipFit — earn free Pro.</h1>
           <p className="mt-2 text-white/60 max-w-2xl">
-            Every friend who signs up with your link gets <strong className="text-white">20% off</strong> any plan. You earn <strong className="text-[#D4AF37]">30 days of Pro credit</strong> per paid referral. Three paid friends = 3 months of Pro absolutely free.
+            Every friend you invite gets access to the same premium scholarship command center you use. You earn <strong className="text-[#D4AF37]">30 days of Pro credit</strong> per paid referral. Three paid friends = 3 months of Pro absolutely free.
           </p>
         </div>
 
@@ -163,7 +163,7 @@ export default function ReferralsPage() {
               <CardContent className="p-6">
                 <div className="text-sm font-medium text-white mb-3">How it works</div>
                 <ul className="space-y-2 text-sm text-white/70">
-                  <li>→ Share your link. Anyone who signs up through it gets <strong className="text-white">20% off</strong> any paid plan.</li>
+                  <li>→ Share your link. Anyone who signs up through it starts a full account backed by our 30-day money-back guarantee.</li>
                   <li>→ Every time a referred friend upgrades to a paid plan, you earn <strong className="text-[#D4AF37]">30 days of Pro credit</strong>.</li>
                   <li>→ Credits apply automatically on your next renewal. Lifetime members can gift them to friends — email <Link href="/contact" className="text-[#D4AF37] underline underline-offset-2">support</Link>.</li>
                   <li>→ Cash-out is available at 5+ paid referrals ($20 per additional referral, PayPal). Contact support for eligibility.</li>

@@ -2394,8 +2394,9 @@ Respond with STRICT JSON in this schema:
             }
           }
 
-          // Build return URL (success page uses ?processor=dodo&session_id to poll)
-          const returnUrl = `${baseUrl}/dashboard?payment=success&plan=${encodeURIComponent(planKey)}`
+          // Build return URL — send them to our success interstitial where we
+          // poll /auth/me until the webhook lands the subscription upgrade.
+          const returnUrl = `${baseUrl}/checkout/success?plan=${encodeURIComponent(planKey)}`
 
           const session = await dodo.checkoutSessions.create({
             product_cart: [{ product_id: productId, quantity: 1 }],

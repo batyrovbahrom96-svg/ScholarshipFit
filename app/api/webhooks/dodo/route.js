@@ -207,19 +207,19 @@ export async function POST(request) {
     }
   }
 
-  // 2. Verify signature
+  // 2. Verify signature (Dodo uses Standard Webhooks / Svix under the hood)
   let event
   try {
     const client = dodoClient()
-    event = await client.webhooks.unwrap(
-      payload,
+    // Note: unwrap signature is (body, { headers, key }) — NOT positional!
+    event = await client.webhooks.unwrap(payload, {
       headers,
-      process.env.DODO_PAYMENTS_WEBHOOK_SECRET,
-    )
+      key: process.env.DODO_PAYMENTS_WEBHOOK_SECRET,
+    })
   } catch (err) {
     console.error('Dodo webhook signature verification failed:', err?.message)
     // Log to Sentry if configured — signature failures could indicate an attack
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid signature', detail: err?.message }, { status: 400 })
   }
 
   // 3. Route by event type

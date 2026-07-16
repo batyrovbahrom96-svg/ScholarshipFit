@@ -6,6 +6,7 @@ import PremiumEffects from '@/components/site/PremiumEffects'
 import ExitIntentModal from '@/components/site/ExitIntentModal'
 import PostHogPageView from '@/components/site/PostHogPageView'
 import UrgencyBanner from '@/components/site/UrgencyBanner'
+import { AutoReveal } from '@/components/site/Reveal'
 
 export const metadata = {
   title: 'ScholarshipFit — 800 hand-verified scholarships, ranked by fit',
@@ -57,6 +58,8 @@ export default function RootLayout({ children }) {
           {/* Site-wide guarantee strip (30-day money-back — premium positioning) */}
           <UrgencyBanner variant="strip"/>
           {children}
+          {/* Auto-reveal every <section>/<article> on scroll — mounts once, applies site-wide */}
+          <AutoReveal />
         </Providers>
         <PremiumEffects />
         <CookieBanner />

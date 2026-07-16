@@ -28,9 +28,55 @@
   html, body { background: #050505; color: #FFFFFF; }
   * { border-color: hsl(var(--border)); }
   body { font-feature-settings: "cv02","cv03","cv04","cv11"; letter-spacing: -0.01em; }
+
+  /* Silky-smooth scrolling — native, respects reduced-motion */
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 88px; /* accounts for fixed navbar height on anchor jumps */
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
 }
 
 @layer utilities {
+  /* --------------------------------------------------------------
+   * Scroll-reveal — used by <Reveal> component (IntersectionObserver).
+   * Elements start invisible + shifted 24px down; when .sf-in is
+   * added (element entered viewport), they animate in gently.
+   * ------------------------------------------------------------ */
+  .sf-reveal {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+    transition:
+      opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .sf-reveal.sf-in {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  /* Variants for directional/timed reveals */
+  .sf-reveal-left  { transform: translate3d(-32px, 0, 0); }
+  .sf-reveal-right { transform: translate3d( 32px, 0, 0); }
+  .sf-reveal-fade  { transform: none; }
+  .sf-reveal-scale { transform: scale(0.96); }
+  .sf-reveal-left.sf-in,
+  .sf-reveal-right.sf-in,
+  .sf-reveal-scale.sf-in { transform: translate3d(0, 0, 0) scale(1); }
+
+  /* Stagger delays (child index * 60ms) — usage: <Reveal delay={2}> */
+  .sf-delay-1 { transition-delay: 60ms; }
+  .sf-delay-2 { transition-delay: 120ms; }
+  .sf-delay-3 { transition-delay: 180ms; }
+  .sf-delay-4 { transition-delay: 240ms; }
+  .sf-delay-5 { transition-delay: 300ms; }
+  .sf-delay-6 { transition-delay: 360ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sf-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  }
   .dark-bg { background: #050505; }
   .dark-bg-soft { background: #0A0A0A; }
   .card-dark { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(212,175,55,0.14); box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 30px 60px -30px rgba(0,0,0,0.8); }

@@ -3301,6 +3301,111 @@ Return valid JSON only — no markdown, no code fences.`
 
     // ------- Marketing: Referrals, Discount Codes, Paywall tracking -------
     //
+    // -------- Admin: manually grant/revoke Pro (post-webhook reconciliation) --------
+    // Use when a payment succeeded but the webhook failed to upgrade the user
+    // (bad signature, code bug, etc). Idempotent. Requires x-admin-key header.
+    //
+    //   curl -X POST https://scholarshipfit.com/api/admin/grant-pro \
+    //     -H 'x-admin-key: <ADMIN_PASSWORD>' \
+    //     -H 'Content-Type: application/json' \
+    //     -d '{"email":"user@example.com","plan":"monthly","dodo_payment_id":"pay_..."}'
+    //
+    // plan: 'monthly' | 'annual' | 'lifetime'  (default 'monthly')
+    if (route === '/admin/grant-pro' && method === 'POST') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      const plan = String(body.plan || 'monthly').toLowerCase()
+      if (!email) return withCORS(NextResponse.json({ error: 'email required' }, { status: 400 }))
+      if (!['monthly', 'annual', 'lifetime'].includes(plan)) {
+        return withCORS(NextResponse.json({ error: 'plan must be monthly|annual|lifetime' }, { status: 400 }))
+      }
+      const users = db.collection('users')
+      const user = await users.findOne({ email })
+      if (!user) return withCORS(NextResponse.json({ error: 'user not found' }, { status: 404 }))
+
+      const isLifetime = plan === 'lifetime'
+      const days = plan === 'annual' ? 365 : 30
+      const now = new Date()
+      const userSubMirror = {
+        plan: plan,
+        plan_key: plan,
+        status: isLifetime ? 'lifetime' : 'active',
+        provider: 'dodo',
+        price_usd: plan === 'monthly' ? 14.99 : plan === 'annual' ? 89 : 249,
+        billing_cycle_days: isLifetime ? null : days,
+        activated_at: now,
+        payment_id: body.dodo_payment_id || null,
+        subscription_id: body.dodo_subscription_id || null,
+        expires_at: isLifetime ? null : new Date(Date.now() + days * 24 * 3600 * 1000),
+        updated_at: now,
+        granted_by: 'admin',
+      }
+
+      await users.updateOne(
+        { id: user.id },
+        { $set: {
+            subscription: userSubMirror,
+            plan: isLifetime ? 'lifetime' : plan,
+            subscription_status: isLifetime ? 'lifetime' : 'active',
+            is_pro: true,
+            pro_activated_at: now,
+            pro_processor: 'dodo',
+        } },
+      )
+
+      // Also write to subscriptions collection for consistency with webhook path
+      await db.collection('subscriptions').updateOne(
+        { user_id: user.id },
+        {
+          $set: {
+            user_id: user.id,
+            user_email: user.email,
+            processor: 'dodo',
+            plan_key: plan,
+            status: isLifetime ? 'lifetime' : 'active',
+            payment_id: body.dodo_payment_id || null,
+            subscription_id: body.dodo_subscription_id || null,
+            renews_at: userSubMirror.expires_at,
+            updated_at: now,
+          },
+          $setOnInsert: { id: uuidv4(), created_at: now },
+        },
+        { upsert: true },
+      )
+
+      return withCORS(NextResponse.json({
+        ok: true,
+        user: { id: user.id, email: user.email, plan, subscription: userSubMirror },
+        message: `Pro ${plan} granted to ${email}. User will see cabinet access immediately (may need to refresh).`,
+      }))
+    }
+
+    if (route === '/admin/revoke-pro' && method === 'POST') {
+      if (!adminOK()) return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const body = await request.json().catch(() => ({}))
+      const email = String(body.email || '').trim().toLowerCase()
+      if (!email) return withCORS(NextResponse.json({ error: 'email required' }, { status: 400 }))
+      const users = db.collection('users')
+      const user = await users.findOne({ email })
+      if (!user) return withCORS(NextResponse.json({ error: 'user not found' }, { status: 404 }))
+      await users.updateOne(
+        { id: user.id },
+        { $unset: { subscription: '' }, $set: {
+            subscription_status: 'revoked',
+            is_pro: false,
+            pro_revoked_at: new Date(),
+        } },
+      )
+      await db.collection('subscriptions').updateOne(
+        { user_id: user.id },
+        { $set: { status: 'revoked', revoked_at: new Date() } },
+      ).catch(() => {})
+      return withCORS(NextResponse.json({ ok: true, revoked: email }))
+    }
+
+    // -------- Referrals + Discount + Paywall (existing) --------
+    //
     // Referral program: every logged-in user gets a unique code (their user_id short-hash).
     // When a friend signs up with ?ref=CODE, the referrer's stats are incremented.
     // "3 paid referrals = 1 month of Pro credit" — credits are tracked here and

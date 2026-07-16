@@ -126,9 +126,28 @@ async function upgradeUser(database, ctx) {
     { upsert: true },
   )
 
+  // CRITICAL: /api/auth/me reads user.subscription (not the subscriptions
+  // collection). If we only write to the subscriptions collection, /auth/me
+  // returns subscription_active: false and RequireAuth bounces the paying
+  // user back to /pricing. Mirror the sub into user.subscription too.
+  const userSubMirror = {
+    plan: plan,
+    plan_key: plan,
+    status: isLifetime ? 'lifetime' : 'active',
+    provider: 'dodo',
+    price_usd: ctx.amount_cents ? Math.round(ctx.amount_cents) / 100 : null,
+    billing_cycle_days: isLifetime ? null : (plan === 'annual' ? 365 : 30),
+    activated_at: new Date(),
+    subscription_id: ctx.subscription_id,
+    payment_id: ctx.payment_id,
+    expires_at: renewsAt,
+    updated_at: new Date(),
+  }
+
   await users.updateOne(
     { id: user.id },
     { $set: {
+        subscription: userSubMirror,       // ← the field /auth/me + RequireAuth actually read
         plan: isLifetime ? 'lifetime' : plan,
         subscription_status: isLifetime ? 'lifetime' : 'active',
         is_pro: true,
@@ -184,9 +203,17 @@ async function downgradeUser(database, ctx, newStatus = 'cancelled') {
     { user_id: user.id },
     { $set: { status: newStatus, cancelled_at: new Date(), updated_at: new Date() } },
   )
+  // Mirror to user.subscription so /auth/me + RequireAuth reflect the change.
+  // 'cancelled' subscriptions retain access until period end — keep is_pro true
+  // until the 'expired' webhook fires.
   await users.updateOne(
     { id: user.id },
-    { $set: { subscription_status: newStatus, is_pro: newStatus === 'cancelled' ? true : false } },
+    { $set: {
+        'subscription.status': newStatus,
+        'subscription.updated_at': new Date(),
+        subscription_status: newStatus,
+        is_pro: newStatus === 'cancelled' ? true : false,
+    } },
   )
   return { ok: true, user_id: user.id, status: newStatus }
 }

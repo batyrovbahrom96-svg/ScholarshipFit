@@ -211,22 +211,18 @@ export default function BillingPage() {
               </Card>
             )}
 
-            {/* Billing portal link — shown once a Paddle/LemonSqueezy subscription exists */}
-            {(sub.paddle_customer_id || sub.ls_customer_id) && (
+            {/* Billing portal link — shown once a Dodo subscription exists */}
+            {(sub.dodo_subscription_id || sub.subscription_id) && (
               <Card className="border-white/10 bg-white/[0.02]">
                 <CardContent className="p-5 flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm text-white/70">
-                    Update your payment method, download invoices, or view your full billing history in your billing portal.
+                    Update your payment method, download invoices, or view your full billing history via Dodo Payments.
                   </div>
                   <a
-                    href={sub.paddle_customer_id
-                      ? 'https://customer-portal.paddle.com'
-                      : 'https://app.lemonsqueezy.com/my-orders'}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="mailto:support@scholarshipfit.com?subject=Billing%20portal%20access"
                     className="inline-flex items-center gap-1.5 text-sm text-[#D4AF37] hover:underline"
                   >
-                    Open billing portal <ExternalLink className="h-3.5 w-3.5"/>
+                    Request billing history <ExternalLink className="h-3.5 w-3.5"/>
                   </a>
                 </CardContent>
               </Card>
@@ -238,7 +234,7 @@ export default function BillingPage() {
         <div className="mt-10 rounded-2xl border border-white/5 bg-white/[0.02] p-5 text-xs text-white/50">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             <span>Recurring subscriptions auto-renew. Cancel any time.</span>
-            <span><Link className="text-[#D4AF37] hover:underline" href="/refunds">14-day refund policy</Link></span>
+            <span><Link className="text-[#D4AF37] hover:underline" href="/refunds">30-day money-back guarantee</Link></span>
             <span><Link className="text-[#D4AF37] hover:underline" href="/terms">Terms</Link></span>
             <span><Link className="text-[#D4AF37] hover:underline" href="/privacy">Privacy</Link></span>
             <span><a className="text-[#D4AF37] hover:underline" href="mailto:support@scholarshipfit.com">Contact billing support</a></span>

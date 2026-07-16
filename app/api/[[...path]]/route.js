@@ -2290,7 +2290,11 @@ Respond with STRICT JSON in this schema:
       const user = await getSessionUser()
       if (!user) return withCORS(NextResponse.json({ error: 'Not signed in' }, { status: 401 }))
 
-      const processor = (process.env.PAYMENT_PROCESSOR || 'paddle').toLowerCase()
+      // Dodo Payments is now the ONLY processor. Paddle + LemonSqueezy code
+      // paths were removed to avoid stale fallback errors ("PADDLE_API_KEY not
+      // set. Site is still in preorder mode.") when production env is
+      // partially configured.
+      const processor = 'dodo'
       const body = await request.json().catch(() => ({}))
       const planKey = String(body.plan || '').toLowerCase()
       const customPriceCents = Number.isFinite(body.custom_price_cents)
@@ -2452,202 +2456,13 @@ Respond with STRICT JSON in this schema:
         }
       }
 
-      // -------- Paddle Billing (default) --------
-      if (processor === 'paddle') {
-        const PADDLE_KEY = process.env.PADDLE_API_KEY
-        if (!PADDLE_KEY) {
-          return withCORS(NextResponse.json({
-            error: 'Payments not yet configured',
-            detail: 'PADDLE_API_KEY not set. Site is still in preorder mode.',
-          }, { status: 503 }))
-        }
-        const PRICES = {
-          monthly:     process.env.PADDLE_PRICE_MONTHLY,
-          annual:      process.env.PADDLE_PRICE_ANNUAL,
-          lifetime:    process.env.PADDLE_PRICE_LIFETIME,
-          // legacy — kept in case old checkout links exist
-          quarterly:   process.env.PADDLE_PRICE_QUARTERLY,
-          half_yearly: process.env.PADDLE_PRICE_HALF_YEARLY,
-        }
-        const priceId = PRICES[planKey]
-        if (!priceId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
-
-        const paddleEnv = (process.env.PADDLE_ENV || 'production').toLowerCase()
-        const paddleBase = paddleEnv === 'sandbox' ? 'https://sandbox-api.paddle.com' : 'https://api.paddle.com'
-
-        // Build the transaction payload. We include custom_data so the webhook
-        // can reconcile back to our user. When Paddle receives a transaction
-        // without a customer_id it creates it as "draft" — the frontend then
-        // needs Paddle.js to open the overlay. To keep things simple and get
-        // a checkout URL right away, we set customer.email so Paddle creates
-        // (or reuses) the customer inline.
-        //
-        // NOTE on checkout.url:
-        //   Paddle requires the redirect domain to be approved on the account.
-        //   In sandbox, no domain is auto-approved. So we ONLY include
-        //   checkout.url when it's explicitly set via PADDLE_CHECKOUT_REDIRECT
-        //   env — otherwise Paddle falls back to the Default Payment Link
-        //   configured in Checkout Settings. Once you request approval for
-        //   scholarshipfit.com (Checkout → Request website approval), set
-        //   PADDLE_CHECKOUT_REDIRECT=https://scholarshipfit.com/dashboard?activated=1
-        const redirectOverride = process.env.PADDLE_CHECKOUT_REDIRECT
-        const payload = {
-          items: [{ price_id: String(priceId), quantity: 1 }],
-          customer: { email: user.email },
-          custom_data: {
-            user_id:  user.id,
-            plan_key: planKey,
-            base_price: String(body.base_price ?? ''),
-            region_country: String(body.region_country || ''),
-            discount_pct: String(body.discount_pct || 0),
-            discount_code: discountApplied?.code || '',
-            discount_code_pct: String(discountApplied?.percent_off || 0),
-          },
-          ...(redirectOverride ? { checkout: { url: redirectOverride } } : {}),
-        }
-        // Regional PPP price override (Paddle allows unit_price override per item)
-        // If a promo code stacks on top of regional pricing, it applies to the
-        // already-adjusted amount (compounded discount).
-        let effectiveCents = customPriceCents
-        if (discountApplied?.percent_off) {
-          const baseCents = customPriceCents || Math.round(Number(body.base_price || 0) * 100)
-          if (baseCents > 0) {
-            effectiveCents = Math.max(100, Math.round(baseCents * (100 - discountApplied.percent_off) / 100))
-          }
-        }
-        if (effectiveCents) {
-          payload.items[0].price_override = {
-            unit_price: { amount: String(effectiveCents), currency_code: 'USD' },
-          }
-        }
-
-        try {
-          const pRes = await fetch(`${paddleBase}/transactions`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${PADDLE_KEY}`,
-              'Content-Type':  'application/json',
-              'Paddle-Version': '1',
-            },
-            body: JSON.stringify(payload),
-          })
-          const pJson = await pRes.json().catch(() => ({}))
-          if (!pRes.ok) {
-            return withCORS(NextResponse.json({
-              error: 'Paddle checkout failed',
-              status: pRes.status,
-              detail: pJson?.error || pJson,
-            }, { status: 502 }))
-          }
-          const url = pJson?.data?.checkout?.url
-          if (!url) {
-            return withCORS(NextResponse.json({ error: 'Paddle did not return a checkout URL', paddle: pJson }, { status: 502 }))
-          }
-          await db.collection('checkout_intents').insertOne({
-            id: uuidv4(),
-            user_id: user.id, user_email: user.email,
-            processor: 'paddle',
-            plan_key: planKey, price_id: String(priceId),
-            custom_price_cents: customPriceCents,
-            effective_price_cents: effectiveCents,
-            discount_code: discountApplied?.code || null,
-            discount_percent_off: discountApplied?.percent_off || 0,
-            paddle_transaction_id: pJson.data.id,
-            created_at: new Date(),
-          }).catch(() => {})
-          // Bump discount usage counter (best-effort; final commit happens on webhook confirmation too)
-          if (discountApplied?.code) {
-            await db.collection('discount_codes').updateOne(
-              { code: discountApplied.code },
-              { $inc: { uses: 1 }, $set: { last_used_at: new Date() } },
-            ).catch(() => {})
-          }
-          return withCORS(NextResponse.json({ ok: true, url, transaction_id: pJson.data.id, processor: 'paddle', discount: discountApplied || null }))
-        } catch (e) {
-          return withCORS(NextResponse.json({ error: 'Paddle request failed', detail: String(e?.message || e) }, { status: 502 }))
-        }
-      }
-
-      // -------- LemonSqueezy (fallback) --------
-      const LS_KEY   = process.env.LEMONSQUEEZY_API_KEY
-      const LS_STORE = process.env.LEMONSQUEEZY_STORE_ID
-      if (!LS_KEY || !LS_STORE) {
-        return withCORS(NextResponse.json({
-          error: 'Payments not yet configured',
-          detail: 'LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID not set. Site is still in preorder mode.',
-        }, { status: 503 }))
-      }
-
-      const VARIANTS = {
-        monthly:     process.env.LS_VARIANT_MONTHLY,
-        annual:      process.env.LS_VARIANT_ANNUAL,
-        lifetime:    process.env.LS_VARIANT_LIFETIME,
-        // legacy — kept for backward compat
-        quarterly:   process.env.LS_VARIANT_QUARTERLY,
-        half_yearly: process.env.LS_VARIANT_HALF_YEARLY,
-      }
-      const variantId = VARIANTS[planKey]
-      if (!variantId) return withCORS(NextResponse.json({ error: 'invalid plan' }, { status: 400 }))
-
-      const lsPayload = {
-        data: {
-          type: 'checkouts',
-          attributes: {
-            checkout_data: {
-              email: user.email,
-              custom: {
-                user_id: user.id, plan_key: planKey,
-                base_price: String(body.base_price ?? ''),
-                region_country: String(body.region_country || ''),
-                discount_pct: String(body.discount_pct || ''),
-              },
-            },
-            product_options: {
-              redirect_url:  `${baseUrl}/dashboard?activated=1`,
-              receipt_button_text: 'Go to my Command Center',
-              receipt_thank_you_note: 'Thanks for joining ScholarshipFit — your Command Center is ready.',
-            },
-            checkout_options: { embed: false, media: false, logo: true, dark: true },
-          },
-          relationships: {
-            store:   { data: { type: 'stores',   id: String(LS_STORE) } },
-            variant: { data: { type: 'variants', id: String(variantId) } },
-          },
-        },
-      }
-      if (customPriceCents) lsPayload.data.attributes.custom_price = customPriceCents
-
-      try {
-        const lsRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
-          method: 'POST',
-          headers: {
-            'Accept':        'application/vnd.api+json',
-            'Content-Type':  'application/vnd.api+json',
-            'Authorization': `Bearer ${LS_KEY}`,
-          },
-          body: JSON.stringify(lsPayload),
-        })
-        const lsJson = await lsRes.json().catch(() => ({}))
-        if (!lsRes.ok) {
-          return withCORS(NextResponse.json({
-            error: 'LemonSqueezy checkout failed', status: lsRes.status, detail: lsJson?.errors || lsJson,
-          }, { status: 502 }))
-        }
-        const url = lsJson?.data?.attributes?.url
-        if (!url) return withCORS(NextResponse.json({ error: 'No checkout URL returned' }, { status: 502 }))
-        await db.collection('checkout_intents').insertOne({
-          id: uuidv4(),
-          user_id: user.id, user_email: user.email,
-          processor: 'lemonsqueezy',
-          plan_key: planKey, variant_id: String(variantId),
-          custom_price_cents: customPriceCents,
-          ls_checkout_id: lsJson.data.id,
-          created_at: new Date(),
-        }).catch(() => {})
-        return withCORS(NextResponse.json({ ok: true, url, checkout_id: lsJson.data.id, processor: 'lemonsqueezy' }))
-      } catch (e) {
-        return withCORS(NextResponse.json({ error: 'LemonSqueezy request failed', detail: String(e?.message || e) }, { status: 502 }))
-      }
+      // -------- Fallback (should be unreachable) --------
+      // Dodo Payments is the ONLY processor. If we somehow got here, log it
+      // and return a clean 503 so the frontend can show a proper error.
+      return withCORS(NextResponse.json({
+        error: 'Payments temporarily unavailable',
+        detail: 'Please try again in a moment or email support@scholarshipfit.com.',
+      }, { status: 503 }))
     }
 
     if (route === '/subscription/cancel' && method === 'POST') {

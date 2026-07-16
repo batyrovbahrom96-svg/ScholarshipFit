@@ -1279,14 +1279,10 @@ STRICT RULES:
         let kind = ''
         if (name.endsWith('.pdf') || type === 'application/pdf') {
           kind = 'pdf'
-          const { PDFParse } = nodeRequire('pdf-parse')
-          const parser = new PDFParse(new Uint8Array(buf))
-          try {
-            const out = await parser.getText()
-            text = String(out?.text || '').trim()
-          } finally {
-            try { await parser.destroy?.() } catch { /* parser cleanup errors ignored */ }
-          }
+          // pdf-parse@1.x — no pdfjs-dist / Canvas polyfill nonsense. Just parses.
+          const pdfParse = nodeRequire('pdf-parse')
+          const out = await pdfParse(buf)
+          text = String(out?.text || '').trim()
         } else if (name.endsWith('.docx') || type.includes('officedocument.wordprocessingml')) {
           kind = 'docx'
           const mammoth = nodeRequire('mammoth')

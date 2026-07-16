@@ -11,6 +11,7 @@ const LINKS = [
   { href: '/quiz', label: 'Match Quiz' },
   { href: '/essay-generator', label: 'Essay AI' },
   { href: '/scholarships', label: 'Scholarships' },
+  { href: '/why-scholarshipfit', label: 'Why us' },
   { href: '/blog', label: 'Blog' },
   { href: '/#pricing', label: 'Pricing' },
   { href: '/dashboard', label: 'My Cabinet' },
